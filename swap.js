@@ -1,3 +1,4 @@
+
 const newsletterForm = document.getElementById("newsletterForm");
 
 newsletterForm.addEventListener("submit", function (e) {
@@ -21,9 +22,7 @@ newsletterForm.addEventListener("submit", function (e) {
 });
 
 
-/*==========================
-BACK TO TOP
-===========================*/
+/* BACK TO TOP */
 
 const backToTop = document.getElementById("backToTop");
 
@@ -53,51 +52,6 @@ backToTop.addEventListener("click", () => {
 
 });
 
-
-/*==========================
-DARK MODE
-===========================*/
-
-const themeToggle = document.getElementById("themeToggle");
-
-const body = document.body;
-
-const icon = themeToggle.querySelector("i");
-
-// Load saved preference
-if (localStorage.getItem("theme") === "dark") {
-
-    body.classList.add("dark-mode");
-
-    icon.classList.remove("fa-moon");
-
-    icon.classList.add("fa-sun");
-
-}
-
-themeToggle.addEventListener("click", () => {
-
-    body.classList.toggle("dark-mode");
-
-    if (body.classList.contains("dark-mode")) {
-
-        icon.classList.remove("fa-moon");
-
-        icon.classList.add("fa-sun");
-
-        localStorage.setItem("theme", "dark");
-
-    } else {
-
-        icon.classList.remove("fa-sun");
-
-        icon.classList.add("fa-moon");
-
-        localStorage.setItem("theme", "light");
-
-    }
-
-});
 
 
 const serviceCards = document.querySelectorAll(".service-card");
@@ -254,63 +208,6 @@ pricingCards.forEach(card => {
 });
 
 
-/*==========================
-COUNTER ANIMATION
-===========================*/
-
-const counters = document.querySelectorAll(".counter");
-
-let started = false;
-
-function startCounter() {
-
-    if (started) return;
-
-    const section = document.querySelector(".stats");
-
-    const top = section.getBoundingClientRect().top;
-
-    if (top < window.innerHeight - 100) {
-
-        started = true;
-
-        counters.forEach(counter => {
-
-            const target = +counter.dataset.target;
-
-            let count = 0;
-
-            const speed = target / 100;
-
-            function updateCounter() {
-
-                if (count < target) {
-
-                    count += speed;
-
-                    counter.innerText = Math.floor(count).toLocaleString();
-
-                    requestAnimationFrame(updateCounter);
-
-                } else {
-
-                    counter.innerText = target.toLocaleString();
-
-                }
-
-            }
-
-            updateCounter();
-
-        });
-
-    }
-
-}
-
-window.addEventListener("scroll", startCounter);
-
-window.addEventListener("load", startCounter);
 
 const form = document.getElementById("contactForm");
 
@@ -337,14 +234,8 @@ logos.forEach((logo, index) => {
 
 
 
-const menuBtn = document.querySelector(".menu-btn");
-const navLinks = document.querySelector(".nav-links");
 
-menuBtn.onclick = () => {
 
-    navLinks.classList.toggle("active");
-
-};
 
 
 const reveals = document.querySelectorAll(".reveal");
@@ -368,3 +259,37 @@ function reveal() {
 window.addEventListener("scroll", reveal);
 
 reveal();
+
+
+// hamburger
+
+const menuBtn = document.querySelector(".menu-btn");
+const navLinks = document.querySelector(".nav-links");
+const menuIcon = menuBtn.querySelector("i");
+
+menuBtn.addEventListener("click", () => {
+
+    navLinks.classList.toggle("active");
+
+    if (navLinks.classList.contains("active")) {
+        menuIcon.classList.remove("fa-bars");
+        menuIcon.classList.add("fa-xmark");
+    } else {
+        menuIcon.classList.remove("fa-xmark");
+        menuIcon.classList.add("fa-bars");
+    }
+
+});
+
+document.querySelectorAll(".nav-links a").forEach(link => {
+
+    link.addEventListener("click", () => {
+
+        navLinks.classList.remove("active");
+
+        menuIcon.classList.remove("fa-xmark");
+        menuIcon.classList.add("fa-bars");
+
+    });
+
+});
