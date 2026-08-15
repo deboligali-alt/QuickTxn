@@ -4,52 +4,138 @@ const walletService = require("../services/walletService");
 const transactionService = require("../services/transactionService");
 const notificationService = require("../services/notificationService");
 const pinService = require("../services/pinService");
+const airtimeService = require("../services/airtimeService");
 
 // ========================================
 // Purchase Airtime
 // ========================================
 const purchaseAirtime = async (req, res) => {
 
-    const { network, phoneNumber, amount, pin } = req.body;
+    const {
+        network,
+        phoneNumber,
+        amount,
+        pin
+    } = req.body;
 
-    if (!network || !phoneNumber || !amount || !pin) {
+    // ========================================
+    // Validate request
+    // ========================================
+    if (
+        !network ||
+        !phoneNumber ||
+        !amount ||
+        !pin
+    ) {
         return res.status(400).json({
             success: false,
-            message: "Network, phone number, amount and transaction PIN are required."
+            message:
+                "Network, phone number, amount and transaction PIN are required."
         });
     }
 
     if (Number(amount) <= 0) {
         return res.status(400).json({
             success: false,
-            message: "Amount must be greater than zero."
+            message:
+                "Amount must be greater than zero."
         });
     }
 
-    const client = await pool.connect();
+    // ========================================
+    // Normalize network
+    // ========================================
+    const normalizedNetwork =
+        network.toUpperCase();
+
+    const supportedNetworks = [
+        "MTN",
+        "AIRTEL",
+        "GLO",
+        "9MOBILE"
+    ];
+
+    if (
+        !supportedNetworks.includes(
+            normalizedNetwork
+        )
+    ) {
+        return res.status(400).json({
+            success: false,
+            message:
+                "Unsupported network."
+        });
+    }
+
+    // ========================================
+    // Database connection
+    // ========================================
+    const client =
+        await pool.connect();
 
     try {
 
-        // Start database transaction
+        // ========================================
+        // Start transaction
+        // ========================================
         await client.query("BEGIN");
 
+        // ========================================
         // Verify transaction PIN
+        // ========================================
         await pinService.verifyPin(
             req.user.id,
             pin,
             client
         );
 
-        // Debit wallet
+        // ========================================
+        // Purchase airtime from VTpass
+        // ========================================
+        const providerResult =
+            await airtimeService.purchaseAirtime({
+                network:
+                    normalizedNetwork,
+                phoneNumber,
+                amount
+            });
+
+        // ========================================
+        // Make sure provider succeeded
+        // ========================================
+        if (!providerResult.success) {
+
+            await client.query(
+                "ROLLBACK"
+            );
+
+            return res.status(400).json({
+                success: false,
+                message:
+                    providerResult.message ||
+                    "Airtime purchase failed."
+            });
+        }
+
+        // ========================================
+        // Debit wallet ONLY after
+        // VTpass confirms success
+        // ========================================
         await walletService.debitWallet(
             req.user.id,
             amount,
             client
         );
 
-        const reference = `AIR-${Date.now()}`;
+        // ========================================
+        // Generate QuickTxn reference
+        // ========================================
+        const reference =
+            `AIR-${Date.now()}`;
 
+        // ========================================
         // Save airtime purchase
+        // ========================================
         await client.query(
             `INSERT INTO airtime_purchases
             (
@@ -65,61 +151,116 @@ const purchaseAirtime = async (req, res) => {
             ($1,$2,$3,$4,$5,$6,$7)`,
             [
                 req.user.id,
-                network.toUpperCase(),
+                normalizedNetwork,
                 phoneNumber,
                 amount,
                 "SUCCESS",
-                "SIMULATION",
+                "VTPASS",
                 reference
             ]
         );
 
+        // ========================================
         // Save financial transaction
-        await transactionService.createTransaction({
-            senderId: req.user.id,
-            type: "AIRTIME_PURCHASE",
-            amount,
-            status: "SUCCESS",
-            description: `Purchased ${network.toUpperCase()} airtime`,
-            reference
-        }, client);
+        // ========================================
+        await transactionService.createTransaction(
+            {
+                senderId:
+                    req.user.id,
 
+                type:
+                    "AIRTIME_PURCHASE",
+
+                amount,
+
+                status:
+                    "SUCCESS",
+
+                description:
+                    `Purchased ${normalizedNetwork} airtime`,
+
+                reference
+            },
+            client
+        );
+
+        // ========================================
         // Create notification
-        await notificationService.createNotification({
-            userId: req.user.id,
-            title: "Airtime Purchase",
-            message: `You successfully purchased ₦${Number(amount).toLocaleString()} ${network.toUpperCase()} airtime for ${phoneNumber}.`
-        }, client);
+        // ========================================
+        await notificationService.createNotification(
+            {
+                userId:
+                    req.user.id,
 
+                title:
+                    "Airtime Purchase",
+
+                message:
+                    `You successfully purchased ₦${Number(amount).toLocaleString()} ${normalizedNetwork} airtime for ${phoneNumber}.`
+            },
+            client
+        );
+
+        // ========================================
         // Commit transaction
-        await client.query("COMMIT");
+        // ========================================
+        await client.query(
+            "COMMIT"
+        );
 
         return res.status(201).json({
             success: true,
-            message: "Airtime purchased successfully.",
+
+            message:
+                "Airtime purchased successfully.",
+
             data: {
-                network: network.toUpperCase(),
+                network:
+                    normalizedNetwork,
+
                 phoneNumber,
+
                 amount,
+
                 reference,
-                status: "SUCCESS"
+
+                provider:
+                    "VTPASS",
+
+                providerReference:
+                    providerResult.providerReference,
+
+                status:
+                    "SUCCESS"
             }
         });
 
     } catch (error) {
 
-        // Roll back only if a transaction has started
+        // ========================================
+        // Rollback
+        // ========================================
         try {
-            await client.query("ROLLBACK");
+            await client.query(
+                "ROLLBACK"
+            );
         } catch (rollbackError) {
-            console.error("Rollback Error:", rollbackError);
+            console.error(
+                "Rollback Error:",
+                rollbackError
+            );
         }
 
-        console.error(error);
+        console.error(
+            "Airtime Purchase Error:",
+            error.message
+        );
 
         return res.status(500).json({
             success: false,
-            message: error.message
+            message:
+                error.message ||
+                "Airtime purchase failed."
         });
 
     } finally {
@@ -127,7 +268,6 @@ const purchaseAirtime = async (req, res) => {
         client.release();
 
     }
-
 };
 
 // ========================================
