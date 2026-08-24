@@ -1,272 +1,121 @@
 "use client";
 
-import Link from "next/link";
-import {
-    ArrowDownLeft,
-    ArrowUpRight,
-    CircleDollarSign,
-    Database,
-    Gamepad2,
-    RefreshCcw,
-    Smartphone,
-    Wallet,
-} from "lucide-react";
+import { useEffect, useState } from "react";
+import axios from "axios";
+import { ArrowDownLeft, ArrowUpRight } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface Transaction {
     id: string;
     type: string;
     amount: number;
-    status: string;
-    description: string;
-    created_at: string;
+    createdAt: string;
 }
 
-interface Props {
-    transactions: Transaction[];
-}
+export default function RecentTransactions() {
+    const router = useRouter();
+    const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [loading, setLoading] = useState(true);
 
-const getTransactionInfo = (type: string) => {
-    const normalizedType = type.toUpperCase();
+    useEffect(() => {
+        const fetchTransactions = async () => {
+            try {
+                const token = localStorage.getItem("token");
 
-    if (
-        normalizedType.includes("BETTING")
-    ) {
-        return {
-            title: "Betting Wallet Funding",
-            icon: Gamepad2,
-            iconBg: "bg-purple-100",
-            iconColor: "text-purple-600",
-            direction: "out",
+                const res = await axios.get(
+                    `${process.env.NEXT_PUBLIC_API_URL}/transactions?page=1&limit=5`,
+                    {
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                        },
+                    }
+                );
+
+                setTransactions(res.data.transactions);
+            } catch (err) {
+                console.error(err);
+            } finally {
+                setLoading(false);
+            }
         };
+
+        fetchTransactions();
+    }, []);
+
+    if (loading) {
+        return (
+            <section className="mt-6 px-4">
+                <p className="text-gray-500">Loading transactions...</p>
+            </section>
+        );
     }
 
-    if (
-        normalizedType.includes("AIRTIME_SWAP") ||
-        normalizedType.includes("SWAP")
-    ) {
-        return {
-            title: "Airtime Swap",
-            icon: RefreshCcw,
-            iconBg: "bg-blue-100",
-            iconColor: "text-blue-600",
-            direction: "in",
-        };
-    }
-
-    if (
-        normalizedType.includes("AIRTIME")
-    ) {
-        return {
-            title: "Airtime Purchase",
-            icon: Smartphone,
-            iconBg: "bg-orange-100",
-            iconColor: "text-orange-600",
-            direction: "out",
-        };
-    }
-
-    if (
-        normalizedType.includes("DATA")
-    ) {
-        return {
-            title: "Data Purchase",
-            icon: Database,
-            iconBg: "bg-cyan-100",
-            iconColor: "text-cyan-600",
-            direction: "out",
-        };
-    }
-
-    if (
-        normalizedType.includes("WALLET") ||
-        normalizedType.includes("FUNDING")
-    ) {
-        return {
-            title: "Wallet Funding",
-            icon: Wallet,
-            iconBg: "bg-green-100",
-            iconColor: "text-green-600",
-            direction: "in",
-        };
-    }
-
-    if (
-        normalizedType.includes("TRANSFER")
-    ) {
-        return {
-            title: "Transfer",
-            icon: ArrowUpRight,
-            iconBg: "bg-red-100",
-            iconColor: "text-red-600",
-            direction: "out",
-        };
-    }
-
-    return {
-        title: "Transaction",
-        icon: CircleDollarSign,
-        iconBg: "bg-slate-100",
-        iconColor: "text-slate-600",
-        direction: "out",
-    };
-};
-
-export default function RecentTransactions({
-    transactions,
-}: Props) {
     return (
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="mt-6 px-4">
+            <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-lg font-semibold">
+                    Recent Transactions
+                </h2>
 
-            {/* HEADER */}
-
-            <div className="mb-6 flex items-center justify-between">
-
-                <div>
-                    <h2 className="text-xl font-bold text-slate-900">
-                        Recent Transactions
-                    </h2>
-
-                    <p className="mt-1 text-sm text-slate-500">
-                        Your latest QuickTxn activities
-                    </p>
-                </div>
-
-                <Link
-                    href="/transactions"
-                    className="rounded-xl bg-green-50 px-4 py-2 text-sm font-semibold text-green-600 transition hover:bg-green-100"
+                <button
+                    onClick={() => router.push("/transactions")}
+                    className="text-sm font-medium text-green-600"
                 >
-                    View All
-                </Link>
-
+                    See all
+                </button>
             </div>
-
-            {/* TRANSACTIONS */}
 
             <div className="space-y-3">
-
-                {transactions.length === 0 && (
-                    <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center">
-
-                        <CircleDollarSign
-                            size={32}
-                            className="mx-auto text-slate-300"
-                        />
-
-                        <p className="mt-3 font-medium text-slate-500">
-                            No transactions yet.
-                        </p>
-
-                        <p className="mt-1 text-sm text-slate-400">
-                            Your recent transactions will appear here.
-                        </p>
-
-                    </div>
-                )}
-
-                {transactions
-                    .slice(0, 5)
-                    .map((transaction) => {
-                        const info =
-                            getTransactionInfo(
-                                transaction.type
-                            );
-
-                        const Icon = info.icon;
-
-                        const isSuccess =
-                            transaction.status.toUpperCase() ===
-                            "SUCCESS";
-
-                        const isPending =
-                            transaction.status.toUpperCase() ===
-                            "PENDING";
-
-                        return (
+                {transactions.map((tx) => (
+                    <div
+                        key={tx.id}
+                        className="flex items-center justify-between rounded-2xl bg-white p-4 shadow-sm"
+                    >
+                        <div className="flex items-center gap-3">
                             <div
-                                key={transaction.id}
-                                className="flex items-center justify-between rounded-2xl border border-slate-100 p-4 transition hover:border-green-100 hover:bg-slate-50"
+                                className={`rounded-full p-2 ${tx.amount > 0
+                                        ? "bg-green-100"
+                                        : "bg-red-100"
+                                    }`}
                             >
-
-                                {/* LEFT */}
-
-                                <div className="flex min-w-0 items-center gap-4">
-
-                                    <div
-                                        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${info.iconBg}`}
-                                    >
-                                        <Icon
-                                            size={21}
-                                            className={
-                                                info.iconColor
-                                            }
-                                        />
-                                    </div>
-
-                                    <div className="min-w-0">
-
-                                        <h3 className="truncate font-semibold text-slate-900">
-                                            {info.title}
-                                        </h3>
-
-                                        <p className="mt-1 truncate text-sm text-slate-500">
-                                            {transaction.description ||
-                                                transaction.type}
-                                        </p>
-
-                                        <p className="mt-1 text-xs text-slate-400">
-                                            {new Date(
-                                                transaction.created_at
-                                            ).toLocaleString(
-                                                "en-NG"
-                                            )}
-                                        </p>
-
-                                    </div>
-
-                                </div>
-
-                                {/* RIGHT */}
-
-                                <div className="ml-4 shrink-0 text-right">
-
-                                    <p
-                                        className={`font-bold ${info.direction ===
-                                                "in"
-                                                ? "text-green-600"
-                                                : "text-slate-900"
-                                            }`}
-                                    >
-                                        {info.direction ===
-                                            "in"
-                                            ? "+"
-                                            : "-"}
-                                        ₦
-                                        {Number(
-                                            transaction.amount
-                                        ).toLocaleString(
-                                            "en-NG"
-                                        )}
-                                    </p>
-
-                                    <span
-                                        className={`mt-1 inline-block rounded-full px-2.5 py-1 text-xs font-semibold ${isSuccess
-                                                ? "bg-green-100 text-green-700"
-                                                : isPending
-                                                    ? "bg-yellow-100 text-yellow-700"
-                                                    : "bg-red-100 text-red-700"
-                                            }`}
-                                    >
-                                        {transaction.status}
-                                    </span>
-
-                                </div>
-
+                                {tx.amount > 0 ? (
+                                    <ArrowDownLeft
+                                        className="text-green-600"
+                                        size={18}
+                                    />
+                                ) : (
+                                    <ArrowUpRight
+                                        className="text-red-600"
+                                        size={18}
+                                    />
+                                )}
                             </div>
-                        );
-                    })}
 
+                            <div>
+                                <p className="font-medium">
+                                    {tx.type}
+                                </p>
+
+                                <p className="text-xs text-gray-500">
+                                    {new Date(
+                                        tx.createdAt
+                                    ).toLocaleDateString()}
+                                </p>
+                            </div>
+                        </div>
+
+                        <span
+                            className={`font-semibold ${tx.amount > 0
+                                    ? "text-green-600"
+                                    : "text-red-600"
+                                }`}
+                        >
+                            {tx.amount > 0 ? "+" : "-"}₦
+                            {Math.abs(tx.amount).toLocaleString()}
+                        </span>
+                    </div>
+                ))}
             </div>
-
-        </div>
+        </section>
     );
 }

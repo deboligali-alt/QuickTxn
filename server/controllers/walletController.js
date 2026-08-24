@@ -1,27 +1,23 @@
 const { pool } = require("../config/db");
 const axios = require("axios");
-
 const pinService = require("../services/pinService");
 
-// ===============================
-// Get Wallet Balance
-// ===============================
-
+// ======================================
+// GET WALLET BALANCE
+// ======================================
 const getBalance = async (req, res) => {
     try {
         const userId = req.user.id;
 
-        // Check if wallet exists
         let wallet = await pool.query(
             "SELECT * FROM wallets WHERE user_id = $1",
             [userId]
         );
 
-        // Create one automatically if missing
         if (wallet.rows.length === 0) {
             wallet = await pool.query(
                 `INSERT INTO wallets (user_id, balance)
-         VALUES ($1, 0)
+         VALUES ($1,0)
          RETURNING *`,
                 [userId]
             );
@@ -33,6 +29,7 @@ const getBalance = async (req, res) => {
         });
     } catch (error) {
         console.error(error);
+
         return res.status(500).json({
             success: false,
             message: "Failed to fetch wallet.",
@@ -40,60 +37,38 @@ const getBalance = async (req, res) => {
     }
 };
 
-
-// ===============================
-// Initialize Wallet Funding
-// Paystack
-// ===============================
+// ======================================
+// INITIALIZE WALLET FUNDING (PAYSTACK)
+// ======================================
 const fundWallet = async (req, res) => {
-
     const { amount } = req.body;
 
     if (!amount || Number(amount) <= 0) {
         return res.status(400).json({
             success: false,
-            message: "Please enter a valid amount."
+            message: "Please enter a valid amount.",
         });
     }
 
     try {
-
-        // Get logged-in user's email
         const userResult = await pool.query(
-            "SELECT email FROM users WHERE id = $1",
+            "SELECT full_name,email FROM users WHERE id=$1",
             [req.user.id]
         );
 
         if (userResult.rows.length === 0) {
             return res.status(404).json({
                 success: false,
-                message: "User not found."
+                message: "User not found.",
             });
         }
 
-        const email = userResult.rows[0].email;
+        const user = userResult.rows[0];
 
-        // Generate our own transaction reference
         const reference = `QTXN-${Date.now()}`;
 
-        // Add reference to callback URL
         const callbackUrl =
-            `${process.env.PAYSTACK_CALLBACK_URL}?reference=${encodeURIComponent(reference)}`;
-
-        console.log("==================================");
-        console.log("Paystack Reference:", reference);
-        console.log("Paystack Callback URL:", callbackUrl);
-        console.log("==================================");
-
-        // Initialize Paystack payment
-        const userDetails = await pool.query(
-            `SELECT full_name, email
-     FROM users
-     WHERE id = $1`,
-            [req.user.id]
-        );
-
-        const user = userDetails.rows[0];
+            `${process.env.PAYSTACK_CALLBACK_URL}?reference=${reference}`;
 
         const response = await axios.post(
             "https://api.paystack.co/transaction/initialize",
@@ -102,7 +77,6 @@ const fundWallet = async (req, res) => {
                 amount: Number(amount) * 100,
                 reference,
                 callback_url: callbackUrl,
-
                 metadata: {
                     userId: req.user.id,
                     fullName: user.full_name,
@@ -119,335 +93,191 @@ const fundWallet = async (req, res) => {
         return res.status(200).json({
             success: true,
             message: "Payment initialized successfully.",
-            data: {
-                authorization_url:
-                    response.data.data.authorization_url,
-
-                access_code:
-                    response.data.data.access_code,
-
-                reference:
-                    response.data.data.reference
-            }
+            data: response.data.data,
         });
-
     } catch (error) {
-
-        console.error(
-            error.response?.data ||
-            error.message
-        );
+        console.error(error.response?.data || error.message);
 
         return res.status(500).json({
             success: false,
-            message: "Unable to initialize payment."
+            message: "Unable to initialize payment.",
         });
     }
 };
 
-
-// ===============================
-// Verify Paystack Payment
-// ===============================
+// ======================================
+// VERIFY PAYSTACK PAYMENT
+// ======================================
 const verifyPayment = async (req, res) => {
-
     const { reference } = req.params;
-
-    if (!reference) {
-        return res.status(400).json({
-            success: false,
-            message: "Payment reference is required."
-        });
-    }
 
     const client = await pool.connect();
 
     try {
+        await client.query("BEGIN");
 
-        // ==========================================
-        // 1. Verify payment with Paystack
-        // ==========================================
-        const response = await axios.get(
+        const verify = await axios.get(
             `https://api.paystack.co/transaction/verify/${reference}`,
             {
                 headers: {
-                    Authorization:
-                        `Bearer ${process.env.PAYSTACK_SECRET_KEY}`
-                }
+                    Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+                },
             }
         );
 
-        const payment = response.data.data;
+        const payment = verify.data.data;
 
-        console.log("Paystack verification:", {
-            reference: payment.reference,
-            status: payment.status,
-            amount: payment.amount,
-            currency: payment.currency,
-            customer: payment.customer?.email
-        });
+        if (!payment || payment.status !== "success") {
+            await client.query("ROLLBACK");
 
-        // ==========================================
-        // 2. Check payment status
-        // ==========================================
-        if (payment.status !== "success") {
             return res.status(400).json({
                 success: false,
-                message: "Payment not successful."
+                message: "Payment verification failed.",
             });
         }
 
-        await client.query("BEGIN");
+        const existing = await client.query(
+            `SELECT id FROM transactions
+       WHERE payment_reference=$1`,
+            [reference]
+        );
 
-        // ==========================================
-        // 3. Check if webhook already processed it
-        // ==========================================
-        const existingTransaction =
-            await client.query(
-                `SELECT
-                    id,
-                    receiver_id,
-                    amount,
-                    status,
-                    reference,
-                    payment_reference
-                 FROM transactions
-                 WHERE payment_reference = $1
-                 AND type = 'FUND'
-                 LIMIT 1`,
-                [reference]
-            );
-
-        if (existingTransaction.rows.length > 0) {
-
-            const transaction =
-                existingTransaction.rows[0];
-
-            // Make sure this payment belongs
-            // to the currently logged-in user
-            if (
-                transaction.receiver_id !==
-                req.user.id
-            ) {
-
-                await client.query("ROLLBACK");
-
-                return res.status(403).json({
-                    success: false,
-                    message:
-                        "You are not authorized to view this payment."
-                });
-            }
-
-            // Get current wallet balance
-            const walletResult =
-                await client.query(
-                    `SELECT balance
-                     FROM wallets
-                     WHERE user_id = $1`,
-                    [req.user.id]
-                );
-
-            await client.query("COMMIT");
+        if (existing.rows.length > 0) {
+            await client.query("ROLLBACK");
 
             return res.status(200).json({
                 success: true,
-                message:
-                    "Payment already processed successfully.",
                 alreadyProcessed: true,
-                data: {
-                    reference,
-                    amount:
-                        Number(transaction.amount),
-                    status:
-                        transaction.status,
-                    balance:
-                        walletResult.rows[0]?.balance ?? 0
-                }
+                message: "Payment already verified.",
             });
         }
 
-        // ==========================================
-        // 4. Find user from Paystack email
-        // ==========================================
-        const userResult = await client.query(
-            `SELECT id
-             FROM users
-             WHERE email = $1`,
-            [payment.customer.email]
+        const userId = payment.metadata.userId;
+        const amount = Number(payment.amount) / 100;
+
+        const wallet = await client.query(
+            `SELECT balance
+       FROM wallets
+       WHERE user_id=$1
+       FOR UPDATE`,
+            [userId]
         );
 
-        if (userResult.rows.length === 0) {
+        let currentBalance = 0;
 
-            await client.query("ROLLBACK");
-
-            return res.status(404).json({
-                success: false,
-                message: "User not found."
-            });
-        }
-
-        const userId =
-            userResult.rows[0].id;
-
-        // ==========================================
-        // 5. Make sure logged-in user owns payment
-        // ==========================================
-        if (userId !== req.user.id) {
-
-            await client.query("ROLLBACK");
-
-            return res.status(403).json({
-                success: false,
-                message:
-                    "You are not authorized to verify this payment."
-            });
-        }
-
-        // ==========================================
-        // 6. Get wallet
-        // ==========================================
-        const walletResult =
+        if (wallet.rows.length === 0) {
             await client.query(
-                `SELECT balance
-                 FROM wallets
-                 WHERE user_id = $1
-                 FOR UPDATE`,
+                `INSERT INTO wallets(user_id,balance)
+         VALUES($1,0)`,
                 [userId]
             );
-
-        if (walletResult.rows.length === 0) {
-
-            await client.query("ROLLBACK");
-
-            return res.status(404).json({
-                success: false,
-                message: "Wallet not found."
-            });
+        } else {
+            currentBalance = Number(wallet.rows[0].balance);
         }
 
-        // ==========================================
-        // 7. Calculate amount
-        // ==========================================
-        const currentBalance =
-            Number(walletResult.rows[0].balance);
-
-        const amount =
-            Number(payment.amount) / 100;
-
-        const newBalance =
-            currentBalance + amount;
-
-        // ==========================================
-        // 8. Update wallet
-        // ==========================================
+        const newBalance = currentBalance + amount;
+        // ======================================
+        // UPDATE WALLET
+        // ======================================
         await client.query(
             `UPDATE wallets
-             SET balance = $1,
-                 updated_at = NOW()
-             WHERE user_id = $2`,
-            [
-                newBalance,
-                userId
-            ]
+       SET balance=$1,
+           updated_at=NOW()
+       WHERE user_id=$2`,
+            [newBalance, userId]
         );
 
-        // ==========================================
-        // 9. Save transaction
-        // ==========================================
+        // ======================================
+        // SAVE TRANSACTION
+        // ======================================
         await client.query(
             `INSERT INTO transactions
-            (
-                sender_id,
-                receiver_id,
-                type,
-                amount,
-                status,
-                reference,
-                description,
-                payment_provider,
-                payment_reference
-            )
-            VALUES
-            ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      (
+        receiver_id,
+        type,
+        amount,
+        status,
+        reference,
+        description,
+        payment_provider,
+        payment_reference
+      )
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8)`,
             [
                 userId,
-                userId,
-                "FUND",
+                "WALLET_FUNDING",
                 amount,
                 "success",
                 `TXN-${Date.now()}`,
-                "Wallet funding via Paystack",
+                "Wallet Funding",
                 "Paystack",
-                reference
+                reference,
             ]
         );
 
-        // ==========================================
-        // 10. Create notification
-        // ==========================================
+        // ======================================
+        // CREATE NOTIFICATION
+        // ======================================
         await client.query(
             `INSERT INTO notifications
-            (
-                user_id,
-                title,
-                message
-            )
-            VALUES
-            ($1,$2,$3)`,
+      (
+        user_id,
+        title,
+        message
+      )
+      VALUES($1,$2,$3)`,
             [
                 userId,
-                "Wallet Funded",
-                `₦${amount.toLocaleString()} has been credited to your wallet successfully.`
+                "Wallet Credited",
+                `₦${amount.toLocaleString()} has been added to your wallet.`,
             ]
         );
 
-        // ==========================================
-        // 11. Commit everything
-        // ==========================================
+        // ======================================
+        // COMMIT DATABASE
+        // ======================================
         await client.query("COMMIT");
 
-        console.log(
-            `Wallet credited successfully.
+        // ======================================
+        // REALTIME SOCKET.IO
+        // ======================================
+        const io = req.app.get("io");
+
+        io.to(userId).emit("wallet_updated");
+        io.to(userId).emit("new_transaction");
+
+        console.log(`
+====================================
+Wallet credited successfully
 User: ${userId}
 Amount: ₦${amount}
-New Balance: ₦${newBalance}
-Reference: ${reference}`
-        );
+Balance: ₦${newBalance}
+Reference: ${reference}
+====================================
+`);
 
         return res.status(200).json({
             success: true,
-            message:
-                "Wallet funded successfully.",
+            message: "Wallet funded successfully.",
             alreadyProcessed: false,
             data: {
                 reference,
                 amount,
-                balance: newBalance
-            }
+                balance: newBalance,
+            },
         });
 
     } catch (error) {
 
-        try {
-            await client.query("ROLLBACK");
-        } catch (rollbackError) {
-            console.error(
-                "Rollback error:",
-                rollbackError
-            );
-        }
+        await client.query("ROLLBACK");
 
         console.error(
-            "Payment verification error:",
-            error.response?.data ||
-            error.message
+            error.response?.data || error.message
         );
 
         return res.status(500).json({
             success: false,
-            message:
-                "Payment verification failed."
+            message: "Payment verification failed.",
         });
 
     } finally {
@@ -456,201 +286,116 @@ Reference: ${reference}`
     }
 };
 
-
-// ===============================
-// Wallet Transfer
-// ===============================
+// ======================================
+// WALLET TO WALLET TRANSFER
+// ======================================
 const transferMoney = async (req, res) => {
+    const { receiverEmail, amount } = req.body;
 
-    const {
-        receiverEmail,
-        amount
-    } = req.body;
-
-    if (
-        !receiverEmail ||
-        !amount ||
-        Number(amount) <= 0
-    ) {
+    if (!receiverEmail || !amount || Number(amount) <= 0) {
         return res.status(400).json({
             success: false,
-            message:
-                "Receiver email and a valid amount are required."
+            message: "Receiver email and valid amount are required.",
         });
     }
 
     const client = await pool.connect();
 
     try {
-
         await client.query("BEGIN");
 
-        // ===============================
         // Sender wallet
-        // ===============================
-        const senderWallet =
-            await client.query(
-                `SELECT balance
-                 FROM wallets
-                 WHERE user_id = $1
-                 FOR UPDATE`,
-                [req.user.id]
-            );
+        const senderWallet = await client.query(
+            `SELECT balance
+       FROM wallets
+       WHERE user_id=$1
+       FOR UPDATE`,
+            [req.user.id]
+        );
 
-        if (
-            senderWallet.rows.length === 0
-        ) {
-
+        if (senderWallet.rows.length === 0) {
             await client.query("ROLLBACK");
-
             return res.status(404).json({
                 success: false,
-                message:
-                    "Sender wallet not found."
+                message: "Sender wallet not found.",
             });
         }
 
-        // ===============================
         // Receiver
-        // ===============================
-        const receiverUser =
-            await client.query(
-                `SELECT id
-                 FROM users
-                 WHERE email = $1`,
-                [receiverEmail]
-            );
+        const receiverUser = await client.query(
+            `SELECT id
+       FROM users
+       WHERE email=$1`,
+            [receiverEmail]
+        );
 
-        if (
-            receiverUser.rows.length === 0
-        ) {
-
+        if (receiverUser.rows.length === 0) {
             await client.query("ROLLBACK");
-
             return res.status(404).json({
                 success: false,
-                message:
-                    "Receiver not found."
+                message: "Receiver not found.",
             });
         }
 
-        const receiverId =
-            receiverUser.rows[0].id;
+        const receiverId = receiverUser.rows[0].id;
 
-        // ===============================
-        // Prevent self transfer
-        // ===============================
-        if (
-            receiverId === req.user.id
-        ) {
-
+        if (receiverId === req.user.id) {
             await client.query("ROLLBACK");
-
             return res.status(400).json({
                 success: false,
-                message:
-                    "You cannot transfer money to yourself."
+                message: "You cannot transfer to yourself.",
             });
         }
 
-        // ===============================
-        // Receiver wallet
-        // ===============================
-        const receiverWallet =
-            await client.query(
-                `SELECT balance
-                 FROM wallets
-                 WHERE user_id = $1
-                 FOR UPDATE`,
-                [receiverId]
-            );
+        const receiverWallet = await client.query(
+            `SELECT balance
+       FROM wallets
+       WHERE user_id=$1
+       FOR UPDATE`,
+            [receiverId]
+        );
 
-        if (
-            receiverWallet.rows.length === 0
-        ) {
+        const senderBalance = Number(senderWallet.rows[0].balance);
 
+        if (senderBalance < Number(amount)) {
             await client.query("ROLLBACK");
-
-            return res.status(404).json({
-                success: false,
-                message:
-                    "Receiver wallet not found."
-            });
-        }
-
-        const senderBalance =
-            Number(
-                senderWallet.rows[0].balance
-            );
-
-        // ===============================
-        // Check balance
-        // ===============================
-        if (
-            senderBalance <
-            Number(amount)
-        ) {
-
-            await client.query("ROLLBACK");
-
             return res.status(400).json({
                 success: false,
-                message:
-                    "Insufficient balance."
+                message: "Insufficient balance.",
             });
         }
 
-        const receiverBalance =
-            Number(
-                receiverWallet.rows[0].balance
-            );
+        const receiverBalance = Number(receiverWallet.rows[0].balance);
 
-        // ===============================
         // Debit sender
-        // ===============================
         await client.query(
             `UPDATE wallets
-             SET balance = $1,
-                 updated_at = NOW()
-             WHERE user_id = $2`,
-            [
-                senderBalance -
-                Number(amount),
-                req.user.id
-            ]
+       SET balance=$1, updated_at=NOW()
+       WHERE user_id=$2`,
+            [senderBalance - Number(amount), req.user.id]
         );
 
-        // ===============================
         // Credit receiver
-        // ===============================
         await client.query(
             `UPDATE wallets
-             SET balance = $1,
-                 updated_at = NOW()
-             WHERE user_id = $2`,
-            [
-                receiverBalance +
-                Number(amount),
-                receiverId
-            ]
+       SET balance=$1, updated_at=NOW()
+       WHERE user_id=$2`,
+            [receiverBalance + Number(amount), receiverId]
         );
 
-        // ===============================
-        // Create transaction
-        // ===============================
+        // Transaction
         await client.query(
             `INSERT INTO transactions
-            (
-                sender_id,
-                receiver_id,
-                type,
-                amount,
-                status,
-                reference,
-                description
-            )
-            VALUES
-            ($1,$2,$3,$4,$5,$6,$7)`,
+      (
+        sender_id,
+        receiver_id,
+        type,
+        amount,
+        status,
+        reference,
+        description
+      )
+      VALUES($1,$2,$3,$4,$5,$6,$7)`,
             [
                 req.user.id,
                 receiverId,
@@ -658,54 +403,53 @@ const transferMoney = async (req, res) => {
                 amount,
                 "success",
                 `TXN-${Date.now()}`,
-                "Wallet transfer"
+                "QuickTxn Wallet Transfer",
             ]
         );
 
-        // ===============================
-        // Notify sender
-        // ===============================
+        // Sender notification
         await client.query(
             `INSERT INTO notifications
-            (
-                user_id,
-                title,
-                message
-            )
-            VALUES
-            ($1,$2,$3)`,
+      (user_id,title,message)
+      VALUES($1,$2,$3)`,
             [
                 req.user.id,
                 "Transfer Successful",
-                `You sent ₦${Number(amount).toLocaleString()} to ${receiverEmail}.`
+                `You sent ₦${Number(amount).toLocaleString()} to ${receiverEmail}.`,
             ]
         );
 
-        // ===============================
-        // Notify receiver
-        // ===============================
+        // Receiver notification
         await client.query(
             `INSERT INTO notifications
-            (
-                user_id,
-                title,
-                message
-            )
-            VALUES
-            ($1,$2,$3)`,
+      (user_id,title,message)
+      VALUES($1,$2,$3)`,
             [
                 receiverId,
                 "Money Received",
-                `You received ₦${Number(amount).toLocaleString()} from another QuickTxn user.`
+                `You received ₦${Number(amount).toLocaleString()} from another QuickTxn user.`,
             ]
         );
 
+        // Commit
         await client.query("COMMIT");
+
+        // ======================================
+        // REALTIME SOCKET.IO
+        // ======================================
+        const io = req.app.get("io");
+
+        // Sender
+        io.to(req.user.id).emit("wallet_updated");
+        io.to(req.user.id).emit("new_transaction");
+
+        // Receiver
+        io.to(receiverId).emit("wallet_updated");
+        io.to(receiverId).emit("new_transaction");
 
         return res.status(200).json({
             success: true,
-            message:
-                "Transfer completed successfully."
+            message: "Transfer completed successfully.",
         });
 
     } catch (error) {
@@ -716,7 +460,7 @@ const transferMoney = async (req, res) => {
 
         return res.status(500).json({
             success: false,
-            message: "Server Error"
+            message: "Server Error",
         });
 
     } finally {
@@ -725,157 +469,90 @@ const transferMoney = async (req, res) => {
     }
 };
 
-
-// ===============================
-// Resolve Bank Account
-// ===============================
+// ======================================
+// RESOLVE BANK ACCOUNT
+// ======================================
 const resolveAccount = async (req, res) => {
-
-    const {
-        accountNumber,
-        bankCode
-    } = req.body;
+    const { accountNumber, bankCode } = req.body;
 
     if (!accountNumber || !bankCode) {
         return res.status(400).json({
             success: false,
-            message:
-                "Account number and bank code are required."
+            message: "Account number and bank code are required.",
         });
     }
 
     try {
-
         const response = await axios.get(
             "https://api.paystack.co/bank/resolve",
             {
                 params: {
-                    account_number:
-                        accountNumber,
-                    bank_code:
-                        bankCode
+                    account_number: accountNumber,
+                    bank_code: bankCode,
                 },
                 headers: {
-                    Authorization:
-                        `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-                    "Content-Type":
-                        "application/json"
-                }
+                    Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+                },
             }
         );
 
         return res.status(200).json({
             success: true,
-            message:
-                "Account resolved successfully.",
-            data:
-                response.data.data
+            data: response.data.data,
         });
 
     } catch (error) {
-
-        console.error(
-            "========== PAYSTACK ACCOUNT RESOLUTION ERROR =========="
-        );
-
-        console.error(
-            "Message:",
-            error.message
-        );
-
-        console.error(
-            "Status:",
-            error.response?.status
-        );
-
-        console.error(
-            "Paystack Response:",
-            error.response?.data
-        );
-
-        console.error(
-            "========================================================"
-        );
-
-        return res.status(
-            error.response?.status || 500
-        ).json({
-            success: false,
-            message:
-                error.response?.data?.message ||
-                "Unable to resolve account.",
-            error:
-                error.response?.data ||
-                null
-        });
-    }
-};
-
-
-// ===============================
-// Get All Banks
-// ===============================
-const getBanks = async (
-    req,
-    res
-) => {
-
-    try {
-
-        const response =
-            await axios.get(
-                "https://api.paystack.co/bank?country=nigeria",
-                {
-                    headers: {
-                        Authorization:
-                            `Bearer ${process.env.PAYSTACK_SECRET_KEY}`
-                    }
-                }
-            );
-
-        return res.status(200).json({
-            success: true,
-            count:
-                response.data.data.length,
-            data:
-                response.data.data
-        });
-
-    } catch (error) {
-
-        console.error(
-            error.response?.data ||
-            error.message
-        );
 
         return res.status(500).json({
             success: false,
-            message:
-                "Unable to fetch banks."
+            message: "Unable to resolve account.",
         });
+
     }
 };
 
+// ======================================
+// GET ALL BANKS
+// ======================================
+const getBanks = async (req, res) => {
+    try {
 
-// ===============================
-// Bank Transfer
-// ===============================
-const bankTransfer = async (
-    req,
-    res
-) => {
+        const response = await axios.get(
+            "https://api.paystack.co/bank?country=nigeria",
+            {
+                headers: {
+                    Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+                },
+            }
+        );
 
+        return res.status(200).json({
+            success: true,
+            data: response.data.data,
+        });
+
+    } catch (error) {
+
+        return res.status(500).json({
+            success: false,
+            message: "Unable to fetch banks.",
+        });
+
+    }
+};
+
+// ======================================
+// BANK TRANSFER
+// ======================================
+const bankTransfer = async (req, res) => {
     const {
         accountNumber,
         bankCode,
         accountName,
         amount,
-        pin
+        pin,
     } = req.body;
 
-    // ===============================
-    // Validate request
-    // ===============================
     if (
         !accountNumber ||
         !bankCode ||
@@ -885,309 +562,145 @@ const bankTransfer = async (
     ) {
         return res.status(400).json({
             success: false,
-            message:
-                "Account number, bank, account name, amount and transaction PIN are required."
+            message: "All fields are required.",
         });
     }
 
-    if (Number(amount) <= 0) {
-        return res.status(400).json({
-            success: false,
-            message:
-                "Amount must be greater than zero."
-        });
-    }
-
-    if (!/^\d{4}$/.test(String(pin))) {
-        return res.status(400).json({
-            success: false,
-            message:
-                "Transaction PIN must be 4 digits."
-        });
-    }
-
-    if (!/^\d{10}$/.test(String(accountNumber))) {
-        return res.status(400).json({
-            success: false,
-            message:
-                "Account number must be 10 digits."
-        });
-    }
-
-    const client =
-        await pool.connect();
+    const client = await pool.connect();
 
     try {
-
         await client.query("BEGIN");
 
-        // ===============================
-        // Verify Transaction PIN
-        // ===============================
         await pinService.verifyPin(
             req.user.id,
             pin,
             client
         );
 
-        // ===============================
-        // Get sender wallet
-        // ===============================
-        const wallet =
-            await client.query(
-                `SELECT balance
-                 FROM wallets
-                 WHERE user_id = $1
-                 FOR UPDATE`,
-                [req.user.id]
-            );
+        const wallet = await client.query(
+            `SELECT balance
+       FROM wallets
+       WHERE user_id=$1
+       FOR UPDATE`,
+            [req.user.id]
+        );
 
-        if (
-            wallet.rows.length === 0
-        ) {
+        const balance = Number(wallet.rows[0].balance);
 
-            await client.query("ROLLBACK");
-
-            return res.status(404).json({
-                success: false,
-                message:
-                    "Wallet not found."
-            });
-        }
-
-        const balance =
-            Number(
-                wallet.rows[0].balance
-            );
-
-        // ===============================
-        // Check wallet balance
-        // ===============================
-        if (
-            balance <
-            Number(amount)
-        ) {
-
+        if (balance < Number(amount)) {
             await client.query("ROLLBACK");
 
             return res.status(400).json({
                 success: false,
-                message:
-                    "Insufficient wallet balance."
+                message: "Insufficient balance.",
             });
         }
 
-        // ===============================
-        // Create Paystack recipient
-        // ===============================
-        const recipient =
-            await axios.post(
-                "https://api.paystack.co/transferrecipient",
-                {
-                    type: "nuban",
-                    name: accountName,
-                    account_number:
-                        accountNumber,
-                    bank_code:
-                        bankCode,
-                    currency: "NGN"
+        // Create recipient
+        const recipient = await axios.post(
+            "https://api.paystack.co/transferrecipient",
+            {
+                type: "nuban",
+                name: accountName,
+                account_number: accountNumber,
+                bank_code: bankCode,
+                currency: "NGN",
+            },
+            {
+                headers: {
+                    Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
                 },
-                {
-                    headers: {
-                        Authorization:
-                            `Bearer ${process.env.PAYSTACK_SECRET_KEY}`
-                    }
-                }
-            );
+            }
+        );
 
-        const recipientCode =
-            recipient.data.data
-                .recipient_code;
-
-        // ===============================
-        // Initiate Paystack transfer
-        // ===============================
-        const transfer =
-            await axios.post(
-                "https://api.paystack.co/transfer",
-                {
-                    source: "balance",
-                    amount:
-                        Number(amount) * 100,
-                    recipient:
-                        recipientCode,
-                    reason:
-                        "QuickTxn Wallet Withdrawal"
+        // Initiate transfer
+        const transfer = await axios.post(
+            "https://api.paystack.co/transfer",
+            {
+                source: "balance",
+                amount: Number(amount) * 100,
+                recipient:
+                    recipient.data.data.recipient_code,
+                reason: "QuickTxn Withdrawal",
+            },
+            {
+                headers: {
+                    Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
                 },
-                {
-                    headers: {
-                        Authorization:
-                            `Bearer ${process.env.PAYSTACK_SECRET_KEY}`
-                    }
-                }
-            );
+            }
+        );
 
-        // ===============================
-        // Debit QuickTxn wallet
-        // ===============================
+        // Debit wallet
         await client.query(
             `UPDATE wallets
-             SET balance = $1,
-                 updated_at = NOW()
-             WHERE user_id = $2`,
+       SET balance=$1,
+           updated_at=NOW()
+       WHERE user_id=$2`,
             [
-                balance -
-                Number(amount),
-                req.user.id
+                balance - Number(amount),
+                req.user.id,
             ]
         );
 
-        // ===============================
         // Save transaction
-        // ===============================
         await client.query(
             `INSERT INTO transactions
-            (
-                sender_id,
-                type,
-                amount,
-                status,
-                reference,
-                description,
-                payment_provider,
-                payment_reference
-            )
-            VALUES
-            ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      (
+        sender_id,
+        type,
+        amount,
+        status,
+        reference,
+        description,
+        payment_provider,
+        payment_reference
+      )
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8)`,
             [
                 req.user.id,
                 "BANK_TRANSFER",
                 amount,
                 "pending",
                 `TXN-${Date.now()}`,
-                "Wallet to Bank Transfer",
+                "Wallet to Bank",
                 "Paystack",
-                transfer.data.data.reference
+                transfer.data.data.reference,
             ]
         );
 
-        // ===============================
         // Notification
-        // ===============================
         await client.query(
             `INSERT INTO notifications
-            (
-                user_id,
-                title,
-                message
-            )
-            VALUES
-            ($1,$2,$3)`,
+      (user_id,title,message)
+      VALUES($1,$2,$3)`,
             [
                 req.user.id,
-                "Bank Transfer Initiated",
-                `Your bank transfer of ₦${Number(amount).toLocaleString()} to ${accountName} has been initiated.`
+                "Bank Transfer",
+                `₦${Number(amount).toLocaleString()} transfer initiated.`,
             ]
         );
 
-        // ===============================
-        // Commit
-        // ===============================
         await client.query("COMMIT");
+
+        // REALTIME UPDATE
+        const io = req.app.get("io");
+
+        io.to(req.user.id).emit("wallet_updated");
+        io.to(req.user.id).emit("new_transaction");
 
         return res.status(200).json({
             success: true,
-            message:
-                "Transfer initiated successfully.",
-            data:
-                transfer.data.data
+            message: "Transfer initiated successfully.",
+            data: transfer.data.data,
         });
 
     } catch (error) {
 
-        try {
-            await client.query("ROLLBACK");
-        } catch (rollbackError) {
-            console.error(
-                "Rollback error:",
-                rollbackError
-            );
-        }
-
-        console.error(
-            "========== PAYSTACK BANK TRANSFER ERROR =========="
-        );
-
-        console.error(
-            "Message:",
-            error.message
-        );
-
-        console.error(
-            "Response:",
-            error.response?.data
-        );
-
-        console.error(
-            "Status:",
-            error.response?.status
-        );
-
-        console.error(
-            "=================================================="
-        );
-
-        // ===============================
-        // PIN errors
-        // ===============================
-        if (
-            error.message ===
-            "Invalid transaction PIN." ||
-            error.message ===
-            "Transaction PIN has not been set."
-        ) {
-            return res.status(400).json({
-                success: false,
-                message:
-                    error.message
-            });
-        }
-
-        // ===============================
-        // Insufficient balance
-        // ===============================
-        if (
-            error.message ===
-            "Insufficient wallet balance."
-        ) {
-            return res.status(400).json({
-                success: false,
-                message:
-                    error.message
-            });
-        }
-
-        // ===============================
-        // Paystack errors
-        // ===============================
-        if (error.response?.data) {
-
-            return res.status(
-                error.response.status || 400
-            ).json({
-                success: false,
-                message:
-                    error.response.data.message ||
-                    "Paystack transfer failed.",
-                error:
-                    error.response.data
-            });
-        }
+        await client.query("ROLLBACK");
 
         return res.status(500).json({
             success: false,
-            message:
-                "Bank transfer failed."
+            message: "Bank transfer failed.",
         });
 
     } finally {
@@ -1196,51 +709,47 @@ const bankTransfer = async (
     }
 };
 
-
-// ========================================
-// Get User Virtual Account
-// ========================================
-
+// ======================================
+// GET USER VIRTUAL ACCOUNT
+// ======================================
 const getVirtualAccount = async (req, res) => {
     try {
+
         const result = await pool.query(
             `SELECT
-                bank_name,
-                account_name,
-                account_number
-             FROM virtual_accounts
-             WHERE user_id = $1`,
+        bank_name,
+        account_name,
+        account_number
+       FROM virtual_accounts
+       WHERE user_id=$1`,
             [req.user.id]
         );
 
         if (result.rows.length === 0) {
             return res.status(404).json({
                 success: false,
-                message: "Virtual account not found."
+                message: "Virtual account not found.",
             });
         }
 
         return res.status(200).json({
             success: true,
-            data: result.rows[0]
+            data: result.rows[0],
         });
 
     } catch (error) {
-        console.error("Virtual Account Error:", error);
 
         return res.status(500).json({
             success: false,
-            message: "Server error"
+            message: "Server error",
         });
+
     }
 };
 
-
-
-
-// ===============================
-// Export Controllers
-// ===============================
+// ======================================
+// EXPORTS
+// ======================================
 module.exports = {
     getBalance,
     fundWallet,
@@ -1249,5 +758,5 @@ module.exports = {
     resolveAccount,
     getBanks,
     bankTransfer,
-    getVirtualAccount
+    getVirtualAccount,
 };

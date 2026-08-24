@@ -13,7 +13,10 @@ const server = http.createServer(app);
 // Socket.IO
 const io = new Server(server, {
     cors: {
-        origin: process.env.CLIENT_URL,
+        origin: [
+            "http://localhost:3000",
+            process.env.CLIENT_URL,
+        ],
         credentials: true,
     },
 });
@@ -25,24 +28,22 @@ io.on("connection", (socket) => {
 
     socket.on("join", (userId) => {
         socket.join(userId);
-        console.log(`User ${userId} joined`);
+        console.log(`User ${userId} joined room`);
     });
 
     socket.on("disconnect", () => {
-        console.log("Client disconnected:", socket.id);
+        console.log("Client disconnected");
     });
 });
 
-// Connect Database
 connectDB();
 
-// Start Server
 server.listen(PORT, () => {
     console.log("================================");
+    console.log("Server running on port:", PORT);
     console.log("Client URL:", process.env.CLIENT_URL);
     console.log("Callback URL:", process.env.PAYSTACK_CALLBACK_URL);
     console.log("================================");
-    console.log(`🚀 Server running on port ${PORT}`);
 });
 
 // Graceful shutdown

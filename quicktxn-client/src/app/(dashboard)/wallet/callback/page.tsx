@@ -82,6 +82,8 @@ export default function WalletCallbackPage() {
                     );
 
                     setTimeout(() => {
+                        sessionStorage.setItem("payment_success", "true");
+
                         router.push("/dashboard");
                         router.refresh();
                     }, 1500);
