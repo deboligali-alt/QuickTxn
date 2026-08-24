@@ -10,9 +10,10 @@ const PORT = process.env.PORT || 5000;
 
 const server = http.createServer(app);
 
+// Socket.IO
 const io = new Server(server, {
     cors: {
-        origin: "http://localhost:3000",
+        origin: process.env.CLIENT_URL,
         credentials: true,
     },
 });
@@ -20,22 +21,28 @@ const io = new Server(server, {
 app.set("io", io);
 
 io.on("connection", (socket) => {
+    console.log("Client connected:", socket.id);
+
     socket.on("join", (userId) => {
         socket.join(userId);
+        console.log(`User ${userId} joined`);
     });
 
     socket.on("disconnect", () => {
-        console.log("Client disconnected");
+        console.log("Client disconnected:", socket.id);
     });
 });
 
+// Connect Database
 connectDB();
 
+// Start Server
 server.listen(PORT, () => {
     console.log("================================");
+    console.log("Client URL:", process.env.CLIENT_URL);
     console.log("Callback URL:", process.env.PAYSTACK_CALLBACK_URL);
     console.log("================================");
-    console.log(`🚀 Server is running on http://localhost:${PORT}`);
+    console.log(`🚀 Server running on port ${PORT}`);
 });
 
 // Graceful shutdown
