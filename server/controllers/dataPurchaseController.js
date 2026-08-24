@@ -4,17 +4,32 @@ const walletService = require("../services/walletService");
 const transactionService = require("../services/transactionService");
 const notificationService = require("../services/notificationService");
 const pinService = require("../services/pinService");
+const dataService = require("../services/dataService");
+
+
 
 // ========================================
 // Purchase Data
 // ========================================
 const purchaseData = async (req, res) => {
 
-    const { network, planCode, phoneNumber, pin } = req.body;
-    if (!network || !planCode || !phoneNumber || !pin) {
+    const {
+        network,
+        planCode,
+        phoneNumber,
+        pin
+    } = req.body;
+
+    if (
+        !network ||
+        !planCode ||
+        !phoneNumber ||
+        !pin
+    ) {
         return res.status(400).json({
             success: false,
-            message: "Network, plan code, phone number and transaction PIN are required."
+            message:
+                "Network, plan code, phone number and transaction PIN are required."
         });
     }
 
@@ -24,14 +39,18 @@ const purchaseData = async (req, res) => {
 
         await client.query("BEGIN");
 
+        // ========================================
         // Verify Transaction PIN
+        // ========================================
         await pinService.verifyPin(
             req.user.id,
             pin,
             client
         );
 
+        // ========================================
         // Get Selected Data Plan
+        // ========================================
         const planResult = await client.query(
             `SELECT *
              FROM data_plans
@@ -52,21 +71,89 @@ const purchaseData = async (req, res) => {
                 success: false,
                 message: "Data plan not found."
             });
-
         }
 
         const plan = planResult.rows[0];
 
+        // ========================================
+        // Check Wallet Balance
+        // ========================================
+        const walletResult = await client.query(
+            `SELECT balance
+             FROM wallets
+             WHERE user_id = $1
+             FOR UPDATE`,
+            [req.user.id]
+        );
+
+        if (walletResult.rows.length === 0) {
+
+            await client.query("ROLLBACK");
+
+            return res.status(400).json({
+                success: false,
+                message: "Wallet not found."
+            });
+        }
+
+        const balance =
+            Number(walletResult.rows[0].balance);
+
+        const amount =
+            Number(plan.amount);
+
+        if (balance < amount) {
+
+            await client.query("ROLLBACK");
+
+            return res.status(400).json({
+                success: false,
+                message: "Insufficient wallet balance."
+            });
+        }
+
+        // ========================================
+        // Call VTpass BEFORE wallet debit
+        // ========================================
+        const providerResult =
+            await dataService.purchaseData({
+                network: network.toUpperCase(),
+                planCode: plan.plan_code,
+                phoneNumber,
+                amount: plan.amount
+            });
+
+        // ========================================
+        // Provider must confirm success
+        // ========================================
+        if (
+            !providerResult.success ||
+            providerResult.provider !== "VTPASS"
+        ) {
+
+            throw new Error(
+                "Data purchase was not confirmed by VTpass."
+            );
+        }
+
+        // ========================================
         // Debit Wallet
+        // ========================================
         await walletService.debitWallet(
             req.user.id,
             plan.amount,
             client
         );
 
-        const reference = `DATA-${Date.now()}`;
+        // ========================================
+        // Generate QuickTxn Reference
+        // ========================================
+        const reference =
+            `DATA-${Date.now()}`;
 
+        // ========================================
         // Save Data Purchase
+        // ========================================
         await client.query(
             `INSERT INTO data_purchases
             (
@@ -90,40 +177,68 @@ const purchaseData = async (req, res) => {
                 phoneNumber,
                 plan.amount,
                 "SUCCESS",
-                "SIMULATION",
+                "VTPASS",
                 reference
             ]
         );
 
+        // ========================================
         // Save Transaction
+        // ========================================
         await transactionService.createTransaction({
             senderId: req.user.id,
             type: "DATA_PURCHASE",
             amount: plan.amount,
             status: "SUCCESS",
-            description: `${plan.plan_name} ${network.toUpperCase()} Data Purchase`,
+            description:
+                `${plan.plan_name} ${network.toUpperCase()} Data Purchase`,
             reference
         }, client);
 
-        // Create Notification
+        // ========================================
+        // Notification
+        // ========================================
         await notificationService.createNotification({
             userId: req.user.id,
             title: "Data Purchase",
-            message: `You successfully purchased ${plan.plan_name} (${network.toUpperCase()}) for ₦${plan.amount}.`
+            message:
+                `You successfully purchased ${plan.plan_name} (${network.toUpperCase()}) for ₦${plan.amount}.`
         }, client);
 
+        // ========================================
+        // Commit
+        // ========================================
         await client.query("COMMIT");
 
         return res.status(201).json({
             success: true,
-            message: "Data purchased successfully.",
+            message:
+                "Data purchased successfully.",
             data: {
-                network: network.toUpperCase(),
-                plan: plan.plan_name,
-                amount: plan.amount,
+                network:
+                    network.toUpperCase(),
+
+                plan:
+                    plan.plan_name,
+
+                planCode:
+                    plan.plan_code,
+
+                amount:
+                    plan.amount,
+
                 phoneNumber,
+
                 reference,
-                status: "SUCCESS"
+
+                provider:
+                    "VTPASS",
+
+                providerReference:
+                    providerResult.providerReference,
+
+                status:
+                    "SUCCESS"
             }
         });
 
@@ -131,12 +246,18 @@ const purchaseData = async (req, res) => {
 
         await client.query("ROLLBACK");
 
-        console.error(error);
+        console.error(
+            "Data Purchase Error:",
+            error.message
+        );
 
         if (
-            error.message === "Invalid transaction PIN." ||
-            error.message === "Transaction PIN has not been set." ||
-            error.message === "Insufficient wallet balance."
+            error.message ===
+            "Invalid transaction PIN." ||
+            error.message ===
+            "Transaction PIN has not been set." ||
+            error.message ===
+            "Insufficient wallet balance."
         ) {
             return res.status(400).json({
                 success: false,
@@ -146,15 +267,15 @@ const purchaseData = async (req, res) => {
 
         return res.status(500).json({
             success: false,
-            message: "Internal Server Error"
+            message:
+                error.message ||
+                "Data purchase failed."
         });
 
     } finally {
 
         client.release();
-
     }
-
 };
 
 // ========================================

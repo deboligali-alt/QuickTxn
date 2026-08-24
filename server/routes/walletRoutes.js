@@ -9,8 +9,8 @@ const {
     bankTransfer,
     resolveAccount,
     getBanks,
+    getVirtualAccount,
 } = require("../controllers/walletController");
-
 const verifyToken = require("../middleware/authMiddleware");
 
 /**
@@ -255,6 +255,28 @@ router.post(
     "/bank-transfer",
     verifyToken,
     bankTransfer
+);
+
+/**
+ * @swagger
+ * /api/wallet/virtual-account:
+ *   get:
+ *     summary: Get user's virtual bank account
+ *     tags: [Wallet]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Virtual account retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Virtual account not found
+ */
+router.get(
+    "/virtual-account",
+    verifyToken,
+    getVirtualAccount
 );
 
 module.exports = router;

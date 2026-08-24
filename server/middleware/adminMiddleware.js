@@ -1,46 +1,37 @@
-const { pool } = require("../config/db");
+const adminMiddleware = (...allowedRoles) => {
+    return (req, res, next) => {
+        try {
+            // User must already be authenticated
+            if (!req.user) {
+                return res.status(401).json({
+                    success: false,
+                    message: "Unauthorized. Please login.",
+                });
+            }
 
-const adminMiddleware = async (req, res, next) => {
-    try {
-        console.log("JWT User:", req.user);
+            // If no roles are passed, allow any authenticated admin
+            if (allowedRoles.length === 0) {
+                return next();
+            }
 
-        const result = await pool.query(
-            "SELECT id, email, role FROM users WHERE id = $1",
-            [req.user.id]
-        );
+            // Check whether the user's role is permitted
+            if (!allowedRoles.includes(req.user.role)) {
+                return res.status(403).json({
+                    success: false,
+                    message: "Permission denied.",
+                });
+            }
 
-        console.log("Database Result:", result.rows);
+            next();
+        } catch (error) {
+            console.error("Admin Middleware Error:", error);
 
-        if (result.rows.length === 0) {
-            return res.status(404).json({
+            return res.status(500).json({
                 success: false,
-                message: "User not found."
+                message: "Server Error",
             });
         }
-
-        const user = result.rows[0];
-
-        console.log("Role from DB:", user.role);
-
-        if (user.role !== "ADMIN") {
-            return res.status(403).json({
-                success: false,
-                message: "Access denied. Admins only."
-            });
-        }
-
-        next();
-
-    } catch (error) {
-        console.error(error);
-
-        return res.status(500).json({
-            success: false,
-            message: "Server Error"
-        });
-    }
+    };
 };
-
-
 
 module.exports = adminMiddleware;

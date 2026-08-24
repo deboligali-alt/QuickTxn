@@ -75,20 +75,20 @@ const purchaseAirtime = async ({
     const data = response.data;
 
     console.log(
-        "VTpass Airtime Response:",
-        {
-            requestId,
-            code: data.code,
-            responseDescription:
-                data.response_description,
-            content: data.content
-                ? {
-                    transactions:
-                        data.content.transactions
-                }
-                : undefined
-        }
-    );
+    "========== VTpass Airtime Response =========="
+);
+
+console.log(
+    JSON.stringify(
+        data,
+        null,
+        2
+    )
+);
+
+console.log(
+    "=============================================="
+);
 
     // ========================================
     // Check VTpass response

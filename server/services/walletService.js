@@ -62,13 +62,20 @@ const debitWallet = async (userId, amount, client = pool) => {
 // ========================================
 const creditWallet = async (userId, amount, client = pool) => {
 
-    await client.query(
+    const result = await client.query(
         `UPDATE wallets
          SET balance = balance + $1,
              updated_at = NOW()
-         WHERE user_id = $2`,
+         WHERE user_id = $2
+         RETURNING *`,
         [amount, userId]
     );
+
+    if (result.rows.length === 0) {
+        throw new Error("Wallet not found.");
+    }
+
+    return result.rows[0];
 };
 
 // ========================================

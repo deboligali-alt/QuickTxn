@@ -235,35 +235,63 @@ const purchaseAirtime = async (req, res) => {
             }
         });
 
-    } catch (error) {
+  } catch (error) {
 
-        // ========================================
-        // Rollback
-        // ========================================
-        try {
-            await client.query(
-                "ROLLBACK"
-            );
-        } catch (rollbackError) {
-            console.error(
-                "Rollback Error:",
-                rollbackError
-            );
-        }
-
+    try {
+        await client.query("ROLLBACK");
+    } catch (rollbackError) {
         console.error(
-            "Airtime Purchase Error:",
-            error.message
+            "Rollback Error:",
+            rollbackError
         );
+    }
 
-        return res.status(500).json({
+    console.error(
+        "Airtime Purchase Error:",
+        error.message
+    );
+
+    const providerFailure =
+        error.message === "TRANSACTION FAILED" ||
+        error.message === "Airtime purchase failed.";
+
+    if (providerFailure) {
+        return res.status(502).json({
             success: false,
             message:
-                error.message ||
-                "Airtime purchase failed."
+                "Airtime transaction failed. Your wallet was not debited."
         });
+    }
 
-    } finally {
+    if (
+        error.message ===
+        "Invalid transaction PIN." ||
+        error.message ===
+        "Transaction PIN has not been set."
+    ) {
+        return res.status(400).json({
+            success: false,
+            message: error.message
+        });
+    }
+
+    if (
+        error.message ===
+        "Insufficient wallet balance."
+    ) {
+        return res.status(400).json({
+            success: false,
+            message: error.message
+        });
+    }
+
+    return res.status(500).json({
+        success: false,
+        message:
+            "Unable to complete airtime purchase."
+    });
+
+} finally {
 
         client.release();
 

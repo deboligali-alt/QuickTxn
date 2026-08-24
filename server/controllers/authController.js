@@ -39,25 +39,34 @@ const registerUser = async (req, res) => {
         const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
 
         // Save user into the database
-        await pool.query(
+        // Save user and return the new user's ID
+        const newUser = await pool.query(
             `INSERT INTO users
-    (
-        full_name,
-        email,
-        phone,
-        password,
-        otp_code,
-        otp_expires
-    )
-    VALUES ($1, $2, $3, $4, $5, $6)`,
+  (
+    full_name,
+    email,
+    phone,
+    password,
+    otp_code,
+    otp_expires
+  )
+  VALUES ($1, $2, $3, $4, $5, $6)
+  RETURNING id`,
             [
                 full_name,
                 email,
                 phone,
                 hashedPassword,
                 otpCode,
-                otpExpires
+                otpExpires,
             ]
+        );
+
+        // Create wallet automatically
+        await pool.query(
+            `INSERT INTO wallets (user_id, balance)
+   VALUES ($1, $2)`,
+            [newUser.rows[0].id, 0]
         );
 
         await sendEmail(
@@ -157,7 +166,8 @@ const loginUser = async (req, res) => {
                 id: user.id,
                 full_name: user.full_name,
                 email: user.email,
-                phone: user.phone
+                phone: user.phone,
+                role: user.role
             }
         });
 

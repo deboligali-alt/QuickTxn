@@ -6,10 +6,13 @@ const adminMiddleware = require("../middleware/adminMiddleware");
 
 const {
     getDashboardStats,
+    getAirtimeSwapStats,
     getAllUsers,
     getAllAirtimeSwaps,
+    getSingleAirtimeSwap,
     approveAirtimeSwap,
-    rejectAirtimeSwap
+    rejectAirtimeSwap,
+    broadcastNotification,
 } = require("../controllers/adminController");
 
 /**
@@ -27,42 +30,12 @@ const {
  *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Dashboard statistics retrieved successfully
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Admin access required
  */
 router.get(
     "/dashboard",
     authMiddleware,
-    adminMiddleware,
+    adminMiddleware("SUPER_ADMIN", "ADMIN"),
     getDashboardStats
-);
-
-/**
- * @swagger
- * /api/admin/users:
- *   get:
- *     summary: Get all registered users
- *     tags: [Admin]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Users retrieved successfully
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Admin access required
- */
-router.get(
-    "/users",
-    authMiddleware,
-    adminMiddleware,
-    getAllUsers
 );
 
 /**
@@ -73,26 +46,35 @@ router.get(
  *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Airtime swap requests retrieved successfully
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Admin access required
  */
 router.get(
     "/airtime-swaps",
     authMiddleware,
-    adminMiddleware,
+    adminMiddleware("SUPER_ADMIN", "ADMIN", "AGENT"),
     getAllAirtimeSwaps
 );
 
 /**
  * @swagger
- * /api/admin/airtime-swaps/{id}/approve:
- *   patch:
- *     summary: Approve an airtime swap request
+ * /api/admin/airtime-swaps/stats:
+ *   get:
+ *     summary: Get airtime swap statistics
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.get(
+    "/airtime-swaps/stats",
+    authMiddleware,
+    adminMiddleware("SUPER_ADMIN", "ADMIN", "AGENT"),
+    getAirtimeSwapStats
+);
+
+/**
+ * @swagger
+ * /api/admin/airtime-swaps/{id}:
+ *   get:
+ *     summary: Get a single airtime swap
  *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
@@ -102,21 +84,33 @@ router.get(
  *         required: true
  *         schema:
  *           type: string
- *         example: b8a3c8b2-7f55-4d90-9f55-f1f2b6c31abc
- *     responses:
- *       200:
- *         description: Airtime swap approved successfully
- *       404:
- *         description: Swap request not found
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Admin access required
+ */
+router.get(
+    "/airtime-swaps/:id",
+    authMiddleware,
+    adminMiddleware("SUPER_ADMIN", "ADMIN", "AGENT"),
+    getSingleAirtimeSwap
+);
+
+/**
+ * @swagger
+ * /api/admin/airtime-swaps/{id}/approve:
+ *   patch:
+ *     summary: Approve an airtime swap
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
  */
 router.patch(
     "/airtime-swaps/:id/approve",
     authMiddleware,
-    adminMiddleware,
+    adminMiddleware("SUPER_ADMIN", "ADMIN"),
     approveAirtimeSwap
 );
 
@@ -124,7 +118,7 @@ router.patch(
  * @swagger
  * /api/admin/airtime-swaps/{id}/reject:
  *   patch:
- *     summary: Reject an airtime swap request
+ *     summary: Reject an airtime swap
  *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
@@ -134,7 +128,6 @@ router.patch(
  *         required: true
  *         schema:
  *           type: string
- *         example: b8a3c8b2-7f55-4d90-9f55-f1f2b6c31abc
  *     requestBody:
  *       required: false
  *       content:
@@ -145,21 +138,44 @@ router.patch(
  *               adminNote:
  *                 type: string
  *                 example: Airtime transfer could not be verified.
- *     responses:
- *       200:
- *         description: Airtime swap rejected successfully
- *       404:
- *         description: Swap request not found
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Admin access required
  */
 router.patch(
     "/airtime-swaps/:id/reject",
     authMiddleware,
-    adminMiddleware,
+    adminMiddleware("SUPER_ADMIN", "ADMIN"),
     rejectAirtimeSwap
+);
+
+/**
+ * @swagger
+ * /api/admin/users:
+ *   get:
+ *     summary: Get all users
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.get(
+    "/users",
+    authMiddleware,
+    adminMiddleware("SUPER_ADMIN", "ADMIN", "SUPPORT"),
+    getAllUsers
+);
+
+/**
+ * @swagger
+ * /api/admin/broadcast:
+ *   post:
+ *     summary: Send a broadcast notification to all users
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.post(
+    "/broadcast",
+    authMiddleware,
+    adminMiddleware("SUPER_ADMIN", "ADMIN"),
+    broadcastNotification
 );
 
 module.exports = router;

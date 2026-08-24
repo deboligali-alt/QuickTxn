@@ -1,0 +1,11 @@
+{
+  "watch": ["."],
+  "ignore": [
+    "node_modules/**",
+    ".env",
+    ".env.local"
+  ],
+  "ext": "js,json",
+  "delay": "1000",
+  "signal": "SIGTERM"
+}

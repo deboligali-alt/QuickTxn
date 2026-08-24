@@ -29,11 +29,13 @@ const pinRoutes = require("./routes/pinRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const contactRoutes = require("./routes/contactRoutes");
 const publicRoutes = require("./routes/publicRoutes");
+
 const adminDataPlanRoutes = require("./routes/adminDataPlanRoutes");
 const adminAirtimeRateRoutes = require("./routes/adminAirtimeRateRoutes");
 const adminUserRoutes = require("./routes/adminUserRoutes");
 const adminTransactionRoutes = require("./routes/adminTransactionRoutes");
-
+const adminAirtimeSwapRoutes = require("./routes/adminAirtimeSwapRoutes");
+const webhookRoutes = require("./routes/webhookRoutes");
 const app = express();
 
 // ==========================
@@ -102,7 +104,10 @@ app.use("/api/airtime", airtimeRoutes);
 
 app.use("/api/admin", adminRoutes);
 
+// ==========================
 // Paystack
+// ==========================
+
 app.use("/api/paystack", paystackRoutes);
 
 app.use("/api/beneficiaries", beneficiaryRoutes);
@@ -126,7 +131,9 @@ app.use("/api/contact", contactRoutes);
 
 app.use("/api/public", publicRoutes);
 
-// Admin routes
+// ==========================
+// Admin Routes
+// ==========================
 
 app.use(
     "/api/admin/data-plans",
@@ -147,6 +154,28 @@ app.use(
     "/api/admin/transactions",
     adminTransactionRoutes
 );
+
+// ==========================
+// Admin Routes
+// ==========================
+
+app.use("/api/admin/data-plans", adminDataPlanRoutes);
+
+app.use("/api/admin/airtime-rates", adminAirtimeRateRoutes);
+
+app.use("/api/admin/users", adminUserRoutes);
+
+app.use("/api/admin/transactions", adminTransactionRoutes);
+
+// ✅ ADD THIS
+app.use("/api/admin/airtime-swaps", adminAirtimeSwapRoutes);
+
+app.use("/api/webhook", webhookRoutes);
+
+
+
+app.use("/api/webhook", webhookRoutes);
+
 
 // ==========================
 // Export App

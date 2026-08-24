@@ -6,35 +6,36 @@ const pinService = require("../services/pinService");
 // ===============================
 // Get Wallet Balance
 // ===============================
+
 const getBalance = async (req, res) => {
     try {
-        const result = await pool.query(
-            `SELECT balance
-             FROM wallets
-             WHERE user_id = $1`,
-            [req.user.id]
+        const userId = req.user.id;
+
+        // Check if wallet exists
+        let wallet = await pool.query(
+            "SELECT * FROM wallets WHERE user_id = $1",
+            [userId]
         );
 
-        if (result.rows.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: "Wallet not found."
-            });
+        // Create one automatically if missing
+        if (wallet.rows.length === 0) {
+            wallet = await pool.query(
+                `INSERT INTO wallets (user_id, balance)
+         VALUES ($1, 0)
+         RETURNING *`,
+                [userId]
+            );
         }
 
         return res.status(200).json({
             success: true,
-            data: {
-                balance: result.rows[0].balance
-            }
+            data: wallet.rows[0],
         });
-
     } catch (error) {
         console.error(error);
-
         return res.status(500).json({
             success: false,
-            message: "Server Error"
+            message: "Failed to fetch wallet.",
         });
     }
 };
@@ -85,21 +86,33 @@ const fundWallet = async (req, res) => {
         console.log("==================================");
 
         // Initialize Paystack payment
+        const userDetails = await pool.query(
+            `SELECT full_name, email
+     FROM users
+     WHERE id = $1`,
+            [req.user.id]
+        );
+
+        const user = userDetails.rows[0];
+
         const response = await axios.post(
             "https://api.paystack.co/transaction/initialize",
             {
-                email,
+                email: user.email,
                 amount: Number(amount) * 100,
                 reference,
-                callback_url: callbackUrl
+                callback_url: callbackUrl,
+
+                metadata: {
+                    userId: req.user.id,
+                    fullName: user.full_name,
+                },
             },
             {
                 headers: {
-                    Authorization:
-                        `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-                    "Content-Type":
-                        "application/json"
-                }
+                    Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+                    "Content-Type": "application/json",
+                },
             }
         );
 
@@ -1184,6 +1197,47 @@ const bankTransfer = async (
 };
 
 
+// ========================================
+// Get User Virtual Account
+// ========================================
+
+const getVirtualAccount = async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT
+                bank_name,
+                account_name,
+                account_number
+             FROM virtual_accounts
+             WHERE user_id = $1`,
+            [req.user.id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Virtual account not found."
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            data: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error("Virtual Account Error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Server error"
+        });
+    }
+};
+
+
+
+
 // ===============================
 // Export Controllers
 // ===============================
@@ -1194,5 +1248,6 @@ module.exports = {
     transferMoney,
     resolveAccount,
     getBanks,
-    bankTransfer
+    bankTransfer,
+    getVirtualAccount
 };
