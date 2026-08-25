@@ -5,7 +5,6 @@ import DashboardHeader from "@/components/layout/dashboard/DashboardHeader";
 import WalletBalanceCard from "@/components/layout/dashboard/WalletBalanceCard";
 import ServicesGrid from "@/components/layout/dashboard/ServicesGrid";
 import RecentTransactions from "@/components/layout/dashboard/RecentTransactions";
-import BottomNavigation from "@/components/layout/dashboard/BottomNavigation";
 import Toast from "@/components/ui/Toast";
 import useDashboardRealtime from "@/hooks/useDashboardRealtime";
 import { getDashboardData } from "@/lib/dashboard";
@@ -74,7 +73,7 @@ export default function DashboardPage() {
                 />
             </main>
 
-            <BottomNavigation />
+    
         </>
     );
 }
