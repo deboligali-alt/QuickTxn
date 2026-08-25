@@ -1,14 +1,23 @@
 "use client";
+
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { Trophy } from "lucide-react";
+import PageHeader from "@/components/ui/PageHeader";
 
 interface Provider {
     provider_name: string;
     provider_code: string;
-    logo: string;
 }
+
+const logoMap: Record<string, string> = {
+    SPORTYBET: "/logos/sportybet.png",
+    BET9JA: "/logos/bet9ja.png",
+    BETKING: "/logos/betking.png",
+    "1XBET": "/logos/1xbet.png",
+    NAIRABET: "/logos/nairabet.png",
+};
 
 export default function BettingPage() {
     const [providers, setProviders] = useState<Provider[]>([]);
@@ -47,6 +56,8 @@ export default function BettingPage() {
     }, []);
 
     const verifyCustomer = async () => {
+        if (!bettingUserId) return alert("Enter Betting User ID");
+
         try {
             const token = localStorage.getItem("token");
 
@@ -64,15 +75,19 @@ export default function BettingPage() {
             );
 
             setCustomerName(res.data.data.name);
-        } catch {
-            alert("Customer not found");
+        } catch (error: any) {
             setCustomerName("");
+            alert(error.response?.data?.message || "Customer not found");
         }
     };
 
     const fundWallet = async () => {
         if (!customerName) {
             return alert("Verify customer first");
+        }
+
+        if (!amount || !pin) {
+            return alert("Enter amount and PIN");
         }
 
         try {
@@ -105,133 +120,138 @@ export default function BettingPage() {
     };
 
     return (
-        <main className="mx-auto min-h-screen max-w-md bg-gray-50 p-4 pb-24">
-            <h1 className="mb-6 text-2xl font-bold">
-                Betting Wallet
-            </h1>
+        <main className="mx-auto min-h-screen max-w-md bg-gray-50 pb-24">
+            <PageHeader name="Betting Wallet" />
 
-            <div className="rounded-3xl bg-gradient-to-br from-green-600 to-emerald-600 p-6 text-white">
-                <div className="flex items-center gap-3">
-                    <Trophy size={28} />
+            <div className="p-4">
+                <div className="rounded-3xl bg-gradient-to-br from-green-600 to-emerald-600 p-6 text-white">
+                    <div className="flex items-center gap-3">
+                        <Trophy size={28} />
+                        <div>
+                            <p className="text-sm text-green-100">
+                                Instant Betting Top-up
+                            </p>
+                            <h2 className="text-xl font-bold">
+                                Fund Betting Wallet
+                            </h2>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="mt-6 space-y-4">
                     <div>
-                        <p className="text-sm text-green-100">
-                            Instant Betting Top-up
-                        </p>
-                        <h2 className="text-xl font-bold">
-                            Fund Betting Wallet
-                        </h2>
-                    </div>
-                </div>
-            </div>
+                        <label className="mb-2 block text-sm font-medium">
+                            Betting Company
+                        </label>
 
-            <div className="mt-6 space-y-4">
-                <div>
-                    <label className="mb-2 block text-sm font-medium">
-                        Betting Company
-                    </label>
-                    <div className="grid grid-cols-2 gap-3">
-                        {providers.map((provider) => (
+                        <div className="grid grid-cols-2 gap-3">
+                            {providers.map((provider) => (
+                                <button
+                                    key={provider.provider_code}
+                                    onClick={() =>
+                                        setProviderCode(provider.provider_code)
+                                    }
+                                    className={`rounded-2xl border-2 p-4 transition ${providerCode === provider.provider_code
+                                            ? "border-green-600 bg-green-50"
+                                            : "border-gray-200 bg-white"
+                                        }`}
+                                >
+                                    <div className="flex flex-col items-center gap-2">
+                                        <Image
+                                            src={
+                                                logoMap[provider.provider_code] ||
+                                                "/logos/default.png"
+                                            }
+                                            alt={provider.provider_name}
+                                            width={56}
+                                            height={56}
+                                            className="rounded-full object-contain"
+                                        />
+
+                                        <span className="text-center text-sm font-medium">
+                                            {provider.provider_name}
+                                        </span>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="mb-2 block text-sm font-medium">
+                            Betting User ID
+                        </label>
+
+                        <div className="flex gap-2">
+                            <input
+                                value={bettingUserId}
+                                onChange={(e) =>
+                                    setBettingUserId(e.target.value)
+                                }
+                                placeholder="Enter User ID"
+                                className="flex-1 rounded-2xl border bg-white p-4"
+                            />
+
                             <button
-                                key={provider.provider_code}
-                                onClick={() => setProviderCode(provider.provider_code)}
-                                className={`rounded-2xl border-2 p-4 transition ${providerCode === provider.provider_code
-                                        ? "border-green-600 bg-green-50"
-                                        : "border-gray-200 bg-white"
-                                    }`}
+                                onClick={verifyCustomer}
+                                className="rounded-2xl bg-green-600 px-4 text-white"
                             >
-                                <div className="flex flex-col items-center gap-2">
-                                    <Image
-                                        src={provider.logo}
-                                        alt={provider.provider_name}
-                                        width={56}
-                                        height={56}
-                                        className="rounded-full object-contain"
-                                    />
-
-                                    <span className="text-center text-sm font-medium">
-                                        {provider.provider_name}
-                                    </span>
-                                </div>
+                                Verify
                             </button>
-                        ))}
+                        </div>
                     </div>
-                </div>
 
-                <div>
-                    <label className="mb-2 block text-sm font-medium">
-                        Betting User ID
-                    </label>
+                    <div>
+                        <label className="mb-2 block text-sm font-medium">
+                            Customer Name
+                        </label>
 
-                    <div className="flex gap-2">
                         <input
-                            value={bettingUserId}
-                            onChange={(e) =>
-                                setBettingUserId(e.target.value)
-                            }
-                            placeholder="Enter User ID"
-                            className="flex-1 rounded-2xl border bg-white p-4"
+                            readOnly
+                            value={customerName}
+                            placeholder="Verified customer name"
+                            className="w-full rounded-2xl border bg-gray-100 p-4 font-semibold text-green-700"
                         />
+                    </div>
 
-                        <button
-                            onClick={verifyCustomer}
-                            className="rounded-2xl bg-green-600 px-4 text-white"
-                        >
-                            Verify
-                        </button>
+                    <div>
+                        <label className="mb-2 block text-sm font-medium">
+                            Amount
+                        </label>
+
+                        <input
+                            type="number"
+                            value={amount}
+                            onChange={(e) => setAmount(e.target.value)}
+                            placeholder="₦1000"
+                            className="w-full rounded-2xl border bg-white p-4 text-2xl font-bold"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="mb-2 block text-sm font-medium">
+                            Transaction PIN
+                        </label>
+
+                        <input
+                            type="password"
+                            maxLength={4}
+                            value={pin}
+                            onChange={(e) => setPin(e.target.value)}
+                            placeholder="****"
+                            className="w-full rounded-2xl border bg-white p-4 text-center text-xl tracking-[0.5em]"
+                        />
                     </div>
                 </div>
 
-                <div>
-                    <label className="mb-2 block text-sm font-medium">
-                        Customer Name
-                    </label>
-
-                    <input
-                        readOnly
-                        value={customerName}
-                        className="w-full rounded-2xl border bg-gray-100 p-4 font-semibold text-green-700"
-                    />
-                </div>
-
-                <div>
-                    <label className="mb-2 block text-sm font-medium">
-                        Amount
-                    </label>
-
-                    <input
-                        type="number"
-                        value={amount}
-                        onChange={(e) =>
-                            setAmount(e.target.value)
-                        }
-                        placeholder="₦1000"
-                        className="w-full rounded-2xl border bg-white p-4 text-2xl font-bold"
-                    />
-                </div>
-
-                <div>
-                    <label className="mb-2 block text-sm font-medium">
-                        Transaction PIN
-                    </label>
-
-                    <input
-                        type="password"
-                        maxLength={4}
-                        value={pin}
-                        onChange={(e) => setPin(e.target.value)}
-                        placeholder="****"
-                        className="w-full rounded-2xl border bg-white p-4 text-center text-xl tracking-[0.5em]"
-                    />
-                </div>
+                <button
+                    onClick={fundWallet}
+                    disabled={loading}
+                    className="mt-8 w-full rounded-2xl bg-green-600 py-4 text-lg font-semibold text-white disabled:opacity-60"
+                >
+                    {loading ? "Processing..." : "Pay from Wallet"}
+                </button>
             </div>
-
-            <button
-                onClick={fundWallet}
-                disabled={loading}
-                className="mt-8 w-full rounded-2xl bg-green-600 py-4 text-lg font-semibold text-white"
-            >
-                {loading ? "Processing..." : "Pay from Wallet"}
-            </button>
         </main>
     );
 }
