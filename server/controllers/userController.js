@@ -553,8 +553,8 @@ const changeTransactionPin = async (
     }
 };
 
-const bcrypt = require("bcrypt");
-const { pool } = require("../config/db");
+
+
 
 const changePin = async (req, res) => {
     const { currentPin, newPin } = req.body;

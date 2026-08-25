@@ -6,8 +6,8 @@ const {
     updateProfile,
     changePassword,
     setTransactionPin,
-    changePin,
-    getDashboard
+    changeTransactionPin,
+    getDashboard,
 } = require("../controllers/userController");
 const verifyToken = require("../middleware/authMiddleware");
 
@@ -183,7 +183,7 @@ router.post(
 router.patch(
     "/change-pin",
     verifyToken,
-    changePin
+    changeTransactionPin
 );
 
 /**

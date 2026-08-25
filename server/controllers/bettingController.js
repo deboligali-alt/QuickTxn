@@ -38,6 +38,39 @@ const getProviders = async (req, res) => {
 };
 
 // ========================================
+// Verify Betting Customer
+// ========================================
+const verifyCustomer = async (req, res) => {
+    const { company, customerId } = req.body;
+
+    if (!company || !customerId) {
+        return res.status(400).json({
+            success: false,
+            message: "Company and Customer ID are required.",
+        });
+    }
+
+    try {
+        // Demo response (replace with real provider API later)
+        return res.status(200).json({
+            success: true,
+            data: {
+                name: "Adebowale Ibrahim",
+                customerId,
+                company,
+            },
+        });
+    } catch (error) {
+        console.error(error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Server Error",
+        });
+    }
+};
+
+// ========================================
 // Fund Betting Wallet
 // ========================================
 const fundBettingWallet = async (req, res) => {
@@ -231,9 +264,9 @@ const getFundingHistory = async (req, res) => {
     }
 
 };
-
 module.exports = {
+    verifyCustomer,
     getProviders,
     fundBettingWallet,
-    getFundingHistory
+    getFundingHistory,
 };

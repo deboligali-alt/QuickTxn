@@ -4,9 +4,10 @@ const router = express.Router();
 const verifyToken = require("../middleware/authMiddleware");
 
 const {
+    verifyCustomer,
     getProviders,
     fundBettingWallet,
-    getFundingHistory
+    getFundingHistory,
 } = require("../controllers/bettingController");
 
 /**
@@ -15,6 +16,40 @@ const {
  *   - name: Betting
  *     description: Betting wallet funding services
  */
+
+/**
+ * @swagger
+ * /api/betting/verify:
+ *   post:
+ *     summary: Verify betting customer ID
+ *     tags: [Betting]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - company
+ *               - customerId
+ *             properties:
+ *               company:
+ *                 type: string
+ *                 example: sporty
+ *               customerId:
+ *                 type: string
+ *                 example: "987654321"
+ *     responses:
+ *       200:
+ *         description: Customer verified successfully
+ *       400:
+ *         description: Invalid request
+ *       401:
+ *         description: Unauthorized
+ */
+router.post("/verify", verifyToken, verifyCustomer);
 
 /**
  * @swagger
