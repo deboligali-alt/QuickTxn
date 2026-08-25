@@ -12,12 +12,12 @@ interface Provider {
 }
 
 // Static logos
-const logoMap: Record<string, string> = {
-    SPORTYBET: "/logos/sportybet.png",
-    BET9JA: "/logos/bet9ja.png",
-    BETKING: "/logos/betking.png",
-    "1XBET": "/logos/1xbet.png",
-    NAIRABET: "/logos/nairabet.png",
+const logos: Record<string, string> = {
+    SPORTYBET: "/betting/sportybet.png",
+    BET9JA: "/betting/bet9ja.png",
+    BETKING: "/betting/betking.png",
+    "1XBET": "/betting/1xbet.png",
+    NAIRABET: "/betting/nairabet.png",
 };
 
 export default function BettingPage() {
@@ -140,36 +140,43 @@ export default function BettingPage() {
 
                 <div className="mt-6 space-y-4">
                     <div>
-                        <label className="mb-3 block text-sm font-medium">
-                            Select Betting Company
+                        <label className="mb-2 block text-sm font-medium">
+                            Betting Company
                         </label>
 
-                        <div className="grid grid-cols-2 gap-3">
-                            {providers.map((provider) => (
-                                <button
-                                    key={provider.provider_code}
-                                    onClick={() => setProviderCode(provider.provider_code)}
-                                    className={`rounded-2xl border-2 p-4 transition ${providerCode === provider.provider_code
-                                            ? "border-green-600 bg-green-50"
-                                            : "border-gray-200 bg-white"
-                                        }`}
-                                >
-                                    <div className="flex flex-col items-center gap-2">
-                                        <Image
-                                            src={logoMap[provider.provider_code] || "/logos/default.png"}
-                                            alt={provider.provider_name}
-                                            width={56}
-                                            height={56}
-                                            className="object-contain"
-                                        />
+                        <div className="mb-3 flex items-center gap-3 rounded-2xl bg-white p-3">
+                            <Image
+                                src={logos[providerCode]}
+                                alt={providerCode}
+                                width={48}
+                                height={48}
+                                className="rounded-xl"
+                            />
 
-                                        <span className="text-xs font-medium text-center">
-                                            {provider.provider_name}
-                                        </span>
-                                    </div>
-                                </button>
-                            ))}
+                            <div>
+                                <p className="text-xs text-gray-500">Selected</p>
+                                <p className="font-semibold">
+                                    {providers.find(
+                                        (p) => p.provider_code === providerCode
+                                    )?.provider_name}
+                                </p>
+                            </div>
                         </div>
+
+                        <select
+                            value={providerCode}
+                            onChange={(e) => setProviderCode(e.target.value)}
+                            className="w-full rounded-2xl border bg-white p-4"
+                        >
+                            {providers.map((provider) => (
+                                <option
+                                    key={provider.provider_code}
+                                    value={provider.provider_code}
+                                >
+                                    {provider.provider_name}
+                                </option>
+                            ))}
+                        </select>
                     </div>
 
                     <div>
