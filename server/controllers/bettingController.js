@@ -184,6 +184,13 @@ const fundBettingWallet = async (req, res) => {
         }, client);
 
         await client.query("COMMIT");
+        // ======================================
+        // REALTIME SOCKET.IO
+        // ======================================
+        const io = req.app.get("io");
+
+        io.to(req.user.id).emit("wallet_updated");
+        io.to(req.user.id).emit("new_transaction");
 
         return res.status(200).json({
             success: true,
