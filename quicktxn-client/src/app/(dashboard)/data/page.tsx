@@ -2,74 +2,55 @@
 
 import { useEffect, useState } from "react";
 import axios from "axios";
-import { Wifi } from "lucide-react";
-
-const networks = [
-    { id: "mtn", name: "MTN", color: "bg-yellow-400" },
-    { id: "airtel", name: "Airtel", color: "bg-red-500" },
-    { id: "glo", name: "Glo", color: "bg-green-600" },
-    { id: "9mobile", name: "9mobile", color: "bg-emerald-500" },
-];
 
 interface Plan {
     id: string;
-    name: string;
-    price: number;
+    network: string;
+    plan_name: string;
+    size: string;
+    validity: string;
+    amount: number;
 }
 
+const networks = [
+    {
+        code: "MTN",
+        name: "MTN",
+        color: "border-yellow-400 bg-yellow-50",
+        logo: "/networks/mtn.png",
+    },
+    {
+        code: "AIRTEL",
+        name: "Airtel",
+        color: "border-red-500 bg-red-50",
+        logo: "/networks/airtel.png",
+    },
+    {
+        code: "GLO",
+        name: "Glo",
+        color: "border-green-500 bg-green-50",
+        logo: "/networks/glo.png",
+    },
+    {
+        code: "9MOBILE",
+        name: "9mobile",
+        color: "border-emerald-600 bg-emerald-50",
+        logo: "/networks/9mobile.png",
+    },
+];
+
 export default function DataPage() {
-    const [network, setNetwork] = useState("mtn");
-    const [phone, setPhone] = useState("");
+    const [selectedNetwork, setSelectedNetwork] = useState("MTN");
     const [plans, setPlans] = useState<Plan[]>([]);
     const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
-    const [loading, setLoading] = useState(false);
+    const [phone, setPhone] = useState("");
 
     useEffect(() => {
-        const fetchPlans = async () => {
-            try {
-                const token = localStorage.getItem("token");
-
-                const res = await axios.get(
-                    `${process.env.NEXT_PUBLIC_API_URL}/data/plans/${network}`,
-                    {
-                        headers: {
-                            Authorization: `Bearer ${token}`,
-                        },
-                    }
-                );
-
-                setPlans(res.data.data);
-            } catch {
-                setPlans([
-                    { id: "1", name: "500MB", price: 200 },
-                    { id: "2", name: "1GB", price: 350 },
-                    { id: "3", name: "2GB", price: 700 },
-                    { id: "4", name: "5GB", price: 1500 },
-                ]);
-            }
-        };
-
-        fetchPlans();
-    }, [network]);
-
-    const buyData = async () => {
-        if (!phone || !selectedPlan) {
-            alert("Select a plan and enter phone number");
-            return;
-        }
-
-        try {
-            setLoading(true);
-
+        const loadPlans = async () => {
             const token = localStorage.getItem("token");
 
-            await axios.post(
-                `${process.env.NEXT_PUBLIC_API_URL}/data/purchase`,
-                {
-                    network,
-                    phone,
-                    planId: selectedPlan.id,
-                },
+            const res = await axios.get(
+                `${process.env.NEXT_PUBLIC_API_URL}/data/plans`,
                 {
                     headers: {
                         Authorization: `Bearer ${token}`,
@@ -77,65 +58,50 @@ export default function DataPage() {
                 }
             );
 
-            sessionStorage.setItem("payment_success", "true");
-            window.location.href = "/dashboard";
-        } catch (error: any) {
-            alert(error.response?.data?.message || "Purchase failed");
-        } finally {
-            setLoading(false);
-        }
-    };
+            setPlans(
+                res.data.data.filter(
+                    (plan: Plan) => plan.network === selectedNetwork
+                )
+            );
+        };
+
+        loadPlans();
+    }, [selectedNetwork]);
 
     return (
-        <main className="mx-auto min-h-screen max-w-md bg-gray-50 p-4 pb-24">
-            <h1 className="mb-6 text-2xl font-bold">
-                Buy Data
-            </h1>
+        <main className="mx-auto min-h-screen max-w-md bg-gray-50 p-4 pb-28">
+            <h1 className="text-2xl font-bold">Buy Data</h1>
+            <p className="mt-1 text-gray-500">
+                Fast & affordable internet bundles
+            </p>
 
-            <div className="rounded-3xl bg-gradient-to-br from-green-600 to-emerald-600 p-6 text-white">
-                <div className="flex items-center gap-3">
-                    <Wifi size={30} />
-                    <div>
-                        <p className="text-sm text-green-100">
-                            Mobile Data
+            {/* Networks */}
+            <div className="mt-6 grid grid-cols-4 gap-3">
+                {networks.map((network) => (
+                    <button
+                        key={network.code}
+                        onClick={() => {
+                            setSelectedNetwork(network.code);
+                            setSelectedPlan(null);
+                        }}
+                        className={`rounded-2xl border-2 p-3 transition ${selectedNetwork === network.code
+                                ? network.color
+                                : "border-gray-200 bg-white"
+                            }`}
+                    >
+                        <img
+                            src={network.logo}
+                            alt={network.name}
+                            className="mx-auto h-10 w-10 object-contain"
+                        />
+                        <p className="mt-2 text-center text-xs font-medium">
+                            {network.name}
                         </p>
-                        <h2 className="text-xl font-bold">
-                            Fast Activation
-                        </h2>
-                    </div>
-                </div>
+                    </button>
+                ))}
             </div>
 
-            <div className="mt-6">
-                <label className="mb-3 block text-sm font-medium">
-                    Network
-                </label>
-
-                <div className="grid grid-cols-2 gap-3">
-                    {networks.map((item) => (
-                        <button
-                            key={item.id}
-                            onClick={() => {
-                                setNetwork(item.id);
-                                setSelectedPlan(null);
-                            }}
-                            className={`rounded-2xl border p-4 ${network === item.id
-                                    ? "border-green-600 bg-green-50"
-                                    : "bg-white"
-                                }`}
-                        >
-                            <div
-                                className={`mx-auto mb-2 h-10 w-10 rounded-full ${item.color}`}
-                            />
-
-                            <p className="font-semibold">
-                                {item.name}
-                            </p>
-                        </button>
-                    ))}
-                </div>
-            </div>
-
+            {/* Phone */}
             <div className="mt-6">
                 <label className="mb-2 block text-sm font-medium">
                     Phone Number
@@ -145,43 +111,44 @@ export default function DataPage() {
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="08012345678"
-                    className="w-full rounded-2xl border bg-white p-4 outline-none"
+                    className="w-full rounded-2xl border bg-white p-4"
                 />
             </div>
 
+            {/* Plans */}
             <div className="mt-6">
-                <label className="mb-3 block text-sm font-medium">
-                    Select Plan
-                </label>
+                <h2 className="mb-3 font-semibold">Select Plan</h2>
 
                 <div className="space-y-3">
                     {plans.map((plan) => (
                         <button
                             key={plan.id}
                             onClick={() => setSelectedPlan(plan)}
-                            className={`flex w-full items-center justify-between rounded-2xl border p-4 ${selectedPlan?.id === plan.id
+                            className={`w-full rounded-2xl border p-4 text-left ${selectedPlan?.id === plan.id
                                     ? "border-green-600 bg-green-50"
-                                    : "bg-white"
+                                    : "border-gray-200 bg-white"
                                 }`}
                         >
-                            <span className="font-medium">
-                                {plan.name}
-                            </span>
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h3 className="font-bold">{plan.size}</h3>
+                                    <p className="text-sm text-gray-500">
+                                        {plan.validity}
+                                    </p>
+                                </div>
 
-                            <span className="font-bold text-green-600">
-                                ₦{plan.price}
-                            </span>
+                                <span className="text-lg font-bold text-green-600">
+                                    ₦{plan.amount.toLocaleString()}
+                                </span>
+                            </div>
                         </button>
                     ))}
                 </div>
             </div>
 
-            <button
-                onClick={buyData}
-                disabled={loading}
-                className="mt-8 w-full rounded-2xl bg-green-600 py-4 text-lg font-semibold text-white disabled:opacity-60"
-            >
-                {loading ? "Processing..." : "Buy Data"}
+            {/* Continue */}
+            <button className="mt-8 w-full rounded-2xl bg-green-600 py-4 text-lg font-semibold text-white">
+                Continue
             </button>
         </main>
     );

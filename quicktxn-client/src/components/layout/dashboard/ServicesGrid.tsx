@@ -5,7 +5,7 @@ import {
     Wifi,
     Trophy,
     Repeat,
-    ArrowRightLeft,
+    ArrowUpRight,
     Wallet,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -33,7 +33,7 @@ const services = [
     },
     {
         name: "Transfer",
-        icon: ArrowRightLeft,
+        icon: ArrowUpRight,
         path: "/transfer",
     },
     {
@@ -60,13 +60,13 @@ export default function ServicesGrid() {
                         <button
                             key={service.name}
                             onClick={() => router.push(service.path)}
-                            className="flex flex-col items-center gap-2 rounded-2xl bg-white p-4 shadow-sm transition active:scale-95"
+                            className="flex flex-col items-center rounded-2xl bg-white p-4 shadow-sm transition hover:shadow-md active:scale-95"
                         >
                             <div className="rounded-full bg-green-100 p-3">
                                 <Icon size={22} className="text-green-600" />
                             </div>
 
-                            <span className="text-xs font-medium text-gray-700">
+                            <span className="mt-2 text-xs font-medium text-gray-700">
                                 {service.name}
                             </span>
                         </button>

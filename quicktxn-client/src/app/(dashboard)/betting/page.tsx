@@ -1,5 +1,5 @@
 "use client";
-
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { Trophy } from "lucide-react";
@@ -7,6 +7,7 @@ import { Trophy } from "lucide-react";
 interface Provider {
     provider_name: string;
     provider_code: string;
+    logo: string;
 }
 
 export default function BettingPage() {
@@ -128,23 +129,32 @@ export default function BettingPage() {
                     <label className="mb-2 block text-sm font-medium">
                         Betting Company
                     </label>
-
-                    <select
-                        value={providerCode}
-                        onChange={(e) =>
-                            setProviderCode(e.target.value)
-                        }
-                        className="w-full rounded-2xl border bg-white p-4"
-                    >
+                    <div className="grid grid-cols-2 gap-3">
                         {providers.map((provider) => (
-                            <option
+                            <button
                                 key={provider.provider_code}
-                                value={provider.provider_code}
+                                onClick={() => setProviderCode(provider.provider_code)}
+                                className={`rounded-2xl border-2 p-4 transition ${providerCode === provider.provider_code
+                                        ? "border-green-600 bg-green-50"
+                                        : "border-gray-200 bg-white"
+                                    }`}
                             >
-                                {provider.provider_name}
-                            </option>
+                                <div className="flex flex-col items-center gap-2">
+                                    <Image
+                                        src={provider.logo}
+                                        alt={provider.provider_name}
+                                        width={56}
+                                        height={56}
+                                        className="rounded-full object-contain"
+                                    />
+
+                                    <span className="text-center text-sm font-medium">
+                                        {provider.provider_name}
+                                    </span>
+                                </div>
+                            </button>
                         ))}
-                    </select>
+                    </div>
                 </div>
 
                 <div>
