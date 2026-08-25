@@ -62,7 +62,7 @@ export default function DashboardPage() {
                 onClose={() => setShowToast(false)}
             />
 
-            <main className="mx-auto min-h-screen w-full max-w-md bg-gray-50 pb-24">
+            <main className="mx-auto min-h-screen w-full max-w-md bg-gray-50 pb-28">
                 <DashboardHeader />
 
                 <WalletBalanceCard wallet={dashboard?.wallet} />
