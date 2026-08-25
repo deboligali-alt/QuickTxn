@@ -5,7 +5,7 @@ import {
     User,
     Lock,
     Bell,
-    Moon,
+    ShieldCheck,
     LogOut,
     ChevronRight,
 } from "lucide-react";
@@ -15,7 +15,7 @@ export default function SettingsPage() {
     const router = useRouter();
 
     const [notifications, setNotifications] = useState(true);
-    const [darkMode, setDarkMode] = useState(false);
+
 
     const logout = () => {
         localStorage.removeItem("token");
@@ -58,6 +58,18 @@ export default function SettingsPage() {
                 </div>
             </div>
 
+            <button
+                onClick={() => router.push("/set-pin")}
+                className="flex w-full items-center justify-between rounded-2xl bg-white p-4 shadow-sm"
+            >
+                <div className="flex items-center gap-3">
+                    <ShieldCheck className="text-green-600" size={20} />
+                    <span className="font-medium">Create PIN</span>
+                </div>
+
+                <ChevronRight size={18} className="text-gray-400" />
+            </button>
+
             {/* Preferences */}
             <div className="mb-6">
                 <p className="mb-3 text-xs font-semibold uppercase text-gray-500">
@@ -83,23 +95,7 @@ export default function SettingsPage() {
                         </button>
                     </div>
 
-                    <div className="flex items-center justify-between rounded-2xl bg-white p-4 shadow-sm">
-                        <div className="flex items-center gap-3">
-                            <Moon className="text-green-600" size={20} />
-                            <span className="font-medium">Dark Mode</span>
-                        </div>
 
-                        <button
-                            onClick={() => setDarkMode(!darkMode)}
-                            className={`h-7 w-12 rounded-full transition ${darkMode ? "bg-green-600" : "bg-gray-300"
-                                }`}
-                        >
-                            <div
-                                className={`h-5 w-5 rounded-full bg-white transition ${darkMode ? "translate-x-6" : "translate-x-1"
-                                    }`}
-                            />
-                        </button>
-                    </div>
                 </div>
             </div>
 
