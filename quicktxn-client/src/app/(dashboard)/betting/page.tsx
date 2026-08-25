@@ -11,6 +11,7 @@ interface Provider {
     provider_code: string;
 }
 
+// Static logos
 const logoMap: Record<string, string> = {
     SPORTYBET: "/logos/sportybet.png",
     BET9JA: "/logos/bet9ja.png",
@@ -27,7 +28,6 @@ export default function BettingPage() {
     const [amount, setAmount] = useState("");
     const [pin, setPin] = useState("");
     const [loading, setLoading] = useState(false);
-
     useEffect(() => {
         const loadProviders = async () => {
             try {
@@ -140,17 +140,15 @@ export default function BettingPage() {
 
                 <div className="mt-6 space-y-4">
                     <div>
-                        <label className="mb-2 block text-sm font-medium">
-                            Betting Company
+                        <label className="mb-3 block text-sm font-medium">
+                            Select Betting Company
                         </label>
 
                         <div className="grid grid-cols-2 gap-3">
                             {providers.map((provider) => (
                                 <button
                                     key={provider.provider_code}
-                                    onClick={() =>
-                                        setProviderCode(provider.provider_code)
-                                    }
+                                    onClick={() => setProviderCode(provider.provider_code)}
                                     className={`rounded-2xl border-2 p-4 transition ${providerCode === provider.provider_code
                                             ? "border-green-600 bg-green-50"
                                             : "border-gray-200 bg-white"
@@ -158,17 +156,14 @@ export default function BettingPage() {
                                 >
                                     <div className="flex flex-col items-center gap-2">
                                         <Image
-                                            src={
-                                                logoMap[provider.provider_code] ||
-                                                "/logos/default.png"
-                                            }
+                                            src={logoMap[provider.provider_code] || "/logos/default.png"}
                                             alt={provider.provider_name}
                                             width={56}
                                             height={56}
-                                            className="rounded-full object-contain"
+                                            className="object-contain"
                                         />
 
-                                        <span className="text-center text-sm font-medium">
+                                        <span className="text-xs font-medium text-center">
                                             {provider.provider_name}
                                         </span>
                                     </div>
