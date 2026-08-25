@@ -624,9 +624,6 @@ const changePin = async (req, res) => {
     }
 };
 
-module.exports = {
-    changePin,
-};
 // ===============================
 // Export Controllers
 // ===============================
@@ -636,5 +633,6 @@ module.exports = {
     changePassword,
     setTransactionPin,
     changeTransactionPin,
-    getDashboard
+    changePin,
+    getDashboard,
 };
