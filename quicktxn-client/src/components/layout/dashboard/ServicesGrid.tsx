@@ -12,39 +12,39 @@ import { useRouter } from "next/navigation";
 
 const services = [
     {
-        name: "Airtime",
+        title: "Airtime",
         icon: Smartphone,
-        color: "bg-orange-100 text-orange-600",
+        color: "bg-blue-100 text-blue-600",
         path: "/airtime",
     },
     {
-        name: "Data",
+        title: "Data",
         icon: Wifi,
-        color: "bg-blue-100 text-blue-600",
+        color: "bg-purple-100 text-purple-600",
         path: "/data",
     },
     {
-        name: "Betting",
+        title: "Betting",
         icon: Trophy,
-        color: "bg-green-100 text-green-600",
+        color: "bg-orange-100 text-orange-600",
         path: "/betting",
     },
     {
-        name: "Swap",
+        title: "Swap",
         icon: Repeat,
-        color: "bg-purple-100 text-purple-600",
+        color: "bg-pink-100 text-pink-600",
         path: "/airtime-swap",
     },
     {
-        name: "Transfer",
+        title: "Transfer",
         icon: ArrowUpRight,
-        color: "bg-emerald-100 text-emerald-600",
+        color: "bg-green-100 text-green-600",
         path: "/transfer",
     },
     {
-        name: "Wallet",
+        title: "Wallet",
         icon: Wallet,
-        color: "bg-gray-100 text-gray-700",
+        color: "bg-emerald-100 text-emerald-600",
         path: "/wallet",
     },
 ];
@@ -58,25 +58,25 @@ export default function ServicesGrid() {
                 Services
             </h2>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-3">
                 {services.map((service) => {
                     const Icon = service.icon;
 
                     return (
                         <button
-                            key={service.name}
+                            key={service.title}
                             onClick={() => router.push(service.path)}
-                            className="flex flex-col items-center rounded-2xl bg-white p-4 shadow-sm transition hover:shadow-md active:scale-95"
+                            className="rounded-2xl bg-white p-4 shadow-sm transition active:scale-95"
                         >
                             <div
-                                className={`mb-3 rounded-full p-3 ${service.color}`}
+                                className={`mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full ${service.color}`}
                             >
                                 <Icon size={24} />
                             </div>
 
-                            <span className="text-xs font-semibold text-gray-700">
-                                {service.name}
-                            </span>
+                            <p className="text-xs font-semibold text-gray-700">
+                                {service.title}
+                            </p>
                         </button>
                     );
                 })}
