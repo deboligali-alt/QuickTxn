@@ -5,21 +5,28 @@ import { socket } from "@/lib/socket";
 
 export default function useDashboardRealtime(
     userId: string | undefined,
-    onRefresh: () => void
+    refresh: () => void,
+    onSuccess?: () => void
 ) {
     useEffect(() => {
         if (!userId) return;
 
         socket.connect();
+
         socket.emit("join", userId);
 
-        socket.on("wallet_updated", onRefresh);
-        socket.on("new_transaction", onRefresh);
+        const update = () => {
+            refresh();
+            onSuccess?.();
+        };
+
+        socket.on("wallet_updated", update);
+        socket.on("new_transaction", update);
 
         return () => {
-            socket.off("wallet_updated", onRefresh);
-            socket.off("new_transaction", onRefresh);
+            socket.off("wallet_updated", update);
+            socket.off("new_transaction", update);
             socket.disconnect();
         };
-    }, [userId, onRefresh]);
+    }, [userId, refresh, onSuccess]);
 }

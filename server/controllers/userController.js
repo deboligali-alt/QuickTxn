@@ -553,6 +553,80 @@ const changeTransactionPin = async (
     }
 };
 
+const bcrypt = require("bcrypt");
+const { pool } = require("../config/db");
+
+const changePin = async (req, res) => {
+    const { currentPin, newPin } = req.body;
+    const userId = req.user.id;
+
+    try {
+        if (!currentPin || !newPin) {
+            return res.status(400).json({
+                success: false,
+                message: "Current PIN and new PIN are required.",
+            });
+        }
+
+        if (newPin.length !== 4) {
+            return res.status(400).json({
+                success: false,
+                message: "PIN must be exactly 4 digits.",
+            });
+        }
+
+        const result = await pool.query(
+            "SELECT transaction_pin FROM users WHERE id = $1",
+            [userId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found.",
+            });
+        }
+
+        const validPin = await bcrypt.compare(
+            currentPin,
+            result.rows[0].transaction_pin
+        );
+
+        if (!validPin) {
+            return res.status(401).json({
+                success: false,
+                message: "Current PIN is incorrect.",
+            });
+        }
+
+        const hashedPin = await bcrypt.hash(newPin, 10);
+
+        await pool.query(
+            `UPDATE users
+       SET transaction_pin = $1,
+           updated_at = NOW()
+       WHERE id = $2`,
+            [hashedPin, userId]
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: "Transaction PIN updated successfully.",
+        });
+
+    } catch (error) {
+        console.error(error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Server error.",
+        });
+    }
+};
+
+module.exports = {
+    changePin,
+};
 // ===============================
 // Export Controllers
 // ===============================

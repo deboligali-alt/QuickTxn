@@ -2,47 +2,52 @@
 
 import { Eye, EyeOff, Plus, ArrowUpRight } from "lucide-react";
 import { useEffect, useState } from "react";
-import axios from "axios";
 import { useRouter } from "next/navigation";
-export default function WalletBalanceCard() {
 
+interface WalletProps {
+    wallet?: {
+        balance: number;
+    };
+}
+
+export default function WalletBalanceCard({ wallet }: WalletProps) {
     const router = useRouter();
-    // We'll replace this with the real wallet balance later
-    const [balance, setBalance] = useState(0);
+
+    const balance = wallet?.balance || 0;
+
     const [showBalance, setShowBalance] = useState(true);
-    const [loading, setLoading] = useState(true);
+    const [displayBalance, setDisplayBalance] = useState(0);
 
+    // Smooth balance animation
     useEffect(() => {
-        const fetchBalance = async () => {
-            try {
-                const token = localStorage.getItem("token");
+        let start = 0;
+        const end = Number(balance);
+        const duration = 800;
 
-                if (!token) return;
+        if (end === 0) {
+            setDisplayBalance(0);
+            return;
+        }
 
-                const res = await axios.get(
-                    `${process.env.NEXT_PUBLIC_API_URL}/wallet/balance`,
-                    {
-                        headers: {
-                            Authorization: `Bearer ${token}`,
-                        },
-                    }
-                );
+        const increment = end / (duration / 16);
 
-                setBalance(res.data.balance);
-            } catch (err) {
-                console.error("Balance fetch failed:", err);
-            } finally {
-                setLoading(false);
+        const timer = setInterval(() => {
+            start += increment;
+
+            if (start >= end) {
+                setDisplayBalance(end);
+                clearInterval(timer);
+            } else {
+                setDisplayBalance(Math.floor(start));
             }
-        };
+        }, 16);
 
-        fetchBalance();
-    }, []);
+        return () => clearInterval(timer);
+    }, [balance]);
 
     return (
-        <section className="px-4 mt-2">
-            <div className="rounded-3xl bg-gradient-to-br from-green-600 to-emerald-700 p-5 text-white shadow-lg">
-
+        <section className="mt-1 px-4">
+            <div className="rounded-[28px] bg-gradient-to-br from-green-600 via-green-500 to-emerald-600 p-6 text-white shadow-xl">
                 <div className="flex items-center justify-between">
                     <p className="text-sm text-green-100">Available Balance</p>
 
@@ -52,17 +57,15 @@ export default function WalletBalanceCard() {
                 </div>
 
                 <h2 className="mt-2 text-3xl font-bold">
-                    {loading
-                        ? "Loading..."
-                        : showBalance
-                            ? `₦${Number(balance).toLocaleString()}.00`
-                            : "₦••••••"}
+                    {showBalance
+                        ? `₦${displayBalance.toLocaleString()}.00`
+                        : "₦••••••"}
                 </h2>
 
                 <div className="mt-6 flex gap-3">
                     <button
                         onClick={() => router.push("/wallet/fund")}
-                        className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-white/20 py-3"
+                        className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-white/20 py-3 transition active:scale-95"
                     >
                         <Plus size={18} />
                         <span>Fund</span>
@@ -70,13 +73,12 @@ export default function WalletBalanceCard() {
 
                     <button
                         onClick={() => router.push("/transfer")}
-                        className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-white/20 py-3"
+                        className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-white/20 py-3 transition active:scale-95"
                     >
                         <ArrowUpRight size={18} />
                         <span>Transfer</span>
                     </button>
                 </div>
-
             </div>
         </section>
     );

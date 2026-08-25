@@ -1,30 +1,39 @@
 "use client";
 
-
+import { useCallback, useEffect, useState } from "react";
 import DashboardHeader from "@/components/layout/dashboard/DashboardHeader";
 import WalletBalanceCard from "@/components/layout/dashboard/WalletBalanceCard";
 import ServicesGrid from "@/components/layout/dashboard/ServicesGrid";
 import RecentTransactions from "@/components/layout/dashboard/RecentTransactions";
 import BottomNavigation from "@/components/layout/dashboard/BottomNavigation";
 import Toast from "@/components/ui/Toast";
-import { useCallback, useEffect, useState } from "react";
 import useDashboardRealtime from "@/hooks/useDashboardRealtime";
+import { getDashboardData } from "@/lib/dashboard";
+
 export default function DashboardPage() {
     const [showToast, setShowToast] = useState(false);
     const [userId, setUserId] = useState<string>();
+    const [dashboard, setDashboard] = useState<any>(null);
 
-    useEffect(() => {
+    const loadDashboard = useCallback(async () => {
         const token = localStorage.getItem("token");
-
         if (!token) return;
 
-        const payload = JSON.parse(atob(token.split(".")[1]));
-        setUserId(payload.id);
+        try {
+            const data = await getDashboardData(token);
+            setDashboard(data);
+
+            const payload = JSON.parse(atob(token.split(".")[1]));
+            setUserId(payload.id);
+        } catch (err) {
+            console.error(err);
+        }
     }, []);
 
-    const refreshDashboard = useCallback(() => {
-        window.location.reload();
-    }, []);
+    useEffect(() => {
+        loadDashboard();
+    }, [loadDashboard]);
+
     useEffect(() => {
         const success = sessionStorage.getItem("payment_success");
 
@@ -32,26 +41,37 @@ export default function DashboardPage() {
             setShowToast(true);
             sessionStorage.removeItem("payment_success");
 
-            setTimeout(() => {
-                setShowToast(false);
-            }, 4000);
+            setTimeout(() => setShowToast(false), 4000);
         }
     }, []);
-    useDashboardRealtime(userId, refreshDashboard);
+
+    useDashboardRealtime(userId, loadDashboard, () => {
+        setShowToast(true);
+
+        setTimeout(() => {
+            setShowToast(false);
+        }, 3500);
+    });
+
     return (
         <>
             <Toast
                 show={showToast}
-                title="Payment Successful"
-                message="₦1,000 has been added to your wallet."
+                title="Transaction Successful"
+                message="Your wallet and transaction history have been updated."
                 onClose={() => setShowToast(false)}
             />
 
-            <main className="mx-auto min-h-screen max-w-md bg-gray-50 pb-24">
+            <main className="mx-auto min-h-screen w-full max-w-md bg-gray-50 pb-24">
                 <DashboardHeader />
-                <WalletBalanceCard />
+
+                <WalletBalanceCard wallet={dashboard?.wallet} />
+
                 <ServicesGrid />
-                <RecentTransactions />
+
+                <RecentTransactions
+                    transactions={dashboard?.transactions || []}
+                />
             </main>
 
             <BottomNavigation />

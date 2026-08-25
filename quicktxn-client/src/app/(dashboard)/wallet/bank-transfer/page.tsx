@@ -1,514 +1,158 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import axios from "axios";
+import { ShieldCheck } from "lucide-react";
 
-import {
-    getBanks,
-    resolveAccount,
-    bankTransfer,
-} from "@/services/wallet.service";
+export default function BankTransferPinPage() {
+    const router = useRouter();
 
-interface Bank {
-    name: string;
-    code: string;
-}
+    const [pin, setPin] = useState("");
+    const [loading, setLoading] = useState(false);
 
-export default function BankTransferPage() {
-    const [banks, setBanks] = useState<Bank[]>([]);
-
-    const [accountNumber, setAccountNumber] =
-        useState("");
-
-    const [bankCode, setBankCode] =
-        useState("");
-
-    const [accountName, setAccountName] =
-        useState("");
-
-    const [amount, setAmount] =
-        useState("");
-
-    const [pin, setPin] =
-        useState("");
-
-    const [loadingBanks, setLoadingBanks] =
-        useState(true);
-
-    const [resolving, setResolving] =
-        useState(false);
-
-    const [loading, setLoading] =
-        useState(false);
-
-    const [message, setMessage] =
-        useState("");
-
-    const [error, setError] =
-        useState("");
-
-    // ==============================
-    // Load Banks
-    // ==============================
-
-    const loadBanks = useCallback(
-        async () => {
-            try {
-                setLoadingBanks(true);
-                setError("");
-
-                const token =
-                    localStorage.getItem("token");
-
-                if (!token) {
-                    setError(
-                        "Please login first."
-                    );
-                    return;
-                }
-
-                const response =
-                    await getBanks(token);
-
-                const bankData = response.data || [];
-
-                const uniqueBanks = bankData.filter(
-                    (bank: Bank, index: number, array: Bank[]) =>
-                        index ===
-                        array.findIndex(
-                            (item) => item.code === bank.code
-                        )
-                );
-
-                setBanks(uniqueBanks);
-
-            } catch (error: unknown) {
-                console.error(error);
-
-                if (
-                    axios.isAxiosError(error)
-                ) {
-                    setError(
-                        error.response?.data
-                            ?.message ||
-                        "Unable to load banks."
-                    );
-                } else {
-                    setError(
-                        "Unable to load banks."
-                    );
-                }
-
-            } finally {
-                setLoadingBanks(false);
-            }
-        },
-        []
+    const transferData = JSON.parse(
+        sessionStorage.getItem("transferData") || "{}"
     );
 
-    useEffect(() => {
-        loadBanks();
-    }, [loadBanks]);
-
-
-    // ==============================
-    // Resolve Account
-    // ==============================
-
-    const handleResolveAccount =
-        async () => {
-
-            if (
-                accountNumber.length !== 10
-            ) {
-                return;
-            }
-
-            if (!bankCode) {
-                return;
-            }
-
-            try {
-                setResolving(true);
-                setAccountName("");
-                setError("");
-
-                const token =
-                    localStorage.getItem("token");
-
-                if (!token) {
-                    setError(
-                        "Please login first."
-                    );
-                    return;
-                }
-
-                const response =
-                    await resolveAccount(
-                        token,
-                        accountNumber,
-                        bankCode
-                    );
-
-                setAccountName(
-                    response.data?.account_name ||
-                    ""
-                );
-
-            } catch (error: unknown) {
-                console.error(error);
-
-                if (
-                    axios.isAxiosError(error)
-                ) {
-                    setError(
-                        error.response?.data
-                            ?.message ||
-                        "Unable to resolve account."
-                    );
-                } else {
-                    setError(
-                        "Unable to resolve account."
-                    );
-                }
-
-            } finally {
-                setResolving(false);
-            }
-        };
-
-
-    // ==============================
-    // Submit Transfer
-    // ==============================
-
-    const handleTransfer = async (
-        e: React.FormEvent
-    ) => {
-        e.preventDefault();
-
-        setMessage("");
-        setError("");
-
-        if (!bankCode) {
-            setError(
-                "Please select a bank."
-            );
-            return;
+    const pressNumber = (num: string) => {
+        if (pin.length < 4) {
+            setPin(pin + num);
         }
+    };
 
-        if (
-            accountNumber.length !== 10
-        ) {
-            setError(
-                "Enter a valid 10-digit account number."
-            );
-            return;
-        }
+    const removeDigit = () => {
+        setPin(pin.slice(0, -1));
+    };
 
-        if (!accountName) {
-            setError(
-                "Please resolve the account first."
-            );
-            return;
-        }
-
-        if (
-            Number(amount) <= 0
-        ) {
-            setError(
-                "Enter a valid amount."
-            );
-            return;
-        }
-
+    const submitTransfer = async () => {
         if (pin.length !== 4) {
-            setError(
-                "Enter your 4-digit transaction PIN."
-            );
+            alert("Enter your 4-digit PIN");
             return;
         }
 
         try {
             setLoading(true);
 
-            const token =
-                localStorage.getItem("token");
+            const token = localStorage.getItem("token");
 
-            if (!token) {
-                setError(
-                    "Please login first."
-                );
-                return;
-            }
-
-            const response =
-                await bankTransfer(
-                    token,
-                    {
-                        accountNumber,
-                        bankCode,
-                        accountName,
-                        amount: Number(amount),
-                        pin,
-                    }
-                );
-
-            setMessage(
-                response.message ||
-                "Bank transfer initiated successfully."
+            await axios.post(
+                `${process.env.NEXT_PUBLIC_API_URL}/wallet/bank-transfer`,
+                {
+                    ...transferData,
+                    pin,
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }
             );
 
-            setAccountNumber("");
-            setBankCode("");
-            setAccountName("");
-            setAmount("");
-            setPin("");
+            sessionStorage.setItem("payment_success", "true");
+            sessionStorage.removeItem("transferData");
 
-        } catch (error: unknown) {
-            console.error(error);
-
-            if (
-                axios.isAxiosError(error)
-            ) {
-                setError(
-                    error.response?.data
-                        ?.message ||
-                    "Bank transfer failed."
-                );
-            } else {
-                setError(
-                    "Bank transfer failed."
-                );
-            }
-
+            router.push("/dashboard");
+        } catch (error: any) {
+            alert(
+                error.response?.data?.message || "Transfer failed"
+            );
         } finally {
             setLoading(false);
         }
     };
 
+    const numbers = [
+        "1", "2", "3",
+        "4", "5", "6",
+        "7", "8", "9",
+        "", "0", "⌫",
+    ];
 
     return (
-        <main className="min-h-screen bg-slate-50 p-6">
+        <main className="mx-auto min-h-screen max-w-md bg-gray-50 p-4 pb-12">
+            <div className="mb-8 text-center">
+                <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
+                    <ShieldCheck
+                        className="text-green-600"
+                        size={38}
+                    />
+                </div>
 
-            <div className="mx-auto max-w-xl">
-
-                <h1 className="text-3xl font-bold text-slate-900">
-                    Bank Transfer
+                <h1 className="text-2xl font-bold">
+                    Confirm Transfer
                 </h1>
 
-                <p className="mt-2 mb-8 text-slate-500">
-                    Transfer money from your QuickTxn
-                    wallet to a Nigerian bank account.
+                <p className="mt-2 text-gray-500">
+                    Enter your transaction PIN
                 </p>
-
-
-                <form
-                    onSubmit={handleTransfer}
-                    className="space-y-6 rounded-2xl bg-white p-6 shadow-lg"
-                >
-
-                    {/* BANK */}
-
-                    <div>
-
-                        <label className="mb-2 block font-medium">
-                            Bank
-                        </label>
-
-                        <select
-                            value={bankCode}
-                            onChange={(e) => {
-                                setBankCode(
-                                    e.target.value
-                                );
-                                setAccountName("");
-                            }}
-                            disabled={loadingBanks}
-                            className="w-full rounded-xl border p-3"
-                        >
-
-                            <option value="">
-                                {loadingBanks
-                                    ? "Loading banks..."
-                                    : "Select bank"}
-                            </option>
-
-                            {banks.map((bank, index) => (
-                                <option
-                                    key={`${bank.code}-${index}`}
-                                    value={bank.code}
-                                >
-                                    {bank.name}
-                                </option>
-                            ))}
-
-
-                        </select>
-
-                    </div>
-
-
-                    {/* ACCOUNT NUMBER */}
-
-                    <div>
-
-                        <label className="mb-2 block font-medium">
-                            Account Number
-                        </label>
-
-                        <input
-                            type="text"
-                            inputMode="numeric"
-                            maxLength={10}
-                            value={accountNumber}
-                            onChange={(e) => {
-                                setAccountNumber(
-                                    e.target.value.replace(
-                                        /\D/g,
-                                        ""
-                                    )
-                                );
-
-                                setAccountName("");
-                            }}
-                            onBlur={
-                                handleResolveAccount
-                            }
-                            placeholder="0123456789"
-                            className="w-full rounded-xl border p-3 outline-none focus:border-green-500"
-                            required
-                        />
-
-                        <p className="mt-2 text-xs text-slate-400">
-                            Enter 10 digits and click outside
-                            the field to resolve the account.
-                        </p>
-
-                    </div>
-
-
-                    {/* ACCOUNT NAME */}
-
-                    <div>
-
-                        <label className="mb-2 block font-medium">
-                            Account Name
-                        </label>
-
-                        <div className="rounded-xl bg-slate-100 p-3">
-
-                            {resolving ? (
-                                <span className="text-slate-500">
-                                    Resolving account...
-                                </span>
-                            ) : accountName ? (
-                                <span className="font-semibold text-green-700">
-                                    {accountName}
-                                </span>
-                            ) : (
-                                <span className="text-slate-400">
-                                    Account name will appear here
-                                </span>
-                            )}
-
-                        </div>
-
-                    </div>
-
-
-                    {/* AMOUNT */}
-
-                    <div>
-
-                        <label className="mb-2 block font-medium">
-                            Amount
-                        </label>
-
-                        <input
-                            type="number"
-                            min="1"
-                            value={amount}
-                            onChange={(e) =>
-                                setAmount(
-                                    e.target.value
-                                )
-                            }
-                            placeholder="5000"
-                            className="w-full rounded-xl border p-3 outline-none focus:border-green-500"
-                            required
-                        />
-
-                    </div>
-
-
-                    {/* PIN */}
-
-                    <div>
-
-                        <label className="mb-2 block font-medium">
-                            Transaction PIN
-                        </label>
-
-                        <input
-                            type="password"
-                            inputMode="numeric"
-                            maxLength={4}
-                            value={pin}
-                            onChange={(e) =>
-                                setPin(
-                                    e.target.value.replace(
-                                        /\D/g,
-                                        ""
-                                    )
-                                )
-                            }
-                            placeholder="••••"
-                            className="w-full rounded-xl border p-3 outline-none focus:border-green-500"
-                            required
-                        />
-
-                    </div>
-
-
-                    {/* ERROR */}
-
-                    {error && (
-                        <div className="rounded-xl bg-red-50 p-4 text-sm text-red-700">
-                            {error}
-                        </div>
-                    )}
-
-
-                    {/* SUCCESS */}
-
-                    {message && (
-                        <div className="rounded-xl bg-green-50 p-4 text-sm text-green-700">
-                            {message}
-                        </div>
-                    )}
-
-
-                    {/* SUBMIT */}
-
-                    <button
-                        type="submit"
-                        disabled={
-                            loading ||
-                            loadingBanks ||
-                            resolving
-                        }
-                        className="w-full rounded-xl bg-green-600 p-4 font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                        {loading
-                            ? "Processing..."
-                            : "Transfer Money"}
-                    </button>
-
-                </form>
-
             </div>
 
+            <div className="rounded-3xl bg-white p-5 shadow-sm">
+                <div className="border-b pb-4">
+                    <p className="text-sm text-gray-500">
+                        Recipient
+                    </p>
+
+                    <h2 className="font-semibold">
+                        {transferData.accountName}
+                    </h2>
+
+                    <p className="text-xs text-gray-400">
+                        {transferData.accountNumber}
+                    </p>
+                </div>
+
+                <div className="pt-4 text-center">
+                    <p className="text-sm text-gray-500">
+                        Amount
+                    </p>
+
+                    <h3 className="mt-1 text-3xl font-bold text-green-600">
+                        ₦
+                        {Number(
+                            transferData.amount || 0
+                        ).toLocaleString()}
+                    </h3>
+                </div>
+            </div>
+
+            <div className="my-8 flex justify-center gap-3">
+                {[0, 1, 2, 3].map((i) => (
+                    <div
+                        key={i}
+                        className={`h-4 w-4 rounded-full ${i < pin.length
+                                ? "bg-green-600"
+                                : "bg-gray-300"
+                            }`}
+                    />
+                ))}
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+                {numbers.map((item, index) => (
+                    <button
+                        key={index}
+                        onClick={() => {
+                            if (item === "⌫") return removeDigit();
+                            if (item !== "") pressNumber(item);
+                        }}
+                        className="flex h-16 items-center justify-center rounded-2xl bg-white text-2xl font-semibold shadow-sm active:scale-95"
+                    >
+                        {item}
+                    </button>
+                ))}
+            </div>
+
+            <button
+                onClick={submitTransfer}
+                disabled={loading}
+                className="mt-6 w-full rounded-2xl bg-green-600 py-4 text-lg font-semibold text-white disabled:opacity-60"
+            >
+                {loading
+                    ? "Processing..."
+                    : "Complete Transfer"}
+            </button>
         </main>
     );
 }

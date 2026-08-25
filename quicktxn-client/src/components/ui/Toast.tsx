@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle, X } from "lucide-react";
+import { CheckCircle2, X } from "lucide-react";
 
 interface ToastProps {
     show: boolean;
@@ -18,13 +18,15 @@ export default function Toast({
     if (!show) return null;
 
     return (
-        <div className="fixed top-5 left-1/2 z-[100] w-[90%] max-w-sm -translate-x-1/2">
-            <div className="flex items-start gap-3 rounded-2xl bg-gray-900 p-4 text-white shadow-2xl">
-                <CheckCircle className="mt-0.5 text-green-400" size={22} />
+        <div className="fixed left-1/2 top-5 z-[100] w-[92%] max-w-sm -translate-x-1/2 animate-in slide-in-from-top duration-300">
+            <div className="flex items-start gap-3 rounded-2xl bg-white p-4 shadow-2xl border border-green-100">
+                <div className="rounded-full bg-green-100 p-2">
+                    <CheckCircle2 size={22} className="text-green-600" />
+                </div>
 
                 <div className="flex-1">
-                    <h3 className="font-semibold">{title}</h3>
-                    <p className="text-sm text-gray-300">{message}</p>
+                    <h3 className="font-semibold text-gray-900">{title}</h3>
+                    <p className="mt-1 text-sm text-gray-500">{message}</p>
                 </div>
 
                 <button onClick={onClose}>

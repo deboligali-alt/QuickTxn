@@ -4,19 +4,43 @@ import {
     Smartphone,
     Wifi,
     Trophy,
-    Repeat,
-    Landmark,
-    Zap,
+    RefreshCw,
+    CreditCard,
+    Wallet,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 const services = [
-    { title: "Airtime", icon: Smartphone, color: "text-blue-600", path: "/airtime" },
-    { title: "Data", icon: Wifi, color: "text-cyan-600", path: "/data" },
-    { title: "Betting", icon: Trophy, color: "text-purple-600", path: "/betting" },
-    { title: "Swap", icon: Repeat, color: "text-orange-600", path: "/airtime-swap" },
-    { title: "Transfer", icon: Landmark, color: "text-green-600", path: "/transfer" },
-    { title: "Bills", icon: Zap, color: "text-red-600", path: "/wallet" },
+    {
+        title: "Airtime",
+        icon: Smartphone,
+        path: "/airtime",
+    },
+    {
+        title: "Data",
+        icon: Wifi,
+        path: "/data",
+    },
+    {
+        title: "Betting",
+        icon: Trophy,
+        path: "/betting",
+    },
+    {
+        title: "Swap",
+        icon: RefreshCw,
+        path: "/airtime-swap",
+    },
+    {
+        title: "Transfer",
+        icon: CreditCard,
+        path: "/transfer",
+    },
+    {
+        title: "Wallet",
+        icon: Wallet,
+        path: "/wallet",
+    },
 ];
 
 export default function ServicesGrid() {
@@ -24,26 +48,30 @@ export default function ServicesGrid() {
 
     return (
         <section className="mt-6 px-4">
-            <h2 className="mb-3 text-lg font-semibold text-gray-900">
+            <h2 className="mb-4 text-lg font-semibold text-gray-900">
                 Services
             </h2>
 
             <div className="grid grid-cols-3 gap-3">
-                {services.map((item) => {
-                    const Icon = item.icon;
+                {services.map((service) => {
+                    const Icon = service.icon;
 
                     return (
                         <button
-                            key={item.title}
-                            onClick={() => router.push(item.path)}
-                            className="rounded-2xl bg-white p-4 shadow-sm transition active:scale-95"
+                            key={service.title}
+                            onClick={() => router.push(service.path)}
+                            className="flex aspect-square flex-col items-center justify-center rounded-2xl bg-white shadow-sm transition hover:shadow-md active:scale-95"
                         >
-                            <div className="flex flex-col items-center gap-2">
-                                <Icon className={`${item.color}`} size={26} />
-                                <span className="text-xs font-medium text-gray-700">
-                                    {item.title}
-                                </span>
+                            <div className="mb-2 rounded-full bg-green-100 p-3">
+                                <Icon
+                                    size={22}
+                                    className="text-green-600"
+                                />
                             </div>
+
+                            <span className="text-xs font-medium text-gray-700">
+                                {service.title}
+                            </span>
                         </button>
                     );
                 })}
