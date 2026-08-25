@@ -62,7 +62,7 @@ export default function DashboardPage() {
             />
 
             <main className="mx-auto min-h-screen w-full max-w-md bg-gray-50 pb-28">
-                <DashboardHeader />
+                <DashboardHeader fullName={dashboard?.user?.full_name} />
 
                 <WalletBalanceCard wallet={dashboard?.wallet} />
 
