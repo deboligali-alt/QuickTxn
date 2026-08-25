@@ -1,154 +1,179 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import axios from "axios";
-
-interface Plan {
-    id: string;
-    network: string;
-    plan_name: string;
-    size: string;
-    validity: string;
-    amount: number;
-}
+import { useState } from "react";
+import { Smartphone, CheckCircle2 } from "lucide-react";
 
 const networks = [
-    {
-        code: "MTN",
-        name: "MTN",
-        color: "border-yellow-400 bg-yellow-50",
-        logo: "/networks/mtn.png",
-    },
-    {
-        code: "AIRTEL",
-        name: "Airtel",
-        color: "border-red-500 bg-red-50",
-        logo: "/networks/airtel.png",
-    },
-    {
-        code: "GLO",
-        name: "Glo",
-        color: "border-green-500 bg-green-50",
-        logo: "/networks/glo.png",
-    },
-    {
-        code: "9MOBILE",
-        name: "9mobile",
-        color: "border-emerald-600 bg-emerald-50",
-        logo: "/networks/9mobile.png",
-    },
+    { name: "MTN", color: "bg-yellow-400" },
+    { name: "Airtel", color: "bg-red-500" },
+    { name: "Glo", color: "bg-green-600" },
+    { name: "9mobile", color: "bg-emerald-500" },
 ];
 
+const dataTypes = ["SME", "Corporate", "Gifting"];
+
+const plans = {
+    MTN: [
+        { size: "500MB", price: 180 },
+        { size: "1GB", price: 350 },
+        { size: "2GB", price: 700 },
+        { size: "5GB", price: 1700 },
+    ],
+    Airtel: [
+        { size: "500MB", price: 190 },
+        { size: "1GB", price: 360 },
+        { size: "2GB", price: 720 },
+        { size: "5GB", price: 1750 },
+    ],
+    Glo: [
+        { size: "500MB", price: 170 },
+        { size: "1GB", price: 340 },
+        { size: "2GB", price: 680 },
+        { size: "5GB", price: 1650 },
+    ],
+    "9mobile": [
+        { size: "500MB", price: 185 },
+        { size: "1GB", price: 355 },
+        { size: "2GB", price: 710 },
+        { size: "5GB", price: 1720 },
+    ],
+};
+
 export default function DataPage() {
-    const [selectedNetwork, setSelectedNetwork] = useState("MTN");
-    const [plans, setPlans] = useState<Plan[]>([]);
-    const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+    const [network, setNetwork] = useState("MTN");
     const [phone, setPhone] = useState("");
+    const [type, setType] = useState("SME");
+    const [selectedPlan, setSelectedPlan] = useState<any>(null);
+    const [pin, setPin] = useState("");
 
-    useEffect(() => {
-        const loadPlans = async () => {
-            const token = localStorage.getItem("token");
-
-            const res = await axios.get(
-                `${process.env.NEXT_PUBLIC_API_URL}/data/plans`,
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                }
-            );
-
-            setPlans(
-                res.data.data.filter(
-                    (plan: Plan) => plan.network === selectedNetwork
-                )
-            );
-        };
-
-        loadPlans();
-    }, [selectedNetwork]);
+    const currentPlans = plans[network as keyof typeof plans];
 
     return (
         <main className="mx-auto min-h-screen max-w-md bg-gray-50 p-4 pb-28">
-            <h1 className="text-2xl font-bold">Buy Data</h1>
-            <p className="mt-1 text-gray-500">
-                Fast & affordable internet bundles
-            </p>
-
-            {/* Networks */}
-            <div className="mt-6 grid grid-cols-4 gap-3">
-                {networks.map((network) => (
-                    <button
-                        key={network.code}
-                        onClick={() => {
-                            setSelectedNetwork(network.code);
-                            setSelectedPlan(null);
-                        }}
-                        className={`rounded-2xl border-2 p-3 transition ${selectedNetwork === network.code
-                                ? network.color
-                                : "border-gray-200 bg-white"
-                            }`}
-                    >
-                        <img
-                            src={network.logo}
-                            alt={network.name}
-                            className="mx-auto h-10 w-10 object-contain"
-                        />
-                        <p className="mt-2 text-center text-xs font-medium">
-                            {network.name}
-                        </p>
-                    </button>
-                ))}
+            <div className="mb-6">
+                <h1 className="text-2xl font-bold">Buy Data</h1>
+                <p className="text-sm text-gray-500">
+                    Fast & affordable internet bundles
+                </p>
             </div>
 
-            {/* Phone */}
-            <div className="mt-6">
-                <label className="mb-2 block text-sm font-medium">
-                    Phone Number
-                </label>
-
-                <input
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="08012345678"
-                    className="w-full rounded-2xl border bg-white p-4"
-                />
+            <div className="rounded-3xl bg-gradient-to-r from-green-600 to-emerald-500 p-5 text-white">
+                <div className="flex items-center gap-3">
+                    <Smartphone size={30} />
+                    <div>
+                        <p className="text-green-100 text-sm">Instant Purchase</p>
+                        <h2 className="text-xl font-bold">Data Bundles</h2>
+                    </div>
+                </div>
             </div>
 
-            {/* Plans */}
             <div className="mt-6">
-                <h2 className="mb-3 font-semibold">Select Plan</h2>
+                <label className="mb-3 block font-semibold">Select Network</label>
 
-                <div className="space-y-3">
-                    {plans.map((plan) => (
+                <div className="grid grid-cols-2 gap-3">
+                    {networks.map((item) => (
                         <button
-                            key={plan.id}
-                            onClick={() => setSelectedPlan(plan)}
-                            className={`w-full rounded-2xl border p-4 text-left ${selectedPlan?.id === plan.id
+                            key={item.name}
+                            onClick={() => {
+                                setNetwork(item.name);
+                                setSelectedPlan(null);
+                            }}
+                            className={`rounded-2xl border p-4 transition ${network === item.name
                                     ? "border-green-600 bg-green-50"
-                                    : "border-gray-200 bg-white"
+                                    : "bg-white"
                                 }`}
                         >
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <h3 className="font-bold">{plan.size}</h3>
-                                    <p className="text-sm text-gray-500">
-                                        {plan.validity}
-                                    </p>
-                                </div>
+                            <div
+                                className={`mx-auto mb-2 h-10 w-10 rounded-full ${item.color}`}
+                            />
 
-                                <span className="text-lg font-bold text-green-600">
-                                    ₦{plan.amount.toLocaleString()}
-                                </span>
-                            </div>
+                            <p className="font-semibold">{item.name}</p>
                         </button>
                     ))}
                 </div>
             </div>
 
-            {/* Continue */}
+            <div className="mt-6">
+                <label className="mb-2 block font-semibold">Phone Number</label>
+
+                <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="08012345678"
+                    className="w-full rounded-2xl border bg-white p-4 outline-none focus:border-green-600"
+                />
+            </div>
+
+            <div className="mt-6">
+                <label className="mb-3 block font-semibold">Data Type</label>
+
+                <div className="flex gap-2">
+                    {dataTypes.map((item) => (
+                        <button
+                            key={item}
+                            onClick={() => setType(item)}
+                            className={`flex-1 rounded-xl py-3 text-sm font-semibold ${type === item
+                                    ? "bg-green-600 text-white"
+                                    : "bg-white border"
+                                }`}
+                        >
+                            {item}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            <div className="mt-6">
+                <label className="mb-3 block font-semibold">
+                    Select Data Plan
+                </label>
+
+                <div className="grid grid-cols-2 gap-3">
+                    {currentPlans.map((plan) => (
+                        <button
+                            key={plan.size}
+                            onClick={() => setSelectedPlan(plan)}
+                            className={`rounded-2xl border p-4 text-left transition ${selectedPlan?.size === plan.size
+                                    ? "border-green-600 bg-green-50"
+                                    : "bg-white"
+                                }`}
+                        >
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-lg font-bold">{plan.size}</h3>
+
+                                {selectedPlan?.size === plan.size && (
+                                    <CheckCircle2 className="text-green-600" size={18} />
+                                )}
+                            </div>
+
+                            <p className="mt-2 text-2xl font-bold text-green-600">
+                                ₦{plan.price}
+                            </p>
+
+                            <p className="text-xs text-gray-500 mt-1">{type} Bundle</p>
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            <div className="mt-6">
+                <label className="mb-2 block font-semibold">
+                    Transaction PIN
+                </label>
+
+                <input
+                    type="password"
+                    maxLength={4}
+                    value={pin}
+                    onChange={(e) => setPin(e.target.value)}
+                    placeholder="****"
+                    className="w-full rounded-2xl border bg-white p-4 text-center tracking-[0.5em]"
+                />
+            </div>
+
             <button className="mt-8 w-full rounded-2xl bg-green-600 py-4 text-lg font-semibold text-white">
-                Continue
+                Buy Data
             </button>
         </main>
     );
