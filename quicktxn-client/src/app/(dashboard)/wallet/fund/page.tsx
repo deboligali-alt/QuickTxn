@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import axios from "axios";
+import api from "@/lib/api";
 import { Wallet } from "lucide-react";
 
 const quickAmounts = [500, 1000, 2000, 5000];
@@ -19,22 +19,17 @@ export default function FundWalletPage() {
         try {
             setLoading(true);
 
-            const token = localStorage.getItem("token");
-
-            const res = await axios.post(
-                `${process.env.NEXT_PUBLIC_API_URL}/wallet/fund`,
-                { amount: Number(amount) },
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                }
-            );
+            const res = await api.post("/wallet/fund", {
+                amount: Number(amount),
+            });
 
             window.location.href = res.data.data.authorization_url;
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            alert("Unable to initialize payment");
+            alert(
+                error.response?.data?.message ||
+                "Unable to initialize payment"
+            );
         } finally {
             setLoading(false);
         }

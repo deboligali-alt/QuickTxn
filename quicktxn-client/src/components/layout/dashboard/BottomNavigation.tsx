@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { House, Receipt, Bell, Settings } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import axios from "axios";
+import api from "@/lib/api";
 
 export default function BottomNavigation() {
     const pathname = usePathname();
@@ -14,16 +14,7 @@ export default function BottomNavigation() {
     useEffect(() => {
         const loadNotifications = async () => {
             try {
-                const token = localStorage.getItem("token");
-
-                const res = await axios.get(
-                    `${process.env.NEXT_PUBLIC_API_URL}/notifications`,
-                    {
-                        headers: {
-                            Authorization: `Bearer ${token}`,
-                        },
-                    }
-                );
+                const res = await api.get("/notifications");
 
                 const notifications = res.data.data || [];
 
@@ -33,7 +24,7 @@ export default function BottomNavigation() {
 
                 setUnread(count);
             } catch (error) {
-                console.error(error);
+                console.error("Failed to load notifications:", error);
             }
         };
 
@@ -85,8 +76,8 @@ export default function BottomNavigation() {
 
                                 <span
                                     className={`text-[11px] ${active
-                                            ? "font-semibold text-green-600"
-                                            : "text-gray-500"
+                                        ? "font-semibold text-green-600"
+                                        : "text-gray-500"
                                         }`}
                                 >
                                     {item.label}

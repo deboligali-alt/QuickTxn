@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import axios from "axios";
+import api from "@/lib/api";
 import { ShieldCheck } from "lucide-react";
 
 export default function BankTransferPinPage() {
@@ -34,20 +34,10 @@ export default function BankTransferPinPage() {
         try {
             setLoading(true);
 
-            const token = localStorage.getItem("token");
-
-            await axios.post(
-                `${process.env.NEXT_PUBLIC_API_URL}/wallet/bank-transfer`,
-                {
-                    ...transferData,
-                    pin,
-                },
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                }
-            );
+            await api.post("/wallet/bank-transfer", {
+                ...transferData,
+                pin,
+            });
 
             sessionStorage.setItem("payment_success", "true");
             sessionStorage.removeItem("transferData");
@@ -122,8 +112,8 @@ export default function BankTransferPinPage() {
                     <div
                         key={i}
                         className={`h-4 w-4 rounded-full ${i < pin.length
-                                ? "bg-green-600"
-                                : "bg-gray-300"
+                            ? "bg-green-600"
+                            : "bg-gray-300"
                             }`}
                     />
                 ))}

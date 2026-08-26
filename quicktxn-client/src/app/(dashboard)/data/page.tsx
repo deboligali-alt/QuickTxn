@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import axios from "axios";
+import api from "@/lib/api";
 import { Smartphone, CheckCircle2 } from "lucide-react";
 
 interface DataPlan {
@@ -35,18 +35,7 @@ export default function DataPage() {
     useEffect(() => {
         const fetchPlans = async () => {
             try {
-                const token = localStorage.getItem("token");
-
-                const res = await axios.get(
-                    `${process.env.NEXT_PUBLIC_API_URL}/data/plans`,
-                    {
-                        headers: {
-                            Authorization: `Bearer ${token}`,
-                        },
-                    }
-                );
-
-                // IMPORTANT: use the data property
+                const res = await api.get("/data/plans");
                 setPlans(res.data.data);
             } catch (error) {
                 console.error("Failed to load data plans:", error);
@@ -65,6 +54,23 @@ export default function DataPage() {
         );
     }, [plans, network, type]);
 
+    const purchaseData = async () => {
+        if (!selectedPlan) return alert("Select a data plan");
+
+        try {
+            await api.post("/data/purchase", {
+                network,
+                phone,
+                planId: selectedPlan.id,
+                pin,
+            });
+
+            sessionStorage.setItem("payment_success", "true");
+            window.location.href = "/dashboard";
+        } catch (error: any) {
+            alert(error.response?.data?.message || "Purchase failed");
+        }
+    };
     return (
         <main className="mx-auto min-h-screen max-w-md bg-gray-50 p-4 pb-28">
             <div className="mb-6">
@@ -99,8 +105,8 @@ export default function DataPage() {
                                 setSelectedPlan(null);
                             }}
                             className={`rounded-2xl border p-4 transition ${network === item.name
-                                    ? "border-green-600 bg-green-50"
-                                    : "bg-white"
+                                ? "border-green-600 bg-green-50"
+                                : "bg-white"
                                 }`}
                         >
                             <div
@@ -143,8 +149,8 @@ export default function DataPage() {
                                 setSelectedPlan(null);
                             }}
                             className={`flex-1 rounded-xl py-3 text-sm font-semibold ${type === item
-                                    ? "bg-green-600 text-white"
-                                    : "border bg-white"
+                                ? "bg-green-600 text-white"
+                                : "border bg-white"
                                 }`}
                         >
                             {item}
@@ -170,8 +176,8 @@ export default function DataPage() {
                                 key={plan.id}
                                 onClick={() => setSelectedPlan(plan)}
                                 className={`rounded-2xl border p-4 text-left transition ${selectedPlan?.id === plan.id
-                                        ? "border-green-600 bg-green-50"
-                                        : "bg-white"
+                                    ? "border-green-600 bg-green-50"
+                                    : "bg-white"
                                     }`}
                             >
                                 <div className="flex items-center justify-between">
@@ -217,10 +223,16 @@ export default function DataPage() {
             </div>
 
             <button
+                onClick={purchaseData}
+                disabled={
+                    loading ||
+                    !selectedPlan ||
+                    phone.length !== 11 ||
+                    pin.length !== 4
+                }
                 className="mt-8 w-full rounded-2xl bg-green-600 py-4 text-lg font-semibold text-white disabled:opacity-50"
-                disabled={!selectedPlan || phone.length !== 11 || pin.length !== 4}
             >
-                Buy Data
+                {loading ? "Processing..." : "Buy Data"}
             </button>
         </main>
     );

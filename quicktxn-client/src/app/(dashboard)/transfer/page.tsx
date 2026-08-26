@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "@/lib/api";
 import { ArrowRightLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -23,20 +23,10 @@ export default function TransferPage() {
     useEffect(() => {
         const fetchBanks = async () => {
             try {
-                const token = localStorage.getItem("token");
-
-                const res = await axios.get(
-                    `${process.env.NEXT_PUBLIC_API_URL}/wallet/banks`,
-                    {
-                        headers: {
-                            Authorization: `Bearer ${token}`,
-                        },
-                    }
-                );
-
+                const res = await api.get("/wallet/banks");
                 setBanks(res.data.data);
             } catch (error) {
-                console.error(error);
+                console.error("Failed to load banks:", error);
             }
         };
 
@@ -48,20 +38,10 @@ export default function TransferPage() {
             if (accountNumber.length !== 10 || !bankCode) return;
 
             try {
-                const token = localStorage.getItem("token");
-
-                const res = await axios.post(
-                    `${process.env.NEXT_PUBLIC_API_URL}/wallet/resolve-account`,
-                    {
-                        accountNumber,
-                        bankCode,
-                    },
-                    {
-                        headers: {
-                            Authorization: `Bearer ${token}`,
-                        },
-                    }
-                );
+                const res = await api.post("/wallet/resolve-account", {
+                    accountNumber,
+                    bankCode,
+                });
 
                 setAccountName(res.data.data.account_name);
             } catch {
@@ -71,7 +51,6 @@ export default function TransferPage() {
 
         resolve();
     }, [accountNumber, bankCode]);
-
     const continueTransfer = () => {
         if (!accountName || !amount) {
             alert("Complete all fields");

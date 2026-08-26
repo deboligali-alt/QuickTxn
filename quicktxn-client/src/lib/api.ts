@@ -12,7 +12,7 @@ const api = axios.create({
   timeout: 10000,
 });
 
-// Attach JWT automatically
+// Automatically attach JWT
 api.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
     const token = localStorage.getItem("token");

@@ -1,30 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import axios from "axios";
+import api from "@/lib/api";
 import { Smartphone } from "lucide-react";
 
 const networks = [
-    {
-        id: "mtn",
-        name: "MTN",
-        color: "bg-yellow-400",
-    },
-    {
-        id: "airtel",
-        name: "Airtel",
-        color: "bg-red-500",
-    },
-    {
-        id: "glo",
-        name: "Glo",
-        color: "bg-green-600",
-    },
-    {
-        id: "9mobile",
-        name: "9mobile",
-        color: "bg-emerald-500",
-    },
+    { id: "mtn", name: "MTN", color: "bg-yellow-400" },
+    { id: "airtel", name: "Airtel", color: "bg-red-500" },
+    { id: "glo", name: "Glo", color: "bg-green-600" },
+    { id: "9mobile", name: "9mobile", color: "bg-emerald-500" },
 ];
 
 export default function AirtimePage() {
@@ -42,54 +26,35 @@ export default function AirtimePage() {
         try {
             setLoading(true);
 
-            const token = localStorage.getItem("token");
-
-            await axios.post(
-                `${process.env.NEXT_PUBLIC_API_URL}/airtime/purchase`,
-                {
-                    network,
-                    phone,
-                    amount: Number(amount),
-                },
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                }
-            );
+            await api.post("/airtime/purchase", {
+                network,
+                phone,
+                amount: Number(amount),
+            });
 
             sessionStorage.setItem("payment_success", "true");
             window.location.href = "/dashboard";
-
         } catch (error: any) {
-
             alert(
-                error.response?.data?.message ||
-                "Purchase failed"
+                error.response?.data?.message || "Purchase failed"
             );
-
         } finally {
-
             setLoading(false);
         }
     };
 
     return (
         <main className="mx-auto min-h-screen max-w-md bg-gray-50 p-4 pb-24">
-            <h1 className="mb-6 text-2xl font-bold">
-                Buy Airtime
-            </h1>
+            <h1 className="mb-6 text-2xl font-bold">Buy Airtime</h1>
 
             <div className="rounded-3xl bg-gradient-to-br from-green-600 to-emerald-600 p-6 text-white">
                 <div className="flex items-center gap-3">
                     <Smartphone size={30} />
                     <div>
-                        <p className="text-green-100 text-sm">
+                        <p className="text-sm text-green-100">
                             Instant Recharge
                         </p>
-                        <h2 className="text-xl font-bold">
-                            All Networks
-                        </h2>
+                        <h2 className="text-xl font-bold">All Networks</h2>
                     </div>
                 </div>
             </div>
@@ -112,10 +77,7 @@ export default function AirtimePage() {
                             <div
                                 className={`mx-auto mb-2 h-10 w-10 rounded-full ${item.color}`}
                             />
-
-                            <p className="font-semibold">
-                                {item.name}
-                            </p>
+                            <p className="font-semibold">{item.name}</p>
                         </button>
                     ))}
                 </div>
@@ -126,12 +88,9 @@ export default function AirtimePage() {
                     <label className="mb-2 block text-sm font-medium">
                         Phone Number
                     </label>
-
                     <input
                         value={phone}
-                        onChange={(e) =>
-                            setPhone(e.target.value)
-                        }
+                        onChange={(e) => setPhone(e.target.value)}
                         placeholder="08012345678"
                         className="w-full rounded-2xl border bg-white p-4 outline-none"
                     />
@@ -141,13 +100,10 @@ export default function AirtimePage() {
                     <label className="mb-2 block text-sm font-medium">
                         Amount
                     </label>
-
                     <input
                         type="number"
                         value={amount}
-                        onChange={(e) =>
-                            setAmount(e.target.value)
-                        }
+                        onChange={(e) => setAmount(e.target.value)}
                         placeholder="₦100"
                         className="w-full rounded-2xl border bg-white p-4 text-2xl font-bold outline-none"
                     />
@@ -155,19 +111,15 @@ export default function AirtimePage() {
             </div>
 
             <div className="mt-5 grid grid-cols-3 gap-2">
-                {[100, 200, 500, 1000, 2000, 5000].map(
-                    (value) => (
-                        <button
-                            key={value}
-                            onClick={() =>
-                                setAmount(String(value))
-                            }
-                            className="rounded-xl bg-white py-3 font-semibold shadow-sm"
-                        >
-                            ₦{value}
-                        </button>
-                    )
-                )}
+                {[100, 200, 500, 1000, 2000, 5000].map((value) => (
+                    <button
+                        key={value}
+                        onClick={() => setAmount(String(value))}
+                        className="rounded-xl bg-white py-3 font-semibold shadow-sm"
+                    >
+                        ₦{value}
+                    </button>
+                ))}
             </div>
 
             <button
@@ -175,9 +127,7 @@ export default function AirtimePage() {
                 disabled={loading}
                 className="mt-8 w-full rounded-2xl bg-green-600 py-4 text-lg font-semibold text-white disabled:opacity-60"
             >
-                {loading
-                    ? "Processing..."
-                    : "Buy Airtime"}
+                {loading ? "Processing..." : "Buy Airtime"}
             </button>
         </main>
     );

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "@/lib/api";
 import { Trophy } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
 
@@ -31,16 +31,7 @@ export default function BettingPage() {
     useEffect(() => {
         const loadProviders = async () => {
             try {
-                const token = localStorage.getItem("token");
-
-                const res = await axios.get(
-                    `${process.env.NEXT_PUBLIC_API_URL}/betting/providers`,
-                    {
-                        headers: {
-                            Authorization: `Bearer ${token}`,
-                        },
-                    }
-                );
+                const res = await api.get("/betting/providers");
 
                 setProviders(res.data.data);
 
@@ -59,20 +50,10 @@ export default function BettingPage() {
         if (!bettingUserId) return alert("Enter Betting User ID");
 
         try {
-            const token = localStorage.getItem("token");
-
-            const res = await axios.post(
-                `${process.env.NEXT_PUBLIC_API_URL}/betting/verify`,
-                {
-                    company: providerCode,
-                    customerId: bettingUserId,
-                },
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                }
-            );
+            const res = await api.post("/betting/verify", {
+                company: providerCode,
+                customerId: bettingUserId,
+            });
 
             setCustomerName(res.data.data.name);
         } catch (error: any) {
@@ -92,23 +73,12 @@ export default function BettingPage() {
 
         try {
             setLoading(true);
-
-            const token = localStorage.getItem("token");
-
-            await axios.post(
-                `${process.env.NEXT_PUBLIC_API_URL}/betting/fund`,
-                {
-                    providerCode,
-                    bettingUserId,
-                    amount: Number(amount),
-                    pin,
-                },
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                }
-            );
+            await api.post("/betting/fund", {
+                providerCode,
+                bettingUserId,
+                amount: Number(amount),
+                pin,
+            });
 
             sessionStorage.setItem("payment_success", "true");
             window.location.href = "/dashboard";

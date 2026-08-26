@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "@/lib/api";
 import {
     CheckCircle2,
     Copy,
@@ -23,28 +23,19 @@ export default function TransactionDetailsPage() {
     const router = useRouter();
 
     const [tx, setTx] = useState<Transaction | null>(null);
-
     useEffect(() => {
         const fetchTransaction = async () => {
             try {
-                const token = localStorage.getItem("token");
-
-                const res = await axios.get(
-                    `${process.env.NEXT_PUBLIC_API_URL}/transactions/${reference}`,
-                    {
-                        headers: {
-                            Authorization: `Bearer ${token}`,
-                        },
-                    }
-                );
-
+                const res = await api.get(`/transactions/${reference}`);
                 setTx(res.data.transaction);
             } catch (error) {
-                console.error(error);
+                console.error("Failed to load transaction:", error);
             }
         };
 
-        fetchTransaction();
+        if (reference) {
+            fetchTransaction();
+        }
     }, [reference]);
 
     const copyReference = () => {

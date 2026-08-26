@@ -5,7 +5,7 @@ import {
     useRouter,
     useSearchParams,
 } from "next/navigation";
-import axios from "axios";
+import api from "@/lib/api";
 
 export default function WalletCallbackPage() {
     const router = useRouter();
@@ -61,14 +61,8 @@ export default function WalletCallbackPage() {
                     reference
                 );
 
-                const response = await axios.get(
-                    `${process.env.NEXT_PUBLIC_API_URL}/wallet/verify-payment/${reference}`,
-                    {
-                        headers: {
-                            Authorization:
-                                `Bearer ${token}`,
-                        },
-                    }
+                const response = await api.get(
+                    `/wallet/verify-payment/${reference}`
                 );
 
                 console.log(
@@ -100,18 +94,12 @@ export default function WalletCallbackPage() {
                     error
                 );
 
-                if (
-                    axios.isAxiosError(error)
-                ) {
-                    setStatus(
-                        error.response?.data?.message ||
-                        "Payment verification failed."
-                    );
-                } else {
-                    setStatus(
-                        "Payment verification failed."
-                    );
-                }
+                const err = error as any;
+
+                setStatus(
+                    err.response?.data?.message ||
+                    "Payment verification failed."
+                );
             }
         };
 

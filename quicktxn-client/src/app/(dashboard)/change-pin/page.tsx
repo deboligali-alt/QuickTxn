@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import axios from "axios";
+import api from "@/lib/api";
 import { Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -29,20 +29,10 @@ export default function ChangePinPage() {
         try {
             setLoading(true);
 
-            const token = localStorage.getItem("token");
-
-            await axios.put(
-                `${process.env.NEXT_PUBLIC_API_URL}/users/change-pin`,
-                {
-                    currentPin,
-                    newPin,
-                },
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                }
-            );
+            await api.put("/user/change-pin", {
+                currentPin,
+                newPin,
+            });
 
             alert("Transaction PIN updated successfully.");
             router.push("/settings");

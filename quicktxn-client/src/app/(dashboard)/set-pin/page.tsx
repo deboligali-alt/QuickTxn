@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import axios from "axios";
+import api from "@/lib/api";
 import { ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -24,17 +24,7 @@ export default function SetPinPage() {
         try {
             setLoading(true);
 
-            const token = localStorage.getItem("token");
-
-            await axios.post(
-                `${process.env.NEXT_PUBLIC_API_URL}/user/set-pin`,
-                { pin },
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                }
-            );
+            await api.post("/user/set-pin", { pin });
 
             alert("Transaction PIN created successfully.");
             router.push("/settings");
