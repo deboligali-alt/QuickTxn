@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "@/lib/api";
 import { Bell, CheckCircle2 } from "lucide-react";
 
 interface Notification {
@@ -19,20 +19,10 @@ export default function NotificationsPage() {
     useEffect(() => {
         const fetchNotifications = async () => {
             try {
-                const token = localStorage.getItem("token");
-
-                const res = await axios.get(
-                    `${process.env.NEXT_PUBLIC_API_URL}/notifications`,
-                    {
-                        headers: {
-                            Authorization: `Bearer ${token}`,
-                        },
-                    }
-                );
-
+                const res = await api.get("/notifications");
                 setNotifications(res.data.data);
             } catch (error) {
-                console.error(error);
+                console.error("Notification fetch failed:", error);
             } finally {
                 setLoading(false);
             }
@@ -65,10 +55,7 @@ export default function NotificationsPage() {
 
             {todayItems.length > 0 && (
                 <>
-                    <h2 className="mb-3 text-sm font-semibold text-gray-500">
-                        TODAY
-                    </h2>
-
+                    <h2 className="mb-3 text-sm font-semibold text-gray-500">TODAY</h2>
                     <div className="space-y-3">
                         {todayItems.map((item) => (
                             <div
@@ -77,17 +64,11 @@ export default function NotificationsPage() {
                             >
                                 <div className="flex items-start gap-3">
                                     <div className="rounded-full bg-green-100 p-2">
-                                        <Bell
-                                            className="text-green-600"
-                                            size={18}
-                                        />
+                                        <Bell className="text-green-600" size={18} />
                                     </div>
 
                                     <div className="flex-1">
-                                        <h3 className="font-semibold">
-                                            {item.title}
-                                        </h3>
-
+                                        <h3 className="font-semibold">{item.title}</h3>
                                         <p className="mt-1 text-sm text-gray-600">
                                             {item.message}
                                         </p>
@@ -118,25 +99,18 @@ export default function NotificationsPage() {
                             >
                                 <div className="flex items-start gap-3">
                                     <div className="rounded-full bg-gray-100 p-2">
-                                        <Bell
-                                            className="text-gray-600"
-                                            size={18}
-                                        />
+                                        <Bell className="text-gray-600" size={18} />
                                     </div>
 
                                     <div className="flex-1">
-                                        <h3 className="font-semibold">
-                                            {item.title}
-                                        </h3>
+                                        <h3 className="font-semibold">{item.title}</h3>
 
                                         <p className="mt-1 text-sm text-gray-600">
                                             {item.message}
                                         </p>
 
                                         <p className="mt-2 text-xs text-gray-400">
-                                            {new Date(
-                                                item.created_at
-                                            ).toLocaleDateString("en-NG", {
+                                            {new Date(item.created_at).toLocaleDateString("en-NG", {
                                                 day: "numeric",
                                                 month: "short",
                                             })}
