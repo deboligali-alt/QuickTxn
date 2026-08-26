@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import axios from "axios";
+import api from "@/lib/api";
 import {
     ArrowDownLeft,
     ArrowUpRight,
@@ -17,13 +17,7 @@ interface Transaction {
     createdAt: string;
 }
 
-const filters = [
-    "All",
-    "Funding",
-    "Transfer",
-    "Airtime",
-    "Data",
-];
+const filters = ["All", "Funding", "Transfer", "Airtime", "Data"];
 
 export default function TransactionsPage() {
     const router = useRouter();
@@ -35,20 +29,10 @@ export default function TransactionsPage() {
     useEffect(() => {
         const fetchTransactions = async () => {
             try {
-                const token = localStorage.getItem("token");
-
-                const res = await axios.get(
-                    `${process.env.NEXT_PUBLIC_API_URL}/transactions`,
-                    {
-                        headers: {
-                            Authorization: `Bearer ${token}`,
-                        },
-                    }
-                );
-
+                const res = await api.get("/transactions");
                 setTransactions(res.data.transactions);
             } catch (error) {
-                console.error(error);
+                console.error("Transaction fetch failed:", error);
             }
         };
 
@@ -64,9 +48,7 @@ export default function TransactionsPage() {
             const matchFilter =
                 activeFilter === "All"
                     ? true
-                    : tx.type
-                        .toLowerCase()
-                        .includes(activeFilter.toLowerCase());
+                    : tx.type.toLowerCase().includes(activeFilter.toLowerCase());
 
             return matchSearch && matchFilter;
         });
@@ -74,9 +56,7 @@ export default function TransactionsPage() {
 
     return (
         <main className="mx-auto min-h-screen max-w-md bg-gray-50 p-4 pb-24">
-            <h1 className="mb-5 text-2xl font-bold">
-                Transactions
-            </h1>
+            <h1 className="mb-5 text-2xl font-bold">Transactions</h1>
 
             <div className="mb-4 flex items-center gap-2 rounded-2xl bg-white px-4 py-3 shadow-sm">
                 <Search size={18} className="text-gray-400" />
@@ -107,40 +87,26 @@ export default function TransactionsPage() {
                 {filtered.map((tx) => (
                     <button
                         key={tx.id}
-                        onClick={() =>
-                            router.push(`/transactions/${tx.id}`)
-                        }
+                        onClick={() => router.push(`/transactions/${tx.id}`)}
                         className="flex w-full items-center justify-between rounded-2xl bg-white p-4 shadow-sm"
                     >
                         <div className="flex items-center gap-3">
                             <div
-                                className={`rounded-full p-3 ${tx.amount > 0
-                                        ? "bg-green-100"
-                                        : "bg-red-100"
+                                className={`rounded-full p-3 ${tx.amount > 0 ? "bg-green-100" : "bg-red-100"
                                     }`}
                             >
                                 {tx.amount > 0 ? (
-                                    <ArrowDownLeft
-                                        size={18}
-                                        className="text-green-600"
-                                    />
+                                    <ArrowDownLeft size={18} className="text-green-600" />
                                 ) : (
-                                    <ArrowUpRight
-                                        size={18}
-                                        className="text-red-600"
-                                    />
+                                    <ArrowUpRight size={18} className="text-red-600" />
                                 )}
                             </div>
 
                             <div className="text-left">
-                                <h3 className="font-semibold">
-                                    {tx.type}
-                                </h3>
+                                <h3 className="font-semibold">{tx.type}</h3>
 
                                 <p className="text-xs text-gray-500">
-                                    {new Date(
-                                        tx.createdAt
-                                    ).toLocaleString("en-NG", {
+                                    {new Date(tx.createdAt).toLocaleString("en-NG", {
                                         day: "numeric",
                                         month: "short",
                                         hour: "2-digit",
@@ -152,9 +118,7 @@ export default function TransactionsPage() {
 
                         <div className="text-right">
                             <p
-                                className={`font-bold ${tx.amount > 0
-                                        ? "text-green-600"
-                                        : "text-red-600"
+                                className={`font-bold ${tx.amount > 0 ? "text-green-600" : "text-red-600"
                                     }`}
                             >
                                 {tx.amount > 0 ? "+" : "-"}₦

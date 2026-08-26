@@ -7,7 +7,7 @@ import {
     RefreshCw,
     Landmark,
 } from "lucide-react";
-import api from "@/lib/axios";
+import api from "@/lib/api";
 
 interface Withdrawal {
     id: string;

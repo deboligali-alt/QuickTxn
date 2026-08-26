@@ -7,7 +7,7 @@ import {
     CheckCircle2,
     RefreshCw,
 } from "lucide-react";
-import api from "@/lib/axios";
+import api from "@/lib/api";
 
 interface Referral {
     id: string;

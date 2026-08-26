@@ -1,16 +1,10 @@
-import axios from "axios";
+import api from "@/lib/api";
 
-const API = process.env.NEXT_PUBLIC_API_URL;
-
-export const getDashboardData = async (token: string) => {
-    const headers = {
-        Authorization: `Bearer ${token}`,
-    };
-
+export const getDashboardData = async () => {
     const [wallet, transactions, notifications] = await Promise.all([
-        axios.get(`${API}/wallet/balance`, { headers }),
-        axios.get(`${API}/transactions`, { headers }),
-        axios.get(`${API}/notifications`, { headers }),
+        api.get("/wallet/balance"),
+        api.get("/transactions"),
+        api.get("/notifications"),
     ]);
 
     return {

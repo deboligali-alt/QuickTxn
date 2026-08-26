@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Save, RefreshCw, Percent } from "lucide-react";
-import api from "@/lib/axios";
+import api from "@/lib/api";
 
 interface Rate {
     id: string;

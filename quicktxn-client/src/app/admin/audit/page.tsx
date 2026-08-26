@@ -7,7 +7,7 @@ import {
     ShieldCheck,
     User,
 } from "lucide-react";
-import api from "@/lib/axios";
+import api from "@/lib/api";
 
 interface AuditLog {
     id: string;

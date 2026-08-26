@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Copy, Landmark, RefreshCw } from "lucide-react";
-import api from "@/lib/axios";
+import api from "@/lib/api";
 
 interface VirtualAccount {
     bank_name: string;

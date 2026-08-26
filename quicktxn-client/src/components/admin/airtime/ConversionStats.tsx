@@ -8,7 +8,7 @@ import {
     Wallet,
 } from "lucide-react";
 
-import api from "@/lib/axios";
+import api from "@/lib/api";
 
 interface AirtimeStats {
     pending: number;

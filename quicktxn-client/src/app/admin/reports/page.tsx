@@ -8,7 +8,7 @@ import {
     FileText,
     BarChart3,
 } from "lucide-react";
-import api from "@/lib/axios";
+import api from "@/lib/api";
 
 export default function ReportsPage() {
     const [period, setPeriod] = useState("DAILY");

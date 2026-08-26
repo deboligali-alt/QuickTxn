@@ -1,15 +1,14 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL:
-    process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api",
+  baseURL: `${process.env.NEXT_PUBLIC_API_URL}/api`,
   headers: {
     "Content-Type": "application/json",
   },
   timeout: 10000,
 });
 
-// Request interceptor
+// Attach JWT automatically
 api.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
     const token = localStorage.getItem("token");
@@ -22,7 +21,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Response interceptor
+// Redirect to login if token expires
 api.interceptors.response.use(
   (response) => response,
   (error) => {

@@ -1,4 +1,4 @@
-import api from "@/lib/axios";
+import api from "@/lib/api";
 
 export const getDataPlans = async (token: string) => {
     const response = await api.get("/data/plans", {

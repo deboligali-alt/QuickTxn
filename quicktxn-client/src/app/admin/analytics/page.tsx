@@ -12,7 +12,7 @@ import {
     Clock3,
     XCircle,
 } from "lucide-react";
-import api from "@/lib/axios";
+import api from "@/lib/api";
 
 interface Analytics {
     totalUsers: number;

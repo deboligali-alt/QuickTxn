@@ -19,7 +19,7 @@ export default function DashboardPage() {
         if (!token) return;
 
         try {
-            const data = await getDashboardData(token);
+            const data = await getDashboardData(); // ✅ Fixed
             setDashboard(data);
 
             const payload = JSON.parse(atob(token.split(".")[1]));
@@ -72,8 +72,6 @@ export default function DashboardPage() {
                     transactions={dashboard?.transactions || []}
                 />
             </main>
-
-    
         </>
     );
 }

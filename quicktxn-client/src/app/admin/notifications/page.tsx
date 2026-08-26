@@ -9,7 +9,7 @@ import {
     Send,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import api from "@/lib/axios";
+import api from "@/lib/api";
 
 interface Notification {
     id: string;

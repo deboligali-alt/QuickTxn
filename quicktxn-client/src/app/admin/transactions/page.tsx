@@ -9,7 +9,7 @@ import {
     Filter,
     RefreshCw,
 } from "lucide-react";
-import api from "@/lib/axios";
+import api from "@/lib/api";
 import { useRouter } from "next/navigation";
 
 const router = useRouter();

@@ -1,4 +1,4 @@
-import api from "@/lib/axios";
+import api from "@/lib/api";
 
 export const getProfile = async (token: string) => {
   const response = await api.get("/user/profile", {

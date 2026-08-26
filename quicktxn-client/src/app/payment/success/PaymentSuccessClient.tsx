@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import api from "@/lib/axios";
+import api from "@/lib/api";
 
 export default function PaymentSuccessClient() {
     const router = useRouter();
