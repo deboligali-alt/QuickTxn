@@ -1,7 +1,11 @@
 import axios from "axios";
 
+const BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ||
+  "http://localhost:5000";
+
 const api = axios.create({
-  baseURL: `${process.env.NEXT_PUBLIC_API_URL}/api`,
+  baseURL: `${BASE_URL}/api`,
   headers: {
     "Content-Type": "application/json",
   },
@@ -21,7 +25,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Redirect to login if token expires
+// Handle expired token
 api.interceptors.response.use(
   (response) => response,
   (error) => {
