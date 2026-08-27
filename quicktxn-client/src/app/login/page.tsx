@@ -18,7 +18,10 @@ import { toast } from "sonner";
 
 export default function LoginPage() {
   const router = useRouter();
-
+  useEffect(() => {
+    router.prefetch("/dashboard");
+    router.prefetch("/admin");
+  }, [router]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -29,9 +32,22 @@ export default function LoginPage() {
   useEffect(() => {
     const token = localStorage.getItem("token");
 
-    if (token) {
-      router.replace("/dashboard");
-    }
+    if (!token) return;
+
+    axios
+      .get(`${process.env.NEXT_PUBLIC_API_URL}/api/user/profile`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      .then(() => {
+        router.replace("/dashboard");
+      })
+      .catch(() => {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        localStorage.removeItem("role");
+      });
   }, [router]);
 
   const handleLogin = async (
@@ -64,7 +80,11 @@ export default function LoginPage() {
         toast.success("Login successful!");
 
         // Redirect to Admin Dashboard
-        router.replace("/admin");
+        if (response.user.role === "ADMIN") {
+          router.replace("/admin");
+        } else {
+          router.replace("/dashboard");
+        }
       }
     } catch (error: unknown) {
       let message = "Login failed.";

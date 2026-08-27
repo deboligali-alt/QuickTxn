@@ -18,9 +18,14 @@ export default function SettingsPage() {
 
 
     const logout = () => {
+        // Clear all authentication data
         localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        localStorage.removeItem("role");
         sessionStorage.clear();
+
         router.replace("/login");
+        router.refresh();
     };
 
     return (
