@@ -1,12 +1,7 @@
 const axios = require("axios");
 
 // ========================================
-// VTpass Configuration
-// ========================================
-const VTPASS_URL = "https://sandbox.vtpass.com/api/pay";
-
-// ========================================
-// Purchase Data
+// Purchase Data via VTpass
 // ========================================
 const purchaseData = async ({
     network,
@@ -15,9 +10,6 @@ const purchaseData = async ({
     amount
 }) => {
 
-    // ========================================
-    // Map QuickTxn network names to VTpass
-    // ========================================
     const serviceIDMap = {
         MTN: "mtn-data",
         AIRTEL: "airtel-data",
@@ -25,26 +17,16 @@ const purchaseData = async ({
         "9MOBILE": "etisalat-data"
     };
 
-    const serviceID =
-        serviceIDMap[network.toUpperCase()];
+    const serviceID = serviceIDMap[network.toUpperCase()];
 
     if (!serviceID) {
         throw new Error("Unsupported network.");
     }
 
-    // ========================================
-    // Generate unique request ID
-    // ========================================
-    const requestId =
-        `QTXN-DATA-${Date.now()}-${Math.floor(
-            Math.random() * 100000
-        )}`;
+    const requestId = `QTXN-DATA-${Date.now()}`;
 
-    // ========================================
-    // VTpass Request
-    // ========================================
     const response = await axios.post(
-        VTPASS_URL,
+        `${process.env.VTPASS_BASE_URL}/pay`,
         {
             request_id: requestId,
             serviceID,
@@ -55,86 +37,42 @@ const purchaseData = async ({
         },
         {
             headers: {
-                "api-key":
-                    process.env.VTPASS_API_KEY,
-
-                "secret-key":
-                    process.env.VTPASS_SECRET_KEY,
-
-                "Content-Type":
-                    "application/json"
+                "api-key": process.env.VTPASS_API_KEY,
+                "secret-key": process.env.VTPASS_SECRET_KEY,
+                "public-key": process.env.VTPASS_PUBLIC_KEY,
+                "Content-Type": "application/json"
             },
-
             timeout: 30000
         }
     );
 
     const data = response.data;
 
-    console.log(
-        "VTpass Data Response:",
-        {
-            requestId,
-            code: data.code,
-            responseDescription:
-                data.response_description,
-            transaction:
-                data.content?.transactions
-        }
-    );
-
-    // ========================================
-    // Check VTpass response
-    // ========================================
-    if (
-        data.code !== "000" &&
-        data.code !== "0o0"
-    ) {
+    if (data.code !== "000" && data.code !== "0o0") {
         throw new Error(
-            data.response_description ||
-            "Data purchase failed."
+            data.response_description || "Data purchase failed."
         );
     }
 
-    const transaction =
-        data.content?.transactions;
+    const transaction = data.content?.transactions;
 
     if (
-        !transaction ||
+        transaction &&
+        transaction.status &&
         transaction.status !== "delivered"
     ) {
-        throw new Error(
-            transaction?.status ||
-            "Data purchase was not delivered."
-        );
+        throw new Error(transaction.status);
     }
 
-    // ========================================
-    // Return successful purchase
-    // ========================================
     return {
         success: true,
-
         provider: "VTPASS",
-
         providerReference:
-            transaction.transactionId ||
-            requestId,
-
-        requestId,
-
-        responseCode:
-            data.code,
-
-        message:
-            data.response_description ||
-            "Data purchased successfully."
+            transaction?.transactionId || requestId,
+        requestId
     };
 };
 
-// ========================================
-// Export
-// ========================================
 module.exports = {
     purchaseData
 };

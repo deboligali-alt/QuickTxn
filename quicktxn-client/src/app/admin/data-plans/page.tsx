@@ -1,593 +1,398 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
+import api from "@/lib/api";
 import {
-    getAllDataPlans,
-    deleteDataPlan,
-    toggleDataPlanStatus,
-    updateDataPlan,
-    createDataPlan,
-} from "@/services/adminDataPlan.service";
+    Plus,
+    Pencil,
+    Trash2,
+    Power,
+    X,
+} from "lucide-react";
+
 interface DataPlan {
     id: string;
     network: string;
+    plan_type: string;
     plan_name: string;
     plan_code: string;
-    amount: string;
+    amount: number;
     is_active: boolean;
 }
-export default function AdminDataPlansPage() {
-    const [showEditModal, setShowEditModal] = useState(false);
 
-    const [editingPlan, setEditingPlan] =
-        useState<DataPlan | null>(null);
+export default function AdminDataPlansPage() {
+    const [plans, setPlans] = useState<DataPlan[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    const [showAdd, setShowAdd] = useState(false);
+    const [editing, setEditing] = useState<DataPlan | null>(null);
+
+    const [newPlan, setNewPlan] = useState({
+        network: "MTN",
+        plan_type: "SME",
+        plan_name: "",
+        plan_code: "",
+        amount: "",
+    });
 
     const [editForm, setEditForm] = useState({
         network: "",
+        plan_type: "SME",
         plan_name: "",
         plan_code: "",
         amount: "",
         is_active: true,
     });
 
-    const [showAddModal, setShowAddModal] = useState(false);
+    const loadPlans = async () => {
+        try {
+            const res = await api.get("/admin/data-plans");
+            setPlans(res.data.data);
+        } catch (err) {
+            console.error(err);
+            alert("Failed to load plans");
+        } finally {
+            setLoading(false);
+        }
+    };
 
-    const [newPlan, setNewPlan] = useState({
-        network: "MTN",
-        plan_name: "",
-        plan_code: "",
-        amount: "",
-    });
+    useEffect(() => {
+        loadPlans();
+    }, []);
 
     const handleCreate = async () => {
-
-        const token = localStorage.getItem("token");
-
-        if (!token) return;
-
         try {
+            await api.post("/admin/data-plans", {
+                network: newPlan.network,
+                plan_type: newPlan.plan_type,
+                plan_name: newPlan.plan_name,
+                plan_code: newPlan.plan_code,
+                amount: Number(newPlan.amount),
+            });
 
-            const response = await createDataPlan(
-                token,
-                {
-                    network: newPlan.network,
-                    plan_name: newPlan.plan_name,
-                    plan_code: newPlan.plan_code,
-                    amount: Number(newPlan.amount),
-                }
-            );
-
-            setPlans((prev) => [...prev, response.data]);
+            setShowAdd(false);
 
             setNewPlan({
                 network: "MTN",
+                plan_type: "SME",
                 plan_name: "",
                 plan_code: "",
                 amount: "",
             });
 
-            setShowAddModal(false);
-
-            alert("Data plan created successfully.");
-
-        } catch (error) {
-
-            console.error(error);
-
-            alert("Failed to create data plan.");
-
+            loadPlans();
+        } catch (err: any) {
+            alert(err.response?.data?.message || "Unable to create plan");
         }
-
     };
 
-    const handleUpdate = async () => {
-
-        if (!editingPlan) return;
-
-        const token = localStorage.getItem("token");
-
-        if (!token) return;
-
-        try {
-
-            const response = await updateDataPlan(
-                token,
-                editingPlan.id,
-                {
-                    network: editForm.network,
-                    plan_name: editForm.plan_name,
-                    plan_code: editForm.plan_code,
-                    amount: Number(editForm.amount),
-                    is_active: editForm.is_active,
-                }
-            );
-
-            setPlans((prev) =>
-                prev.map((plan) =>
-                    plan.id === editingPlan.id
-                        ? response.data
-                        : plan
-                )
-            );
-
-            setShowEditModal(false);
-
-            alert("Updated successfully.");
-
-        } catch (error) {
-
-            console.error(error);
-
-            alert("Failed to update.");
-
-        }
-
-    };
-
-    const openEditModal = (plan: DataPlan) => {
-
-        setEditingPlan(plan);
+    const openEdit = (plan: DataPlan) => {
+        setEditing(plan);
 
         setEditForm({
             network: plan.network,
+            plan_type: plan.plan_type,
             plan_name: plan.plan_name,
             plan_code: plan.plan_code,
-            amount: plan.amount,
+            amount: String(plan.amount),
             is_active: plan.is_active,
         });
-
-        setShowEditModal(true);
-
     };
-    const handleToggleStatus = async (id: string) => {
 
-        const token = localStorage.getItem("token");
-
-        if (!token) return;
+    const handleUpdate = async () => {
+        if (!editing) return;
 
         try {
+            await api.put(`/admin/data-plans/${editing.id}`, {
+                network: editForm.network,
+                plan_type: editForm.plan_type,
+                plan_name: editForm.plan_name,
+                plan_code: editForm.plan_code,
+                amount: Number(editForm.amount),
+                is_active: editForm.is_active,
+            });
 
-            const response = await toggleDataPlanStatus(
-                token,
-                id
-            );
-
-            setPlans((prev) =>
-                prev.map((plan) =>
-                    plan.id === id
-                        ? response.data
-                        : plan
-                )
-            );
-
-        } catch (error) {
-
-            console.error(error);
-
-            alert("Failed to update status.");
-
+            setEditing(null);
+            loadPlans();
+        } catch (err: any) {
+            alert(err.response?.data?.message || "Update failed");
         }
-
     };
 
     const handleDelete = async (id: string) => {
-
-        const confirmed = window.confirm(
-            "Are you sure you want to delete this data plan?"
-        );
-
-        if (!confirmed) return;
-
-        const token = localStorage.getItem("token");
-
-        if (!token) return;
+        if (!confirm("Delete this data plan?")) return;
 
         try {
-
-            await deleteDataPlan(token, id);
-
-            setPlans((prev) =>
-                prev.filter((plan) => plan.id !== id)
-            );
-
-            alert("Data plan deleted successfully.");
-
-        } catch (error) {
-
-            console.error(error);
-
-            alert("Failed to delete data plan.");
-
+            await api.delete(`/admin/data-plans/${id}`);
+            loadPlans();
+        } catch {
+            alert("Delete failed");
         }
-
     };
-    const [plans, setPlans] =
-        useState<DataPlan[]>([]);
 
-    const [loading, setLoading] =
-        useState(true);
+    const toggleStatus = async (id: string) => {
+        try {
+            await api.patch(`/admin/data-plans/${id}/status`);
+            loadPlans();
+        } catch {
+            alert("Unable to update status");
+        }
+    };
 
-    useEffect(() => {
-
-        const loadPlans = async () => {
-
-            const token = localStorage.getItem("token");
-
-            if (!token) return;
-
-            try {
-
-                const response =
-                    await getAllDataPlans(token);
-
-                setPlans(response.data);
-
-            } catch (error) {
-
-                console.error(error);
-
-            } finally {
-
-                setLoading(false);
-
-            }
-
-        };
-
-        loadPlans();
-
-    }, []);
     return (
-        <div className="p-6">
-
+        <main className="mx-auto min-h-screen max-w-md bg-gray-50 p-4 pb-24">
             <div className="mb-6 flex items-center justify-between">
-
-                <div>
-
-                    <h1 className="text-3xl font-bold">
-                        Data Plans
-                    </h1>
-
-                    <p className="mt-1 text-slate-500">
-                        Manage all available data plans.
-                    </p>
-
-                </div>
+                <h1 className="text-2xl font-bold">Data Plans</h1>
 
                 <button
-                    onClick={() => setShowAddModal(true)}
-                    className="rounded-lg bg-green-600 px-5 py-3 font-semibold text-white transition hover:bg-green-700"
+                    onClick={() => setShowAdd(true)}
+                    className="rounded-xl bg-green-600 p-3 text-white"
                 >
-                    + Add Data Plan
+                    <Plus size={20} />
                 </button>
-
             </div>
 
-            <div className="rounded-xl bg-white p-6 shadow">
+            {loading ? (
+                <p>Loading...</p>
+            ) : (
+                <div className="space-y-3">
+                    {plans.map((plan) => (
+                        <div
+                            key={plan.id}
+                            className="rounded-2xl bg-white p-4 shadow-sm"
+                        >
+                            <div className="flex items-start justify-between">
+                                <div>
+                                    <h2 className="font-bold">
+                                        {plan.network} • {plan.plan_name}
+                                    </h2>
 
-                <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                                    <p className="text-sm text-gray-500">
+                                        {plan.plan_type}
+                                    </p>
 
-                    <input
-                        type="text"
-                        placeholder="Search data plans..."
-                        className="w-full rounded-lg border px-4 py-3 outline-none focus:border-green-600 md:max-w-sm"
-                    />
+                                    <p className="mt-1 text-lg font-bold text-green-600">
+                                        ₦{Number(plan.amount).toLocaleString()}
+                                    </p>
 
-                    <select
-                        className="rounded-lg border px-4 py-3 outline-none focus:border-green-600"
-                    >
-                        <option>All Networks</option>
-                        <option>MTN</option>
-                        <option>AIRTEL</option>
-                        <option>GLO</option>
-                        <option>9MOBILE</option>
-                    </select>
-
-                </div>
-
-                <div className="overflow-x-auto">
-
-                    <table className="min-w-full">
-
-                        <thead className="border-b bg-slate-100">
-
-                            <tr>
-
-                                <th className="px-4 py-3 text-left">
-                                    Network
-                                </th>
-
-                                <th className="px-4 py-3 text-left">
-                                    Plan
-                                </th>
-
-                                <th className="px-4 py-3 text-left">
-                                    Code
-                                </th>
-
-                                <th className="px-4 py-3 text-left">
-                                    Amount
-                                </th>
-
-                                <th className="px-4 py-3 text-left">
-                                    Status
-                                </th>
-
-                                <th className="px-4 py-3 text-center">
-                                    Actions
-                                </th>
-
-                            </tr>
-
-                        </thead>
-
-                        <tbody>
-
-                            {loading ? (
-
-                                <tr>
-
-                                    <td
-                                        colSpan={6}
-                                        className="py-10 text-center"
+                                    <span
+                                        className={`mt-2 inline-block rounded-full px-2 py-1 text-xs ${plan.is_active
+                                                ? "bg-green-100 text-green-700"
+                                                : "bg-red-100 text-red-600"
+                                            }`}
                                     >
-                                        Loading...
-                                    </td>
+                                        {plan.is_active ? "ACTIVE" : "INACTIVE"}
+                                    </span>
+                                </div>
 
-                                </tr>
-
-                            ) : plans.length === 0 ? (
-
-                                <tr>
-
-                                    <td
-                                        colSpan={6}
-                                        className="py-10 text-center"
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => openEdit(plan)}
+                                        className="rounded-lg bg-blue-100 p-2 text-blue-600"
                                     >
-                                        No Data Plans Found.
-                                    </td>
+                                        <Pencil size={16} />
+                                    </button>
 
-                                </tr>
-
-                            ) : (
-
-                                plans.map((plan) => (
-
-                                    <tr
-                                        key={plan.id}
-                                        className="border-b hover:bg-slate-50"
+                                    <button
+                                        onClick={() => toggleStatus(plan.id)}
+                                        className="rounded-lg bg-yellow-100 p-2 text-yellow-600"
                                     >
+                                        <Power size={16} />
+                                    </button>
 
-                                        <td className="px-4 py-4">
-                                            {plan.network}
-                                        </td>
-
-                                        <td className="px-4 py-4">
-                                            {plan.plan_name}
-                                        </td>
-
-                                        <td className="px-4 py-4">
-                                            {plan.plan_code}
-                                        </td>
-
-                                        <td className="px-4 py-4">
-                                            ₦{Number(plan.amount).toLocaleString()}
-                                        </td>
-
-                                        <td className="px-4 py-4">
-
-                                            <button
-                                                onClick={() => handleToggleStatus(plan.id)}
-                                                className={`rounded-full px-3 py-1 text-sm font-semibold ${plan.is_active
-                                                    ? "bg-green-100 text-green-700"
-                                                    : "bg-red-100 text-red-700"
-                                                    }`}
-                                            >
-                                                {plan.is_active ? "Active" : "Inactive"}
-                                            </button>
-
-                                        </td>
-
-                                        <td className="px-4 py-4 text-center">
-
-                                            <button
-                                                onClick={() => openEditModal(plan)}
-                                                className="mr-2 rounded bg-blue-600 px-3 py-1 text-white hover:bg-blue-700"
-                                            >
-                                                Edit
-                                            </button>
-
-                                            <button
-                                                onClick={() => handleDelete(plan.id)}
-                                                className="rounded bg-red-600 px-3 py-1 text-white hover:bg-red-700"
-                                            >
-                                                Delete
-                                            </button>
-
-                                        </td>
-
-                                    </tr>
-
-                                ))
-
-                            )}
-
-                        </tbody>
-
-                    </table>
-
-                </div>
-
-            </div>
-            {showEditModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-
-                    <div className="w-full max-w-md rounded-xl bg-white p-6">
-
-                        <h2 className="mb-6 text-2xl font-bold">
-                            Edit Data Plan
-                        </h2>
-
-                        <input
-                            className="mb-4 w-full rounded border p-3"
-                            placeholder="Network"
-                            value={editForm.network}
-                            onChange={(e) =>
-                                setEditForm({
-                                    ...editForm,
-                                    network: e.target.value,
-                                })
-                            }
-                        />
-
-                        <input
-                            className="mb-4 w-full rounded border p-3"
-                            placeholder="Plan Name"
-                            value={editForm.plan_name}
-                            onChange={(e) =>
-                                setEditForm({
-                                    ...editForm,
-                                    plan_name: e.target.value,
-                                })
-                            }
-                        />
-
-                        <input
-                            className="mb-4 w-full rounded border p-3"
-                            placeholder="Plan Code"
-                            value={editForm.plan_code}
-                            onChange={(e) =>
-                                setEditForm({
-                                    ...editForm,
-                                    plan_code: e.target.value,
-                                })
-                            }
-                        />
-
-                        <input
-                            type="number"
-                            className="mb-6 w-full rounded border p-3"
-                            placeholder="Amount"
-                            value={editForm.amount}
-                            onChange={(e) =>
-                                setEditForm({
-                                    ...editForm,
-                                    amount: e.target.value,
-                                })
-                            }
-                        />
-
-                        <div className="flex justify-end gap-3">
-
-                            <button
-                                onClick={() =>
-                                    setShowEditModal(false)
-                                }
-                                className="rounded bg-gray-300 px-4 py-2"
-                            >
-                                Cancel
-                            </button>
-
-                            <button
-                                onClick={handleUpdate}
-                                className="rounded bg-green-600 px-4 py-2 text-white"
-                            >
-                                Save Changes
-                            </button>
-
+                                    <button
+                                        onClick={() => handleDelete(plan.id)}
+                                        className="rounded-lg bg-red-100 p-2 text-red-600"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-
-                    </div>
-
+                    ))}
                 </div>
             )}
 
-            {showAddModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            {/* ADD MODAL */}
+            {showAdd && (
+                <div className="fixed inset-0 z-50 flex items-end bg-black/40">
+                    <div className="w-full rounded-t-3xl bg-white p-5">
+                        <div className="mb-4 flex items-center justify-between">
+                            <h2 className="text-xl font-bold">New Data Plan</h2>
 
-                    <div className="w-full max-w-md rounded-xl bg-white p-6">
-
-                        <h2 className="mb-6 text-2xl font-bold">
-                            Add Data Plan
-                        </h2>
-
-                        <select
-                            className="mb-4 w-full rounded border p-3"
-                            value={newPlan.network}
-                            onChange={(e) =>
-                                setNewPlan({
-                                    ...newPlan,
-                                    network: e.target.value,
-                                })
-                            }
-                        >
-                            <option>MTN</option>
-                            <option>AIRTEL</option>
-                            <option>GLO</option>
-                            <option>9MOBILE</option>
-                        </select>
-
-                        <input
-                            className="mb-4 w-full rounded border p-3"
-                            placeholder="Plan Name"
-                            value={newPlan.plan_name}
-                            onChange={(e) =>
-                                setNewPlan({
-                                    ...newPlan,
-                                    plan_name: e.target.value,
-                                })
-                            }
-                        />
-
-                        <input
-                            className="mb-4 w-full rounded border p-3"
-                            placeholder="Plan Code"
-                            value={newPlan.plan_code}
-                            onChange={(e) =>
-                                setNewPlan({
-                                    ...newPlan,
-                                    plan_code: e.target.value,
-                                })
-                            }
-                        />
-
-                        <input
-                            type="number"
-                            className="mb-6 w-full rounded border p-3"
-                            placeholder="Amount"
-                            value={newPlan.amount}
-                            onChange={(e) =>
-                                setNewPlan({
-                                    ...newPlan,
-                                    amount: e.target.value,
-                                })
-                            }
-                        />
-
-                        <div className="flex justify-end gap-3">
-
-                            <button
-                                onClick={() => setShowAddModal(false)}
-                                className="rounded bg-gray-300 px-4 py-2"
-                            >
-                                Cancel
+                            <button onClick={() => setShowAdd(false)}>
+                                <X />
                             </button>
+                        </div>
+
+                        <div className="space-y-3">
+                            <select
+                                className="w-full rounded-xl border p-3"
+                                value={newPlan.network}
+                                onChange={(e) =>
+                                    setNewPlan({
+                                        ...newPlan,
+                                        network: e.target.value,
+                                    })
+                                }
+                            >
+                                <option>MTN</option>
+                                <option>AIRTEL</option>
+                                <option>GLO</option>
+                                <option>9MOBILE</option>
+                            </select>
+
+                            <select
+                                className="w-full rounded-xl border p-3"
+                                value={newPlan.plan_type}
+                                onChange={(e) =>
+                                    setNewPlan({
+                                        ...newPlan,
+                                        plan_type: e.target.value,
+                                    })
+                                }
+                            >
+                                <option>SME</option>
+                                <option>Corporate</option>
+                                <option>Gifting</option>
+                            </select>
+
+                            <input
+                                placeholder="Plan Name (1GB)"
+                                className="w-full rounded-xl border p-3"
+                                value={newPlan.plan_name}
+                                onChange={(e) =>
+                                    setNewPlan({
+                                        ...newPlan,
+                                        plan_name: e.target.value,
+                                    })
+                                }
+                            />
+
+                            <input
+                                placeholder="Plan Code"
+                                className="w-full rounded-xl border p-3"
+                                value={newPlan.plan_code}
+                                onChange={(e) =>
+                                    setNewPlan({
+                                        ...newPlan,
+                                        plan_code: e.target.value,
+                                    })
+                                }
+                            />
+
+                            <input
+                                type="number"
+                                placeholder="Amount"
+                                className="w-full rounded-xl border p-3"
+                                value={newPlan.amount}
+                                onChange={(e) =>
+                                    setNewPlan({
+                                        ...newPlan,
+                                        amount: e.target.value,
+                                    })
+                                }
+                            />
 
                             <button
                                 onClick={handleCreate}
-                                className="rounded bg-green-600 px-4 py-2 text-white"
+                                className="w-full rounded-xl bg-green-600 py-3 font-semibold text-white"
                             >
-                                Add Plan
+                                Create Plan
                             </button>
-
                         </div>
-
                     </div>
-
                 </div>
             )}
 
-        </div>
+            {/* EDIT MODAL */}
+            {editing && (
+                <div className="fixed inset-0 z-50 flex items-end bg-black/40">
+                    <div className="w-full rounded-t-3xl bg-white p-5">
+                        <div className="mb-4 flex items-center justify-between">
+                            <h2 className="text-xl font-bold">Edit Plan</h2>
+
+                            <button onClick={() => setEditing(null)}>
+                                <X />
+                            </button>
+                        </div>
+
+                        <div className="space-y-3">
+                            <select
+                                className="w-full rounded-xl border p-3"
+                                value={editForm.network}
+                                onChange={(e) =>
+                                    setEditForm({
+                                        ...editForm,
+                                        network: e.target.value,
+                                    })
+                                }
+                            >
+                                <option>MTN</option>
+                                <option>AIRTEL</option>
+                                <option>GLO</option>
+                                <option>9MOBILE</option>
+                            </select>
+
+                            <select
+                                className="w-full rounded-xl border p-3"
+                                value={editForm.plan_type}
+                                onChange={(e) =>
+                                    setEditForm({
+                                        ...editForm,
+                                        plan_type: e.target.value,
+                                    })
+                                }
+                            >
+                                <option>SME</option>
+                                <option>Corporate</option>
+                                <option>Gifting</option>
+                            </select>
+
+                            <input
+                                className="w-full rounded-xl border p-3"
+                                value={editForm.plan_name}
+                                onChange={(e) =>
+                                    setEditForm({
+                                        ...editForm,
+                                        plan_name: e.target.value,
+                                    })
+                                }
+                            />
+
+                            <input
+                                className="w-full rounded-xl border p-3"
+                                value={editForm.plan_code}
+                                onChange={(e) =>
+                                    setEditForm({
+                                        ...editForm,
+                                        plan_code: e.target.value,
+                                    })
+                                }
+                            />
+
+                            <input
+                                type="number"
+                                className="w-full rounded-xl border p-3"
+                                value={editForm.amount}
+                                onChange={(e) =>
+                                    setEditForm({
+                                        ...editForm,
+                                        amount: e.target.value,
+                                    })
+                                }
+                            />
+
+                            <button
+                                onClick={handleUpdate}
+                                className="w-full rounded-xl bg-green-600 py-3 font-semibold text-white"
+                            >
+                                Update Plan
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </main>
     );
 }

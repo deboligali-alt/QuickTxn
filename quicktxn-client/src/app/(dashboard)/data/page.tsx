@@ -5,10 +5,10 @@ import api from "@/lib/api";
 import { Smartphone, CheckCircle2 } from "lucide-react";
 
 interface DataPlan {
-    id: string;
     network: string;
     plan_type: string;
     plan_name: string;
+    plan_code: string;
     amount: number;
 }
 
@@ -29,9 +29,11 @@ export default function DataPage() {
 
     const [plans, setPlans] = useState<DataPlan[]>([]);
     const [selectedPlan, setSelectedPlan] = useState<DataPlan | null>(null);
-    const [loading, setLoading] = useState(true);
 
-    // Fetch plans from backend
+    const [loading, setLoading] = useState(true);
+    const [processing, setProcessing] = useState(false);
+
+    // Load data plans
     useEffect(() => {
         const fetchPlans = async () => {
             try {
@@ -47,30 +49,52 @@ export default function DataPage() {
         fetchPlans();
     }, []);
 
+    // Filter plans
     const currentPlans = useMemo(() => {
         return plans.filter(
             (plan) =>
-                plan.network === network && plan.plan_type === type
+                plan.network === network &&
+                plan.plan_type === type
         );
     }, [plans, network, type]);
 
+    // Purchase Data
     const purchaseData = async () => {
-        if (!selectedPlan) return alert("Select a data plan");
+        if (!selectedPlan) {
+            return alert("Select a data plan");
+        }
+
+        if (phone.length !== 11) {
+            return alert("Enter a valid phone number");
+        }
+
+        if (pin.length !== 4) {
+            return alert("Enter your 4-digit PIN");
+        }
 
         try {
+            setProcessing(true);
+
             await api.post("/data/purchase", {
                 network,
-                phone,
-                planId: selectedPlan.id,
+                planCode: selectedPlan.plan_code,
+                phoneNumber: phone,
                 pin,
             });
 
             sessionStorage.setItem("payment_success", "true");
             window.location.href = "/dashboard";
+
         } catch (error: any) {
-            alert(error.response?.data?.message || "Purchase failed");
+            alert(
+                error.response?.data?.message ||
+                "Data purchase failed"
+            );
+        } finally {
+            setProcessing(false);
         }
     };
+
     return (
         <main className="mx-auto min-h-screen max-w-md bg-gray-50 p-4 pb-28">
             <div className="mb-6">
@@ -84,8 +108,12 @@ export default function DataPage() {
                 <div className="flex items-center gap-3">
                     <Smartphone size={30} />
                     <div>
-                        <p className="text-sm text-green-100">Instant Purchase</p>
-                        <h2 className="text-xl font-bold">Data Bundles</h2>
+                        <p className="text-sm text-green-100">
+                            Instant Purchase
+                        </p>
+                        <h2 className="text-xl font-bold">
+                            Data Bundles
+                        </h2>
                     </div>
                 </div>
             </div>
@@ -105,14 +133,13 @@ export default function DataPage() {
                                 setSelectedPlan(null);
                             }}
                             className={`rounded-2xl border p-4 transition ${network === item.name
-                                ? "border-green-600 bg-green-50"
-                                : "bg-white"
+                                    ? "border-green-600 bg-green-50"
+                                    : "bg-white"
                                 }`}
                         >
                             <div
                                 className={`mx-auto mb-2 h-10 w-10 rounded-full ${item.color}`}
                             />
-
                             <p className="font-semibold">{item.name}</p>
                         </button>
                     ))}
@@ -134,7 +161,7 @@ export default function DataPage() {
                 />
             </div>
 
-            {/* Plan Type */}
+            {/* Data Type */}
             <div className="mt-6">
                 <label className="mb-3 block font-semibold">
                     Data Type
@@ -149,8 +176,8 @@ export default function DataPage() {
                                 setSelectedPlan(null);
                             }}
                             className={`flex-1 rounded-xl py-3 text-sm font-semibold ${type === item
-                                ? "bg-green-600 text-white"
-                                : "border bg-white"
+                                    ? "bg-green-600 text-white"
+                                    : "border bg-white"
                                 }`}
                         >
                             {item}
@@ -173,11 +200,11 @@ export default function DataPage() {
                     <div className="grid grid-cols-2 gap-3">
                         {currentPlans.map((plan) => (
                             <button
-                                key={plan.id}
+                                key={plan.plan_code}
                                 onClick={() => setSelectedPlan(plan)}
-                                className={`rounded-2xl border p-4 text-left transition ${selectedPlan?.id === plan.id
-                                    ? "border-green-600 bg-green-50"
-                                    : "bg-white"
+                                className={`rounded-2xl border p-4 text-left transition ${selectedPlan?.plan_code === plan.plan_code
+                                        ? "border-green-600 bg-green-50"
+                                        : "bg-white"
                                     }`}
                             >
                                 <div className="flex items-center justify-between">
@@ -185,7 +212,7 @@ export default function DataPage() {
                                         {plan.plan_name}
                                     </h3>
 
-                                    {selectedPlan?.id === plan.id && (
+                                    {selectedPlan?.plan_code === plan.plan_code && (
                                         <CheckCircle2
                                             className="text-green-600"
                                             size={18}
@@ -225,6 +252,7 @@ export default function DataPage() {
             <button
                 onClick={purchaseData}
                 disabled={
+                    processing ||
                     loading ||
                     !selectedPlan ||
                     phone.length !== 11 ||
@@ -232,7 +260,7 @@ export default function DataPage() {
                 }
                 className="mt-8 w-full rounded-2xl bg-green-600 py-4 text-lg font-semibold text-white disabled:opacity-50"
             >
-                {loading ? "Processing..." : "Buy Data"}
+                {processing ? "Processing..." : "Buy Data"}
             </button>
         </main>
     );
