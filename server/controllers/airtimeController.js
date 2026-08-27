@@ -1,5 +1,5 @@
 const { pool } = require("../config/db");
-
+const axios = require("axios");
 const createSwapRequest = async (req, res) => {
     try {
         const { network, phoneNumber, airtimeAmount } = req.body;
@@ -182,8 +182,120 @@ const getSwapHistory = async (req, res) => {
     }
 };
 
+// ====================================
+// BUY AIRTIME
+// ====================================
+const purchaseAirtime = async (req, res) => {
+    const client = await pool.connect();
+
+    try {
+        const { network, phone, amount } = req.body;
+
+        if (!network || !phone || !amount) {
+            return res.status(400).json({
+                success: false,
+                message: "All fields are required.",
+            });
+        }
+
+        await client.query("BEGIN");
+
+        const wallet = await client.query(
+            `SELECT balance
+             FROM wallets
+             WHERE user_id=$1
+             FOR UPDATE`,
+            [req.user.id]
+        );
+
+        const balance = Number(wallet.rows[0].balance);
+
+        if (balance < Number(amount)) {
+            await client.query("ROLLBACK");
+            return res.status(400).json({
+                success: false,
+                message: "Insufficient wallet balance.",
+            });
+        }
+
+        // VTU Provider
+        await axios.post(
+            process.env.VTU_BASE_URL + "/airtime",
+            {
+                network,
+                phone,
+                amount,
+            },
+            {
+                headers: {
+                    Authorization: `Bearer ${process.env.VTU_API_KEY}`,
+                },
+            }
+        );
+
+        const newBalance = balance - Number(amount);
+
+        await client.query(
+            `UPDATE wallets
+             SET balance=$1, updated_at=NOW()
+             WHERE user_id=$2`,
+            [newBalance, req.user.id]
+        );
+
+        const reference = `AIR-${Date.now()}`;
+
+        await client.query(
+            `INSERT INTO transactions
+            (receiver_id,type,amount,status,reference,description)
+            VALUES($1,$2,$3,$4,$5,$6)`,
+            [
+                req.user.id,
+                "AIRTIME",
+                amount,
+                "success",
+                reference,
+                `${network} Airtime Purchase`,
+            ]
+        );
+
+        await client.query(
+            `INSERT INTO notifications
+            (user_id,title,message)
+            VALUES($1,$2,$3)`,
+            [
+                req.user.id,
+                "Airtime Purchase",
+                `₦${Number(amount).toLocaleString()} ${network} airtime purchased successfully.`,
+            ]
+        );
+
+        await client.query("COMMIT");
+
+        const io = req.app.get("io");
+        io.to(req.user.id).emit("wallet_updated");
+        io.to(req.user.id).emit("new_transaction");
+
+        res.status(200).json({
+            success: true,
+            message: "Airtime purchased successfully.",
+        });
+
+    } catch (error) {
+        await client.query("ROLLBACK");
+        console.error(error.response?.data || error.message);
+
+        res.status(500).json({
+            success: false,
+            message: "Airtime purchase failed.",
+        });
+
+    } finally {
+        client.release();
+    }
+};
 module.exports = {
     createSwapRequest,
     getRates,
-    getSwapHistory
+    getSwapHistory,
+    purchaseAirtime,
 };

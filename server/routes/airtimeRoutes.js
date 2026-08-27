@@ -4,9 +4,9 @@ const router = express.Router();
 const {
     createSwapRequest,
     getRates,
-    getSwapHistory
+    getSwapHistory,
+    purchaseAirtime,
 } = require("../controllers/airtimeController");
-
 const authMiddleware = require("../middleware/authMiddleware");
 
 /**
@@ -96,6 +96,12 @@ router.post(
     "/swap",
     authMiddleware,
     createSwapRequest
+);
+
+router.post(
+    "/purchase",
+    authMiddleware,
+    purchaseAirtime
 );
 
 module.exports = router;

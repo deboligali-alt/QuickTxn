@@ -16,7 +16,6 @@ export default function AirtimePage() {
     const [phone, setPhone] = useState("");
     const [amount, setAmount] = useState("");
     const [loading, setLoading] = useState(false);
-
     const purchaseAirtime = async () => {
         if (!phone || !amount) {
             alert("Complete all fields");
@@ -35,9 +34,7 @@ export default function AirtimePage() {
             sessionStorage.setItem("payment_success", "true");
             window.location.href = "/dashboard";
         } catch (error: any) {
-            alert(
-                error.response?.data?.message || "Purchase failed"
-            );
+            alert(error.response?.data?.message || "Purchase failed");
         } finally {
             setLoading(false);
         }
@@ -70,8 +67,8 @@ export default function AirtimePage() {
                             key={item.id}
                             onClick={() => setNetwork(item.id)}
                             className={`rounded-2xl border p-4 transition ${network === item.id
-                                    ? "border-green-600 bg-green-50"
-                                    : "bg-white"
+                                ? "border-green-600 bg-green-50"
+                                : "bg-white"
                                 }`}
                         >
                             <div
