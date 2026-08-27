@@ -30,9 +30,8 @@ const getProfile = async (req, res) => {
         return res.status(200).json({
             success: true,
             message: "Profile retrieved successfully.",
-            user: result.rows[0]
+            data: result.rows[0]
         });
-
     } catch (error) {
         console.error(error);
 
