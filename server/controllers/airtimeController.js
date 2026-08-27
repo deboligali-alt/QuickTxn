@@ -219,19 +219,36 @@ const purchaseAirtime = async (req, res) => {
         }
 
         // VTU Provider
-        await axios.post(
-            process.env.VTU_BASE_URL + "/airtime",
+        const serviceMap = {
+            mtn: "mtn",
+            airtel: "airtel",
+            glo: "glo",
+            "9mobile": "etisalat",
+        };
+
+        const requestId = `QTXN${Date.now()}`;
+
+        const vtpass = await axios.post(
+            `${process.env.VTPASS_BASE_URL}/pay`,
             {
-                network,
+                request_id: requestId,
+                serviceID: serviceMap[network.toLowerCase()],
+                amount: Number(amount),
                 phone,
-                amount,
             },
             {
                 headers: {
-                    Authorization: `Bearer ${process.env.VTU_API_KEY}`,
+                    "api-key": process.env.VTPASS_API_KEY,
+                    "secret-key": process.env.VTPASS_SECRET_KEY,
+                    "public-key": process.env.VTPASS_PUBLIC_KEY,
+                    "Content-Type": "application/json",
                 },
             }
         );
+
+        if (vtpass.data.code !== "000") {
+            throw new Error(vtpass.data.response_description);
+        }
 
         const newBalance = balance - Number(amount);
 
