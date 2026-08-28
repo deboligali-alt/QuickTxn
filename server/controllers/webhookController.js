@@ -5,17 +5,17 @@ const paystackWebhook = async (req, res) => {
     const client = await pool.connect();
 
     try {
-        // Verify Paystack signature
+        // Verify Paystack signature using the RAW body
         const hash = crypto
             .createHmac("sha512", process.env.PAYSTACK_SECRET_KEY)
-            .update(req.body)
+            .update(req.rawBody)
             .digest("hex");
 
         if (hash !== req.headers["x-paystack-signature"]) {
             return res.sendStatus(401);
         }
 
-        const event = JSON.parse(req.body.toString());
+        const event = JSON.parse(req.rawBody.toString());
 
         // Ignore unrelated events
         if (event.event !== "charge.success") {
@@ -37,8 +37,8 @@ const paystackWebhook = async (req, res) => {
         // Prevent duplicate credits
         const existing = await client.query(
             `SELECT id
-             FROM transactions
-             WHERE payment_reference = $1`,
+       FROM transactions
+       WHERE payment_reference = $1`,
             [reference]
         );
 
@@ -50,9 +50,9 @@ const paystackWebhook = async (req, res) => {
         // Lock wallet
         const wallet = await client.query(
             `SELECT balance
-             FROM wallets
-             WHERE user_id = $1
-             FOR UPDATE`,
+       FROM wallets
+       WHERE user_id = $1
+       FOR UPDATE`,
             [userId]
         );
 
@@ -63,29 +63,29 @@ const paystackWebhook = async (req, res) => {
         // Credit wallet
         await client.query(
             `UPDATE wallets
-             SET balance = balance + $1,
-                 updated_at = NOW()
-             WHERE user_id = $2`,
+       SET balance = balance + $1,
+           updated_at = NOW()
+       WHERE user_id = $2`,
             [amount, userId]
         );
 
         // Create transaction
         await client.query(
             `INSERT INTO transactions
-            (
-                sender_id,
-                receiver_id,
-                type,
-                amount,
-                description,
-                status,
-                reference,
-                payment_provider,
-                payment_reference,
-                created_at
-            )
-            VALUES
-            ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())`,
+      (
+        sender_id,
+        receiver_id,
+        type,
+        amount,
+        description,
+        status,
+        reference,
+        payment_provider,
+        payment_reference,
+        created_at
+      )
+      VALUES
+      ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())`,
             [
                 null,
                 userId,
@@ -99,17 +99,17 @@ const paystackWebhook = async (req, res) => {
             ]
         );
 
-        // Send notification
+        // Notification
         await client.query(
             `INSERT INTO notifications
-            (
-                user_id,
-                title,
-                message,
-                created_at
-            )
-            VALUES
-            ($1,$2,$3,NOW())`,
+      (
+        user_id,
+        title,
+        message,
+        created_at
+      )
+      VALUES
+      ($1,$2,$3,NOW())`,
             [
                 userId,
                 "Wallet Funded",
@@ -121,17 +121,22 @@ const paystackWebhook = async (req, res) => {
 
         await client.query("COMMIT");
 
-        console.log(
-            `✅ Wallet credited: ₦${amount} | ${reference}`
-        );
+        // ==========================================
+        // REAL-TIME SOCKET UPDATE
+        // ==========================================
+        const io = req.app.get("io");
+
+        io.to(String(userId)).emit("wallet_updated");
+        io.to(String(userId)).emit("new_transaction");
+        io.to(String(userId)).emit("notification");
+
+        console.log(`✅ Wallet credited: ₦${amount} | ${reference}`);
 
         return res.sendStatus(200);
-
     } catch (error) {
         await client.query("ROLLBACK");
         console.error("Webhook Error:", error);
         return res.sendStatus(500);
-
     } finally {
         client.release();
     }
