@@ -127,25 +127,13 @@ export default function BankTransferPage() {
 
         loadData();
     }, [router]);
-
-    const handleBankChange = (
-        value: string
-    ) => {
+    const handleBankChange = (value: string) => {
         setBankCode(value);
-        setAccountName("");
-        setAccountResolved(false);
     };
 
-    const handleAccountNumberChange = (
-        value: string
-    ) => {
-        const cleanValue =
-            value.replace(/\D/g, "");
-
-        setAccountNumber(cleanValue);
-
-        setAccountName("");
-        setAccountResolved(false);
+    const handleAccountNumberChange = (value: string) => {
+        const clean = value.replace(/\D/g, "").slice(0, 10);
+        setAccountNumber(clean);
     };
 
     const handleResolveAccount = async () => {
@@ -221,6 +209,42 @@ export default function BankTransferPage() {
         }
     };
 
+    useEffect(() => {
+        const timer = setTimeout(async () => {
+            if (!bankCode || accountNumber.length !== 10) {
+                setAccountName("");
+                setAccountResolved(false);
+                return;
+            }
+
+            try {
+                setResolving(true);
+
+                const token = localStorage.getItem("token");
+                if (!token) return;
+
+                const response = await resolveAccount(
+                    token,
+                    accountNumber,
+                    bankCode
+                );
+
+                const name =
+                    response.data?.account_name ||
+                    response.account_name;
+
+                setAccountName(name);
+                setAccountResolved(true);
+            } catch {
+                setAccountName("");
+                setAccountResolved(false);
+            } finally {
+                setResolving(false);
+            }
+        }, 400);
+
+        return () => clearTimeout(timer);
+    }, [bankCode, accountNumber]);
     const handleTransfer = async (
         e: React.FormEvent<HTMLFormElement>
     ) => {
@@ -271,23 +295,37 @@ export default function BankTransferPage() {
                 router.replace("/login");
                 return;
             }
-
-            const response =
-                await bankTransfer(
-                    token,
-                    {
-                        accountNumber,
-                        bankCode,
-                        accountName,
-                        amount: numericAmount,
-                        pin,
-                    }
-                );
+            const response = await bankTransfer(token, {
+                accountNumber,
+                bankCode,
+                accountName,
+                amount: numericAmount,
+                pin,
+            });
 
             toast.success(
-                response.message ||
-                "Bank transfer successful."
+                response.message || "Bank transfer successful."
             );
+
+            // Refresh wallet instantly
+            const walletResponse = await getWallet(token);
+            setWallet(walletResponse.data || walletResponse);
+
+            // Clear form
+            setAmount("");
+            setPin("");
+            setAccountNumber("");
+            setAccountName("");
+            setBankCode("");
+            setAccountResolved(false);
+
+            // Notify dashboard
+            sessionStorage.setItem("refresh_dashboard", "true");
+
+            // Go back after 1 second
+            setTimeout(() => {
+                router.push("/");
+            }, 1000);
 
             setAmount("");
             setPin("");
@@ -524,33 +562,7 @@ export default function BankTransferPage() {
 
                                     </div>
 
-                                    <button
-                                        type="button"
-                                        onClick={
-                                            handleResolveAccount
-                                        }
-                                        disabled={
-                                            resolving ||
-                                            !bankCode ||
-                                            accountNumber.length !==
-                                            10
-                                        }
-                                        className="flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 py-4 font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-                                    >
-                                        {resolving ? (
-                                            <>
-                                                <Loader2
-                                                    size={
-                                                        18
-                                                    }
-                                                    className="animate-spin"
-                                                />
-                                                Verifying...
-                                            </>
-                                        ) : (
-                                            "Verify Account"
-                                        )}
-                                    </button>
+
 
                                 </div>
 
@@ -570,42 +582,28 @@ export default function BankTransferPage() {
                                     }}
                                     className="mt-5 rounded-2xl border border-green-200 bg-green-50 p-5"
                                 >
+                                    <div className="mt-6">
+                                        <label className="mb-2 block text-sm font-semibold text-slate-700">
+                                            Account Name
+                                        </label>
 
-                                    <div className="flex items-center gap-4">
-
-                                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-green-600 text-white">
-                                            <CheckCircle2
-                                                size={
-                                                    22
-                                                }
-                                            />
+                                        <div className="flex h-[58px] items-center rounded-xl border border-slate-300 bg-slate-50 px-4">
+                                            {resolving ? (
+                                                <div className="flex items-center gap-2 text-slate-500">
+                                                    <Loader2 size={18} className="animate-spin" />
+                                                    <span>Verifying account...</span>
+                                                </div>
+                                            ) : accountResolved ? (
+                                                <div className="flex items-center gap-2 text-green-700 font-semibold">
+                                                    <CheckCircle2 size={18} />
+                                                    <span>{accountName}</span>
+                                                </div>
+                                            ) : (
+                                                <span className="text-slate-400">
+                                                    Account name will appear automatically
+                                                </span>
+                                            )}
                                         </div>
-
-                                        <div>
-
-                                            <p className="text-xs font-medium uppercase tracking-wide text-green-600">
-                                                Account Verified
-                                            </p>
-
-                                            <p className="mt-1 text-lg font-bold text-slate-900">
-                                                {
-                                                    accountName
-                                                }
-                                            </p>
-
-                                            <p className="text-sm text-slate-500">
-                                                {
-                                                    selectedBank
-                                                        ?.name
-                                                }{" "}
-                                                •{" "}
-                                                {
-                                                    accountNumber
-                                                }
-                                            </p>
-
-                                        </div>
-
                                     </div>
 
                                 </motion.div>

@@ -34,6 +34,13 @@ export default function DashboardPage() {
     }, [loadDashboard]);
 
     useEffect(() => {
+        if (sessionStorage.getItem("refresh_dashboard")) {
+            loadDashboard();
+            sessionStorage.removeItem("refresh_dashboard");
+        }
+    }, [loadDashboard]);
+
+    useEffect(() => {
         const success = sessionStorage.getItem("payment_success");
 
         if (success) {
