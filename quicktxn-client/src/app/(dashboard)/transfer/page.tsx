@@ -210,7 +210,7 @@ export default function BankTransferPage() {
     };
 
     useEffect(() => {
-        const timer = setTimeout(async () => {
+        const verifyAccount = async () => {
             if (!bankCode || accountNumber.length !== 10) {
                 setAccountName("");
                 setAccountResolved(false);
@@ -223,26 +223,31 @@ export default function BankTransferPage() {
                 const token = localStorage.getItem("token");
                 if (!token) return;
 
-                const response = await resolveAccount(
+                const res = await resolveAccount(
                     token,
                     accountNumber,
                     bankCode
                 );
 
                 const name =
-                    response.data?.account_name ||
-                    response.account_name;
+                    res.data?.account_name || res.account_name;
 
-                setAccountName(name);
-                setAccountResolved(true);
+                if (name) {
+                    setAccountName(name);
+                    setAccountResolved(true);
+                } else {
+                    setAccountName("");
+                    setAccountResolved(false);
+                }
             } catch {
                 setAccountName("");
                 setAccountResolved(false);
             } finally {
                 setResolving(false);
             }
-        }, 400);
+        };
 
+        const timer = setTimeout(verifyAccount, 300);
         return () => clearTimeout(timer);
     }, [bankCode, accountNumber]);
     const handleTransfer = async (
