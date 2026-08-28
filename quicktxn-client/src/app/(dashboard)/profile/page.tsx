@@ -1,108 +1,101 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import {
+    ArrowLeft,
     User,
     Mail,
     Phone,
-    ShieldCheck,
-    ChevronRight,
+    CreditCard,
+    Shield,
 } from "lucide-react";
 
-interface Profile {
-    full_name: string;
-    email: string;
-    phone: string;
-}
-
 export default function ProfilePage() {
-    const [user, setUser] = useState<Profile | null>(null);
+    const router = useRouter();
+    const [user, setUser] = useState<any>(null);
 
     useEffect(() => {
-        const fetchProfile = async () => {
-            try {
-                const res = await api.get("/user/profile");
-                setUser(res.data.data);
-            } catch (error) {
-                console.error("Failed to load profile:", error);
-            }
+        const loadProfile = async () => {
+            const res = await api.get("/user/profile");
+            setUser(res.data.data);
         };
 
-        fetchProfile();
+        loadProfile();
     }, []);
 
     return (
-        <main className="mx-auto min-h-screen max-w-md bg-gray-50 p-4 pb-24">
-            <h1 className="mb-6 text-2xl font-bold">My Profile</h1>
+        <main className="min-h-screen bg-gray-50">
+            <div className="mx-auto w-full max-w-4xl px-4 py-5 sm:px-6 lg:px-8">
+                <button
+                    onClick={() => router.back()}
+                    className="mb-5 flex items-center gap-2 text-gray-700"
+                >
+                    <ArrowLeft size={18} />
+                    Back
+                </button>
 
-            <div className="rounded-3xl bg-gradient-to-br from-green-600 to-emerald-600 p-6 text-white">
-                <div className="flex items-center gap-4">
-                    <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white/20 text-3xl font-bold">
-                        {user?.full_name?.charAt(0) || "A"}
-                    </div>
+                <h1 className="mb-6 text-3xl font-bold">My Profile</h1>
 
-                    <div>
-                        <h2 className="text-xl font-bold">
-                            {user?.full_name || "Loading..."}
+                <div className="rounded-3xl bg-white p-6 shadow-sm">
+                    <div className="flex flex-col items-center text-center">
+                        <div className="flex h-24 w-24 items-center justify-center rounded-full bg-green-100 text-green-600">
+                            <User size={40} />
+                        </div>
+
+                        <h2 className="mt-4 text-2xl font-bold">
+                            {user?.full_name}
                         </h2>
 
-                        <p className="text-green-100">
+                        <p className="text-gray-500">
                             QuickTxn User
                         </p>
+                    </div>
 
-                        <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-white/20 px-3 py-1 text-xs">
-                            <ShieldCheck size={14} />
-                            KYC Verified
+                    <div className="mt-8 grid gap-4 sm:grid-cols-2">
+                        <div className="rounded-xl border p-4">
+                            <div className="mb-2 flex items-center gap-2 text-green-600">
+                                <Mail size={18} />
+                                <span className="text-sm font-medium">
+                                    Email
+                                </span>
+                            </div>
+                            <p className="font-semibold">{user?.email}</p>
+                        </div>
+
+                        <div className="rounded-xl border p-4">
+                            <div className="mb-2 flex items-center gap-2 text-green-600">
+                                <Phone size={18} />
+                                <span className="text-sm font-medium">
+                                    Phone
+                                </span>
+                            </div>
+                            <p className="font-semibold">{user?.phone}</p>
+                        </div>
+
+                        <div className="rounded-xl border p-4">
+                            <div className="mb-2 flex items-center gap-2 text-green-600">
+                                <CreditCard size={18} />
+                                <span className="text-sm font-medium">
+                                    User ID
+                                </span>
+                            </div>
+                            <p className="font-semibold">{user?.id}</p>
+                        </div>
+
+                        <div className="rounded-xl border p-4">
+                            <div className="mb-2 flex items-center gap-2 text-green-600">
+                                <Shield size={18} />
+                                <span className="text-sm font-medium">
+                                    Status
+                                </span>
+                            </div>
+                            <span className="rounded-full bg-green-100 px-3 py-1 text-sm font-semibold text-green-700">
+                                Verified
+                            </span>
                         </div>
                     </div>
-                </div>
-            </div>
-
-            <div className="mt-6 space-y-3">
-                <div className="flex items-center justify-between rounded-2xl bg-white p-4 shadow-sm">
-                    <div className="flex items-center gap-3">
-                        <User className="text-green-600" size={20} />
-                        <div>
-                            <p className="text-xs text-gray-500">
-                                Full Name
-                            </p>
-                            <p className="font-medium">
-                                {user?.full_name}
-                            </p>
-                        </div>
-                    </div>
-                    <ChevronRight size={18} className="text-gray-400" />
-                </div>
-
-                <div className="flex items-center justify-between rounded-2xl bg-white p-4 shadow-sm">
-                    <div className="flex items-center gap-3">
-                        <Mail className="text-green-600" size={20} />
-                        <div>
-                            <p className="text-xs text-gray-500">
-                                Email
-                            </p>
-                            <p className="font-medium">
-                                {user?.email}
-                            </p>
-                        </div>
-                    </div>
-                    <ChevronRight size={18} className="text-gray-400" />
-                </div>
-
-                <div className="flex items-center justify-between rounded-2xl bg-white p-4 shadow-sm">
-                    <div className="flex items-center gap-3">
-                        <Phone className="text-green-600" size={20} />
-                        <div>
-                            <p className="text-xs text-gray-500">
-                                Phone Number
-                            </p>
-                            <p className="font-medium">
-                                {user?.phone || "Not Added"}
-                            </p>
-                        </div>
-                    </div>
-                    <ChevronRight size={18} className="text-gray-400" />
                 </div>
             </div>
         </main>

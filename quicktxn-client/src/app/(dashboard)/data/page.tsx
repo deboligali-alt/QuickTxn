@@ -1,267 +1,156 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
+import { Wifi, ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
 import api from "@/lib/api";
-import { Smartphone, CheckCircle2 } from "lucide-react";
-
-interface DataPlan {
-    network: string;
-    plan_type: string;
-    plan_name: string;
-    plan_code: string;
-    amount: number;
-}
 
 const networks = [
-    { name: "MTN", color: "bg-yellow-400" },
-    { name: "Airtel", color: "bg-red-500" },
-    { name: "Glo", color: "bg-green-600" },
-    { name: "9mobile", color: "bg-emerald-500" },
+    { id: "mtn", name: "MTN", color: "bg-yellow-400" },
+    { id: "airtel", name: "Airtel", color: "bg-red-500" },
+    { id: "glo", name: "Glo", color: "bg-green-600" },
+    { id: "9mobile", name: "9mobile", color: "bg-emerald-500" },
 ];
 
-const dataTypes = ["SME", "Corporate", "Gifting"];
+const plans = [
+    { id: 1, size: "500MB", price: 200 },
+    { id: 2, size: "1GB", price: 350 },
+    { id: 3, size: "2GB", price: 700 },
+    { id: 4, size: "5GB", price: 1700 },
+    { id: 5, size: "10GB", price: 3200 },
+    { id: 6, size: "20GB", price: 6200 },
+];
 
 export default function DataPage() {
-    const [network, setNetwork] = useState("MTN");
+    const router = useRouter();
+
+    const [network, setNetwork] = useState("mtn");
     const [phone, setPhone] = useState("");
-    const [type, setType] = useState("SME");
-    const [pin, setPin] = useState("");
+    const [selectedPlan, setSelectedPlan] = useState<number | null>(null);
+    const [loading, setLoading] = useState(false);
 
-    const [plans, setPlans] = useState<DataPlan[]>([]);
-    const [selectedPlan, setSelectedPlan] = useState<DataPlan | null>(null);
-
-    const [loading, setLoading] = useState(true);
-    const [processing, setProcessing] = useState(false);
-
-    // Load data plans
-    useEffect(() => {
-        const fetchPlans = async () => {
-            try {
-                const res = await api.get("/data/plans");
-                setPlans(res.data.data);
-            } catch (error) {
-                console.error("Failed to load data plans:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchPlans();
-    }, []);
-
-    // Filter plans
-    const currentPlans = useMemo(() => {
-        return plans.filter(
-            (plan) =>
-                plan.network === network &&
-                plan.plan_type === type
-        );
-    }, [plans, network, type]);
-
-    // Purchase Data
-    const purchaseData = async () => {
-        if (!selectedPlan) {
-            return alert("Select a data plan");
-        }
-
-        if (phone.length !== 11) {
-            return alert("Enter a valid phone number");
-        }
-
-        if (pin.length !== 4) {
-            return alert("Enter your 4-digit PIN");
+    const buyData = async () => {
+        if (!phone || !selectedPlan) {
+            alert("Please complete all fields");
+            return;
         }
 
         try {
-            setProcessing(true);
+            setLoading(true);
+
+            const plan = plans.find((p) => p.id === selectedPlan);
 
             await api.post("/data/purchase", {
                 network,
-                planCode: selectedPlan.plan_code,
-                phoneNumber: phone,
-                pin,
+                phone,
+                planId: selectedPlan,
+                amount: plan?.price,
             });
 
             sessionStorage.setItem("payment_success", "true");
-            window.location.href = "/dashboard";
-
+            router.push("/dashboard");
         } catch (error: any) {
-            alert(
-                error.response?.data?.message ||
-                "Data purchase failed"
-            );
+            alert(error.response?.data?.message || "Purchase failed");
         } finally {
-            setProcessing(false);
+            setLoading(false);
         }
     };
 
     return (
-        <main className="mx-auto min-h-screen max-w-md bg-gray-50 p-4 pb-28">
-            <div className="mb-6">
-                <h1 className="text-2xl font-bold">Buy Data</h1>
-                <p className="text-sm text-gray-500">
-                    Fast & affordable internet bundles
-                </p>
-            </div>
+        <main className="min-h-screen bg-gray-50">
+            <div className="mx-auto w-full max-w-4xl px-4 py-5 sm:px-6 lg:px-8">
+                <button
+                    onClick={() => router.back()}
+                    className="mb-5 flex items-center gap-2 text-gray-700"
+                >
+                    <ArrowLeft size={18} />
+                    Back
+                </button>
 
-            <div className="rounded-3xl bg-gradient-to-r from-green-600 to-emerald-500 p-5 text-white">
-                <div className="flex items-center gap-3">
-                    <Smartphone size={30} />
-                    <div>
-                        <p className="text-sm text-green-100">
-                            Instant Purchase
-                        </p>
-                        <h2 className="text-xl font-bold">
-                            Data Bundles
-                        </h2>
+                <div className="rounded-3xl bg-gradient-to-br from-blue-600 to-cyan-600 p-6 text-white shadow-lg">
+                    <div className="flex items-center gap-3">
+                        <Wifi size={30} />
+                        <div>
+                            <p className="text-sm text-blue-100">Fast Internet</p>
+                            <h1 className="text-2xl font-bold">Buy Data</h1>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            {/* Network */}
-            <div className="mt-6">
-                <label className="mb-3 block font-semibold">
-                    Select Network
-                </label>
+                <div className="mt-6 rounded-3xl bg-white p-5 shadow-sm">
+                    <h2 className="mb-5 text-lg font-bold">Data Purchase</h2>
 
-                <div className="grid grid-cols-2 gap-3">
-                    {networks.map((item) => (
-                        <button
-                            key={item.name}
-                            onClick={() => {
-                                setNetwork(item.name);
-                                setSelectedPlan(null);
-                            }}
-                            className={`rounded-2xl border p-4 transition ${network === item.name
-                                    ? "border-green-600 bg-green-50"
-                                    : "bg-white"
-                                }`}
-                        >
-                            <div
-                                className={`mx-auto mb-2 h-10 w-10 rounded-full ${item.color}`}
-                            />
-                            <p className="font-semibold">{item.name}</p>
-                        </button>
-                    ))}
-                </div>
-            </div>
+                    <label className="mb-3 block text-sm font-medium">
+                        Select Network
+                    </label>
 
-            {/* Phone */}
-            <div className="mt-6">
-                <label className="mb-2 block font-semibold">
-                    Phone Number
-                </label>
-
-                <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="08012345678"
-                    className="w-full rounded-2xl border bg-white p-4 outline-none focus:border-green-600"
-                />
-            </div>
-
-            {/* Data Type */}
-            <div className="mt-6">
-                <label className="mb-3 block font-semibold">
-                    Data Type
-                </label>
-
-                <div className="flex gap-2">
-                    {dataTypes.map((item) => (
-                        <button
-                            key={item}
-                            onClick={() => {
-                                setType(item);
-                                setSelectedPlan(null);
-                            }}
-                            className={`flex-1 rounded-xl py-3 text-sm font-semibold ${type === item
-                                    ? "bg-green-600 text-white"
-                                    : "border bg-white"
-                                }`}
-                        >
-                            {item}
-                        </button>
-                    ))}
-                </div>
-            </div>
-
-            {/* Plans */}
-            <div className="mt-6">
-                <label className="mb-3 block font-semibold">
-                    Select Data Plan
-                </label>
-
-                {loading ? (
-                    <p className="text-center text-gray-500">
-                        Loading plans...
-                    </p>
-                ) : (
-                    <div className="grid grid-cols-2 gap-3">
-                        {currentPlans.map((plan) => (
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                        {networks.map((item) => (
                             <button
-                                key={plan.plan_code}
-                                onClick={() => setSelectedPlan(plan)}
-                                className={`rounded-2xl border p-4 text-left transition ${selectedPlan?.plan_code === plan.plan_code
-                                        ? "border-green-600 bg-green-50"
+                                key={item.id}
+                                onClick={() => setNetwork(item.id)}
+                                className={`rounded-2xl border p-4 transition ${network === item.id
+                                        ? "border-blue-600 bg-blue-50"
                                         : "bg-white"
                                     }`}
                             >
-                                <div className="flex items-center justify-between">
-                                    <h3 className="text-lg font-bold">
-                                        {plan.plan_name}
-                                    </h3>
-
-                                    {selectedPlan?.plan_code === plan.plan_code && (
-                                        <CheckCircle2
-                                            className="text-green-600"
-                                            size={18}
-                                        />
-                                    )}
-                                </div>
-
-                                <p className="mt-2 text-2xl font-bold text-green-600">
-                                    ₦{Number(plan.amount).toLocaleString()}
-                                </p>
-
-                                <p className="mt-1 text-xs text-gray-500">
-                                    {plan.plan_type} Bundle
-                                </p>
+                                <div
+                                    className={`mx-auto mb-2 h-10 w-10 rounded-full ${item.color}`}
+                                />
+                                <p className="text-sm font-semibold">{item.name}</p>
                             </button>
                         ))}
                     </div>
-                )}
+
+                    <div className="mt-6">
+                        <label className="mb-2 block text-sm font-medium">
+                            Phone Number
+                        </label>
+
+                        <input
+                            value={phone}
+                            onChange={(e) =>
+                                setPhone(e.target.value.replace(/\D/g, ""))
+                            }
+                            maxLength={11}
+                            placeholder="08012345678"
+                            className="w-full rounded-xl border p-3 outline-none focus:border-blue-500"
+                        />
+                    </div>
+
+                    <div className="mt-6">
+                        <label className="mb-3 block text-sm font-medium">
+                            Select Data Plan
+                        </label>
+
+                        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+                            {plans.map((plan) => (
+                                <button
+                                    key={plan.id}
+                                    onClick={() => setSelectedPlan(plan.id)}
+                                    className={`rounded-xl border p-4 text-left transition ${selectedPlan === plan.id
+                                            ? "border-blue-600 bg-blue-600 text-white"
+                                            : "bg-white hover:border-blue-500"
+                                        }`}
+                                >
+                                    <p className="font-bold">{plan.size}</p>
+                                    <p className="mt-1 text-sm">
+                                        ₦{plan.price.toLocaleString()}
+                                    </p>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={buyData}
+                        disabled={loading}
+                        className="mt-6 w-full rounded-xl bg-blue-600 py-4 text-lg font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+                    >
+                        {loading ? "Processing..." : "Buy Data"}
+                    </button>
+                </div>
             </div>
-
-            {/* PIN */}
-            <div className="mt-6">
-                <label className="mb-2 block font-semibold">
-                    Transaction PIN
-                </label>
-
-                <input
-                    type="password"
-                    maxLength={4}
-                    value={pin}
-                    onChange={(e) => setPin(e.target.value)}
-                    placeholder="****"
-                    className="w-full rounded-2xl border bg-white p-4 text-center tracking-[0.5em]"
-                />
-            </div>
-
-            <button
-                onClick={purchaseData}
-                disabled={
-                    processing ||
-                    loading ||
-                    !selectedPlan ||
-                    phone.length !== 11 ||
-                    pin.length !== 4
-                }
-                className="mt-8 w-full rounded-2xl bg-green-600 py-4 text-lg font-semibold text-white disabled:opacity-50"
-            >
-                {processing ? "Processing..." : "Buy Data"}
-            </button>
         </main>
     );
 }

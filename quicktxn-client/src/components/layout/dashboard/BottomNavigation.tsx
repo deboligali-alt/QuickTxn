@@ -44,8 +44,8 @@ export default function BottomNavigation() {
     ];
 
     return (
-        <div className="fixed inset-x-0 bottom-0 z-50 flex justify-center">
-            <div className="w-full max-w-md border-t border-gray-200 bg-white shadow-lg">
+        <div className="fixed inset-x-0 bottom-0 z-50 flex justify-center lg:hidden">
+            <div className="w-full border-t border-gray-200 bg-white shadow-lg">
                 <nav className="grid h-20 grid-cols-4">
                     {items.map((item) => {
                         const Icon = item.icon;

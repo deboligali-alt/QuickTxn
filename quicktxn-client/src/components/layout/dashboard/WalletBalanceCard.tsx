@@ -46,26 +46,32 @@ export default function WalletBalanceCard({ wallet }: WalletProps) {
     }, [balance]);
 
     return (
-        <section className="mt-1 px-4">
-            <div className="rounded-[28px] bg-gradient-to-br from-green-600 via-green-500 to-emerald-600 p-6 text-white shadow-xl">
+        <section className="mt-4">
+            <div className="rounded-[28px] bg-gradient-to-br from-green-600 via-green-500 to-emerald-600 p-5 text-white shadow-xl sm:p-6 lg:p-8">
                 <div className="flex items-center justify-between">
-                    <p className="text-sm text-green-100">Available Balance</p>
+                    <p className="text-sm text-green-100 sm:text-base">
+                        Available Balance
+                    </p>
 
                     <button onClick={() => setShowBalance(!showBalance)}>
-                        {showBalance ? <Eye size={18} /> : <EyeOff size={18} />}
+                        {showBalance ? (
+                            <Eye size={20} />
+                        ) : (
+                            <EyeOff size={20} />
+                        )}
                     </button>
                 </div>
 
-                <h2 className="mt-2 text-3xl font-bold">
+                <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
                     {showBalance
                         ? `₦${displayBalance.toLocaleString()}.00`
                         : "₦••••••"}
                 </h2>
 
-                <div className="mt-6 flex gap-3">
+                <div className="mt-6 grid grid-cols-2 gap-3 sm:flex sm:gap-4">
                     <button
                         onClick={() => router.push("/wallet/fund")}
-                        className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-white/20 py-3 transition active:scale-95"
+                        className="flex items-center justify-center gap-2 rounded-xl bg-white/20 py-3 font-medium transition hover:bg-white/30 active:scale-95 sm:flex-1"
                     >
                         <Plus size={18} />
                         <span>Fund</span>
@@ -73,7 +79,7 @@ export default function WalletBalanceCard({ wallet }: WalletProps) {
 
                     <button
                         onClick={() => router.push("/transfer")}
-                        className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-white/20 py-3 transition active:scale-95"
+                        className="flex items-center justify-center gap-2 rounded-xl bg-white/20 py-3 font-medium transition hover:bg-white/30 active:scale-95 sm:flex-1"
                     >
                         <ArrowUpRight size={18} />
                         <span>Transfer</span>

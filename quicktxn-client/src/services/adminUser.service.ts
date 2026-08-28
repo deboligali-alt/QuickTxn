@@ -23,6 +23,24 @@ export const getUser = async (
     return response.data;
 };
 
+export const fundUserWallet = async (
+    token: string,
+    id: string,
+    amount: number
+) => {
+    const response = await api.post(
+        `/admin/users/${id}/fund`,
+        { amount },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        }
+    );
+
+    return response.data;
+};
+
 export const toggleUserStatus = async (
     token: string,
     id: string

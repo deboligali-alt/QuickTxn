@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, type ReactNode } from "react";
-
+import { useRouter } from "next/navigation";
 import {
     Search,
     Eye,
@@ -54,7 +54,7 @@ export default function AdminUsersPage() {
     const [selectedUser, setSelectedUser] =
         useState<UserDetails | null>(null);
 
-    
+
 
     const loadUsers = useCallback(async () => {
         try {
@@ -73,7 +73,7 @@ export default function AdminUsersPage() {
     useEffect(() => {
         loadUsers();
     }, [loadUsers]);
-
+    const router = useRouter();
     const handleView = async (id: string) => {
 
         try {
@@ -84,7 +84,7 @@ export default function AdminUsersPage() {
             const response = await getUser(token, id);
             setSelectedUser(response.data);
 
-          
+
 
         } catch (error) {
 
@@ -360,7 +360,6 @@ export default function AdminUsersPage() {
                                         <td className="px-6 py-5 text-slate-500">
                                             {new Date(user.created_at).toLocaleDateString("en-NG")}
                                         </td>
-
                                         <td className="px-6 py-5">
                                             <div className="flex justify-center gap-2">
                                                 <button
@@ -368,6 +367,14 @@ export default function AdminUsersPage() {
                                                     className="rounded-lg bg-blue-600 p-2 text-white hover:bg-blue-700"
                                                 >
                                                     <Eye size={16} />
+                                                </button>
+
+                                                <button
+                                                    onClick={() => router.push(`/admin/users/${user.id}/fund`)}
+                                                    className="rounded-lg bg-green-600 p-2 text-white hover:bg-green-700"
+                                                    title="Fund Wallet"
+                                                >
+                                                    <Wallet size={16} />
                                                 </button>
 
                                                 <button

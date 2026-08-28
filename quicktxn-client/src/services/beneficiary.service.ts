@@ -1,49 +1,21 @@
 import api from "@/lib/api";
 
-export const getBeneficiaries = async (token: string) => {
-    const response = await api.get("/beneficiaries", {
-        headers: {
-            Authorization: `Bearer ${token}`,
-        },
-    });
-
-    return response.data;
+export const getBeneficiaries = async () => {
+    const res = await api.get("/beneficiaries");
+    return res.data;
 };
 
-export const addBeneficiary = async (
-    token: string,
-    data: {
-        accountName: string;
-        accountNumber: string;
-        bankName: string;
-        bankCode: string;
-    }
-) => {
-    const response = await api.post(
-        "/beneficiaries",
-        data,
-        {
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
-        }
-    );
-
-    return response.data;
+export const addBeneficiary = async (data: any) => {
+    const res = await api.post("/beneficiaries", data);
+    return res.data;
 };
 
-export const deleteBeneficiary = async (
-    token: string,
-    id: string
-) => {
-    const response = await api.delete(
-        `/beneficiaries/${id}`,
-        {
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
-        }
-    );
+export const deleteBeneficiary = async (id: string) => {
+    const res = await api.delete(`/beneficiaries/${id}`);
+    return res.data;
+};
 
-    return response.data;
+export const transferToBeneficiary = async (data: any) => {
+    const res = await api.post("/beneficiaries/transfer", data);
+    return res.data;
 };

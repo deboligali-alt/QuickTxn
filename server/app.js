@@ -37,9 +37,11 @@ const adminAirtimeRateRoutes = require("./routes/adminAirtimeRateRoutes");
 const adminUserRoutes = require("./routes/adminUserRoutes");
 const adminTransactionRoutes = require("./routes/adminTransactionRoutes");
 const adminAirtimeSwapRoutes = require("./routes/adminAirtimeSwapRoutes");
-
+const electricityRoutes = require("./routes/electricityRoutes");
 const webhookRoutes = require("./routes/webhookRoutes");
 const bankTransferRoutes = require("./routes/bankTransferRoutes");
+const cableRoutes = require("./routes/cableRoutes");
+const waecRoutes = require("./routes/waecRoutes");
 const app = express();
 
 // ==========================
@@ -102,7 +104,9 @@ app.use("/api/airtime", airtimeRoutes);
 app.use("/api/airtime-purchase", airtimePurchaseRoutes);
 app.use("/api/data", dataPurchaseRoutes);
 app.use("/api/betting", bettingRoutes);
-
+app.use("/api/electricity", electricityRoutes);
+app.use("/api/cable", cableRoutes);
+app.use("/api/waec", waecRoutes);
 // ==========================
 // Dashboard & Notifications
 // ==========================

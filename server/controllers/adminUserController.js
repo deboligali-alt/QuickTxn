@@ -386,6 +386,73 @@ const deleteUser = async (req, res) => {
 
 };
 
+const fundUserWallet = async (req, res) => {
+    const { id } = req.params;
+    const { amount } = req.body;
+
+    if (!amount || Number(amount) <= 0) {
+        return res.status(400).json({
+            success: false,
+            message: "Invalid amount",
+        });
+    }
+
+    const client = await pool.connect();
+
+    try {
+        await client.query("BEGIN");
+
+        await client.query(
+            `UPDATE wallets
+       SET balance = balance + $1
+       WHERE user_id = $2`,
+            [amount, id]
+        );
+
+        await client.query(
+            `INSERT INTO transactions
+      (
+        sender_id,
+        type,
+        amount,
+        description,
+        status
+      )
+      VALUES
+      ($1,'CREDIT',$2,'Admin Wallet Funding','SUCCESS')`,
+            [id, amount]
+        );
+
+        await client.query(
+            `INSERT INTO notifications
+      (user_id,title,message)
+      VALUES ($1,$2,$3)`,
+            [
+                id,
+                "Wallet Funded",
+                `Your QuickTxn wallet has been credited with ₦${Number(
+                    amount
+                ).toLocaleString()}.`,
+            ]
+        );
+
+        await client.query("COMMIT");
+
+        res.json({
+            success: true,
+            message: "Wallet funded successfully",
+        });
+    } catch (error) {
+        await client.query("ROLLBACK");
+
+        res.status(500).json({
+            success: false,
+            message: "Funding failed",
+        });
+    } finally {
+        client.release();
+    }
+};
 module.exports = {
     getAllUsers,
     getUser,
@@ -393,4 +460,5 @@ module.exports = {
     resetUserPin,
     resetPassword,
     deleteUser,
+    fundUserWallet,
 };

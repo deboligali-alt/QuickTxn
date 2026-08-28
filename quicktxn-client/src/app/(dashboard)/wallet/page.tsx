@@ -92,28 +92,25 @@ export default function WalletPage() {
 
     if (loading) {
         return (
-            <main className="min-h-full bg-slate-50 p-6">
-                <div className="mx-auto max-w-7xl animate-pulse space-y-6">
-
-                    <div className="h-10 w-48 rounded-xl bg-slate-200" />
-
-                    <div className="h-64 rounded-3xl bg-slate-200" />
-
-                    <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-                        <div className="h-32 rounded-2xl bg-slate-200" />
-                        <div className="h-32 rounded-2xl bg-slate-200" />
-                        <div className="h-32 rounded-2xl bg-slate-200" />
+            <main className="min-h-screen bg-slate-50">
+                <div className="mx-auto w-full max-w-5xl animate-pulse px-4 py-6 sm:px-6 lg:px-8">
+                    <div className="space-y-6">
+                        <div className="h-10 w-48 rounded-xl bg-slate-200" />
+                        <div className="h-64 rounded-3xl bg-slate-200" />
+                        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+                            <div className="h-32 rounded-2xl bg-slate-200" />
+                            <div className="h-32 rounded-2xl bg-slate-200" />
+                            <div className="h-32 rounded-2xl bg-slate-200" />
+                        </div>
                     </div>
-
                 </div>
             </main>
         );
     }
 
     return (
-        <main className="min-h-full bg-slate-50">
-
-            <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <main className="min-h-screen bg-slate-50">
+            <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
 
                 {/* HEADER */}
 
@@ -267,7 +264,7 @@ export default function WalletPage() {
 
                 {/* ACTION CARDS */}
 
-                <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-3">
+                <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
 
                     {/* FUND */}
 

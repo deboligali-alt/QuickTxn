@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
-import { Bell, CheckCircle2 } from "lucide-react";
+import { Bell, ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface Notification {
   id: string;
@@ -13,105 +14,95 @@ interface Notification {
 }
 
 export default function NotificationsPage() {
+  const router = useRouter();
+
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchNotifications = async () => {
+    const loadNotifications = async () => {
       try {
         const res = await api.get("/notifications");
-        setNotifications(res.data.data);
-      } catch (error) {
-        console.error("Notification fetch failed:", error);
+        setNotifications(res.data.data || []);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchNotifications();
+    loadNotifications();
   }, []);
 
-  const today = new Date().toDateString();
-
-  const todayItems = notifications.filter(
-    (n) => new Date(n.created_at).toDateString() === today
-  );
-
-  const earlierItems = notifications.filter(
-    (n) => new Date(n.created_at).toDateString() !== today
-  );
-
-  if (loading) {
-    return (
-      <main className="mx-auto min-h-screen max-w-md bg-gray-50 p-4">
-        <p className="text-gray-500">Loading...</p>
-      </main>
-    );
-  }
-
   return (
-    <main className="mx-auto min-h-screen max-w-md bg-gray-50 p-4 pb-24">
-      <h1 className="mb-6 text-2xl font-bold">Notifications</h1>
+    <main className="min-h-screen bg-gray-50">
+      <div className="mx-auto w-full max-w-5xl px-4 py-5 sm:px-6 lg:px-8">
+        <button
+          onClick={() => router.back()}
+          className="mb-5 flex items-center gap-2 text-gray-700"
+        >
+          <ArrowLeft size={18} />
+          Back
+        </button>
 
-      {todayItems.length > 0 && (
-        <>
-          <h2 className="mb-3 text-sm font-semibold text-gray-500">TODAY</h2>
-          <div className="space-y-3">
-            {todayItems.map((item) => (
-              <div key={item.id} className="rounded-2xl bg-white p-4 shadow-sm">
+        <h1 className="mb-6 text-3xl font-bold">Notifications</h1>
+
+        {loading ? (
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="h-24 animate-pulse rounded-2xl bg-white"
+              />
+            ))}
+          </div>
+        ) : notifications.length === 0 ? (
+          <div className="rounded-3xl bg-white p-12 text-center shadow-sm">
+            <Bell size={40} className="mx-auto text-gray-300" />
+            <p className="mt-4 text-gray-500">
+              No notifications yet
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {notifications.map((item) => (
+              <div
+                key={item.id}
+                className={`rounded-2xl border bg-white p-5 shadow-sm ${!item.is_read
+                    ? "border-green-200"
+                    : "border-gray-200"
+                  }`}
+              >
                 <div className="flex items-start gap-3">
-                  <div className="rounded-full bg-green-100 p-2">
-                    <Bell className="text-green-600" size={18} />
+                  <div className="rounded-full bg-green-100 p-3 text-green-600">
+                    <Bell size={20} />
                   </div>
 
                   <div className="flex-1">
-                    <h3 className="font-semibold">{item.title}</h3>
-                    <p className="mt-1 text-sm text-gray-600">{item.message}</p>
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                      <h3 className="font-bold">{item.title}</h3>
 
-                    <div className="mt-2 flex items-center gap-1 text-xs text-green-600">
-                      <CheckCircle2 size={14} />
-                      {item.is_read ? "Read" : "Unread"}
+                      <span className="text-xs text-gray-500">
+                        {new Date(
+                          item.created_at
+                        ).toLocaleDateString("en-NG")}
+                      </span>
                     </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
 
-      {earlierItems.length > 0 && (
-        <>
-          <h2 className="mb-3 mt-6 text-sm font-semibold text-gray-500">
-            EARLIER
-          </h2>
-
-          <div className="space-y-3">
-            {earlierItems.map((item) => (
-              <div key={item.id} className="rounded-2xl bg-white p-4 shadow-sm">
-                <div className="flex items-start gap-3">
-                  <div className="rounded-full bg-gray-100 p-2">
-                    <Bell className="text-gray-600" size={18} />
-                  </div>
-
-                  <div className="flex-1">
-                    <h3 className="font-semibold">{item.title}</h3>
-
-                    <p className="mt-1 text-sm text-gray-600">{item.message}</p>
-
-                    <p className="mt-2 text-xs text-gray-400">
-                      {new Date(item.created_at).toLocaleDateString("en-NG", {
-                        day: "numeric",
-                        month: "short",
-                      })}
+                    <p className="mt-2 text-sm leading-6 text-gray-600">
+                      {item.message}
                     </p>
+
+                    {!item.is_read && (
+                      <span className="mt-3 inline-block rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
+                        New
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
             ))}
           </div>
-        </>
-      )}
+        )}
+      </div>
     </main>
   );
 }

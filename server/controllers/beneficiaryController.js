@@ -202,19 +202,45 @@ const deleteBeneficiary = async (req, res) => {
 // Transfer Using Saved Beneficiary
 // ========================================
 const transferToBeneficiary = async (req, res) => {
+    const { beneficiaryId, amount, pin } = req.body;
 
-    const { beneficiaryId, amount } = req.body;
-
-    if (!beneficiaryId || !amount || Number(amount) <= 0) {
+    if (!beneficiaryId || !amount || !pin) {
         return res.status(400).json({
             success: false,
-            message: "Beneficiary ID and valid amount are required."
+            message: "Beneficiary, amount and PIN are required."
         });
     }
 
-    try {
+    const client = await pool.connect();
 
-        const beneficiary = await pool.query(
+    try {
+        await client.query("BEGIN");
+
+        // Verify PIN
+        const user = await client.query(
+            `SELECT transaction_pin
+             FROM users
+             WHERE id = $1`,
+            [req.user.id]
+        );
+
+        const bcrypt = require("bcryptjs");
+
+        const validPin = await bcrypt.compare(
+            pin,
+            user.rows[0].transaction_pin
+        );
+
+        if (!validPin) {
+            await client.query("ROLLBACK");
+            return res.status(400).json({
+                success: false,
+                message: "Invalid transaction PIN."
+            });
+        }
+
+        // Get beneficiary
+        const beneficiary = await client.query(
             `SELECT *
              FROM beneficiaries
              WHERE id = $1
@@ -223,30 +249,113 @@ const transferToBeneficiary = async (req, res) => {
         );
 
         if (beneficiary.rows.length === 0) {
+            await client.query("ROLLBACK");
             return res.status(404).json({
                 success: false,
                 message: "Beneficiary not found."
             });
         }
 
+        // Check wallet
+        const wallet = await client.query(
+            `SELECT balance
+             FROM wallets
+             WHERE user_id = $1
+             FOR UPDATE`,
+            [req.user.id]
+        );
+
+        const balance = Number(wallet.rows[0].balance);
+
+        if (balance < Number(amount)) {
+            await client.query("ROLLBACK");
+            return res.status(400).json({
+                success: false,
+                message: "Insufficient balance."
+            });
+        }
+
+        // Paystack transfer
+        const paystack = await axios.post(
+            "https://api.paystack.co/transfer",
+            {
+                source: "balance",
+                amount: Math.round(Number(amount) * 100),
+                recipient: beneficiary.rows[0].recipient_code,
+                reason: "QuickTxn Beneficiary Transfer"
+            },
+            {
+                headers: {
+                    Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+                    "Content-Type": "application/json"
+                }
+            }
+        );
+
+        // Deduct wallet
+        await client.query(
+            `UPDATE wallets
+             SET balance = balance - $1
+             WHERE user_id = $2`,
+            [amount, req.user.id]
+        );
+
+        // Save transaction
+        await client.query(
+            `INSERT INTO transactions
+            (
+                sender_id,
+                type,
+                amount,
+                description,
+                status,
+                reference,
+                payment_provider,
+                payment_reference
+            )
+            VALUES
+            ($1,'DEBIT',$2,$3,'SUCCESS',$4,'PAYSTACK',$5)`,
+            [
+                req.user.id,
+                amount,
+                `Transfer to ${beneficiary.rows[0].account_name}`,
+                `TRF-${Date.now()}`,
+                paystack.data.data.reference
+            ]
+        );
+
+        // Notification
+        await client.query(
+            `INSERT INTO notifications
+            (user_id,title,message)
+            VALUES ($1,$2,$3)`,
+            [
+                req.user.id,
+                "Transfer Successful",
+                `₦${Number(amount).toLocaleString()} sent to ${beneficiary.rows[0].account_name}`
+            ]
+        );
+
+        await client.query("COMMIT");
+
         return res.status(200).json({
             success: true,
-            message: "Beneficiary retrieved successfully.",
-            data: beneficiary.rows[0],
-            amount
+            message: "Transfer completed successfully."
         });
 
     } catch (error) {
+        await client.query("ROLLBACK");
 
-        console.error(error);
+        console.error(error.response?.data || error);
 
         return res.status(500).json({
             success: false,
-            message: "Server Error"
+            message: "Transfer failed."
         });
 
+    } finally {
+        client.release();
     }
-
 };
 
 module.exports = {

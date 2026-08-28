@@ -1,141 +1,149 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import {
     ArrowDownLeft,
     ArrowUpRight,
-    Search,
+    ArrowLeft,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import TransactionFilter from "@/components/layout/dashboard/TransactionFilter";
 
 interface Transaction {
     id: string;
-    type: string;
+    type: "CREDIT" | "DEBIT";
     amount: number;
+    description: string;
     status: string;
-    createdAt: string;
+    created_at: string;
 }
-
-const filters = ["All", "Funding", "Transfer", "Airtime", "Data"];
 
 export default function TransactionsPage() {
     const router = useRouter();
 
     const [transactions, setTransactions] = useState<Transaction[]>([]);
-    const [activeFilter, setActiveFilter] = useState("All");
+    const [loading, setLoading] = useState(true);
+
     const [search, setSearch] = useState("");
+    const [filter, setFilter] = useState("ALL");
 
     useEffect(() => {
-        const fetchTransactions = async () => {
+        const loadTransactions = async () => {
             try {
                 const res = await api.get("/transactions");
-                setTransactions(res.data.transactions);
+                setTransactions(res.data.transactions || []);
             } catch (error) {
-                console.error("Transaction fetch failed:", error);
+                console.error(error);
+            } finally {
+                setLoading(false);
             }
         };
 
-        fetchTransactions();
+        loadTransactions();
     }, []);
 
-    const filtered = useMemo(() => {
-        return transactions.filter((tx) => {
-            const matchSearch = tx.type
-                .toLowerCase()
-                .includes(search.toLowerCase());
+    const filteredTransactions = transactions.filter((tx) => {
+        const matchesSearch = tx.description
+            .toLowerCase()
+            .includes(search.toLowerCase());
 
-            const matchFilter =
-                activeFilter === "All"
-                    ? true
-                    : tx.type.toLowerCase().includes(activeFilter.toLowerCase());
+        const matchesFilter =
+            filter === "ALL" || tx.type === filter;
 
-            return matchSearch && matchFilter;
-        });
-    }, [transactions, search, activeFilter]);
+        return matchesSearch && matchesFilter;
+    });
 
     return (
-        <main className="mx-auto min-h-screen max-w-md bg-gray-50 p-4 pb-24">
-            <h1 className="mb-5 text-2xl font-bold">Transactions</h1>
+        <main className="min-h-screen bg-gray-50">
+            <div className="mx-auto w-full max-w-5xl px-4 py-5 sm:px-6 lg:px-8">
+                <button
+                    onClick={() => router.back()}
+                    className="mb-5 flex items-center gap-2 text-gray-700"
+                >
+                    <ArrowLeft size={18} />
+                    Back
+                </button>
 
-            <div className="mb-4 flex items-center gap-2 rounded-2xl bg-white px-4 py-3 shadow-sm">
-                <Search size={18} className="text-gray-400" />
-                <input
-                    placeholder="Search transaction..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="w-full outline-none"
+                <h1 className="mb-6 text-3xl font-bold">
+                    Transactions
+                </h1>
+
+                <TransactionFilter
+                    search={search}
+                    setSearch={setSearch}
+                    filter={filter}
+                    setFilter={setFilter}
                 />
-            </div>
 
-            <div className="mb-5 flex gap-2 overflow-x-auto">
-                {filters.map((filter) => (
-                    <button
-                        key={filter}
-                        onClick={() => setActiveFilter(filter)}
-                        className={`rounded-full px-4 py-2 text-sm font-medium whitespace-nowrap ${activeFilter === filter
-                                ? "bg-green-600 text-white"
-                                : "bg-white text-gray-600"
-                            }`}
-                    >
-                        {filter}
-                    </button>
-                ))}
-            </div>
-
-            <div className="space-y-3">
-                {filtered.map((tx) => (
-                    <button
-                        key={tx.id}
-                        onClick={() => router.push(`/transactions/${tx.id}`)}
-                        className="flex w-full items-center justify-between rounded-2xl bg-white p-4 shadow-sm"
-                    >
-                        <div className="flex items-center gap-3">
+                {loading ? (
+                    <div className="space-y-4">
+                        {[1, 2, 3, 4].map((i) => (
                             <div
-                                className={`rounded-full p-3 ${tx.amount > 0 ? "bg-green-100" : "bg-red-100"
-                                    }`}
-                            >
-                                {tx.amount > 0 ? (
-                                    <ArrowDownLeft size={18} className="text-green-600" />
-                                ) : (
-                                    <ArrowUpRight size={18} className="text-red-600" />
-                                )}
+                                key={i}
+                                className="h-20 animate-pulse rounded-2xl bg-white"
+                            />
+                        ))}
+                    </div>
+                ) : (
+                    <div className="overflow-hidden rounded-3xl bg-white shadow-sm">
+                        {filteredTransactions.length === 0 ? (
+                            <div className="p-10 text-center text-gray-500">
+                                No transactions found
                             </div>
+                        ) : (
+                            filteredTransactions.map((tx) => (
+                                <div
+                                    key={tx.id}
+                                    className="flex items-center justify-between border-b p-4 last:border-0"
+                                >
+                                    <div className="flex min-w-0 items-center gap-3">
+                                        <div
+                                            className={`flex h-12 w-12 items-center justify-center rounded-full ${tx.type === "CREDIT"
+                                                    ? "bg-green-100 text-green-600"
+                                                    : "bg-red-100 text-red-600"
+                                                }`}
+                                        >
+                                            {tx.type === "CREDIT" ? (
+                                                <ArrowDownLeft size={22} />
+                                            ) : (
+                                                <ArrowUpRight size={22} />
+                                            )}
+                                        </div>
 
-                            <div className="text-left">
-                                <h3 className="font-semibold">{tx.type}</h3>
+                                        <div className="min-w-0">
+                                            <p className="truncate font-semibold">
+                                                {tx.description}
+                                            </p>
 
-                                <p className="text-xs text-gray-500">
-                                    {new Date(tx.createdAt).toLocaleString("en-NG", {
-                                        day: "numeric",
-                                        month: "short",
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                    })}
-                                </p>
-                            </div>
-                        </div>
+                                            <p className="text-sm text-gray-500">
+                                                {new Date(
+                                                    tx.created_at
+                                                ).toLocaleString("en-NG")}
+                                            </p>
+                                        </div>
+                                    </div>
 
-                        <div className="text-right">
-                            <p
-                                className={`font-bold ${tx.amount > 0 ? "text-green-600" : "text-red-600"
-                                    }`}
-                            >
-                                {tx.amount > 0 ? "+" : "-"}₦
-                                {Math.abs(tx.amount).toLocaleString()}
-                            </p>
+                                    <div className="text-right">
+                                        <p
+                                            className={`font-bold ${tx.type === "CREDIT"
+                                                    ? "text-green-600"
+                                                    : "text-red-600"
+                                                }`}
+                                        >
+                                            {tx.type === "CREDIT" ? "+" : "-"}₦
+                                            {Number(tx.amount).toLocaleString()}
+                                        </p>
 
-                            <span
-                                className={`text-xs ${tx.status === "success"
-                                        ? "text-green-600"
-                                        : "text-orange-500"
-                                    }`}
-                            >
-                                {tx.status}
-                            </span>
-                        </div>
-                    </button>
-                ))}
+                                        <span className="text-xs text-gray-500">
+                                            {tx.status}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                )}
             </div>
         </main>
     );

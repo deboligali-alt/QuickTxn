@@ -1,117 +1,108 @@
 "use client";
 
-import { useState } from "react";
-import {
-    User,
-    Lock,
-    Bell,
-    ShieldCheck,
-    LogOut,
-    ChevronRight,
-} from "lucide-react";
 import { useRouter } from "next/navigation";
+import {
+    ArrowLeft,
+    User,
+    Shield,
+    Bell,
+    Lock,
+    ChevronRight,
+    LogOut,
+} from "lucide-react";
+
+const menus = [
+    {
+        title: "Profile",
+        icon: User,
+        path: "/profile",
+    },
+    {
+        title: "Transaction PIN",
+        icon: Shield,
+        path: "/settings/pin",
+    },
+    {
+        title: "Notifications",
+        icon: Bell,
+        path: "/notifications",
+    },
+    {
+        title: "Security",
+        icon: Lock,
+        path: "/settings/security",
+    },
+];
 
 export default function SettingsPage() {
     const router = useRouter();
 
-    const [notifications, setNotifications] = useState(true);
-
-
     const logout = () => {
-        // Clear all authentication data
         localStorage.removeItem("token");
         localStorage.removeItem("user");
-        localStorage.removeItem("role");
         sessionStorage.clear();
-
         router.replace("/login");
-        router.refresh();
     };
 
     return (
-        <main className="mx-auto min-h-screen max-w-md bg-gray-50 p-4 pb-24">
-            <h1 className="mb-6 text-2xl font-bold">Settings</h1>
+        <main className="min-h-screen bg-gray-50">
+            <div className="mx-auto w-full max-w-4xl px-4 py-5 sm:px-6 lg:px-8">
+                <button
+                    onClick={() => router.back()}
+                    className="mb-5 flex items-center gap-2 text-gray-700"
+                >
+                    <ArrowLeft size={18} />
+                    Back
+                </button>
 
-            {/* Account */}
-            <div className="mb-6">
-                <p className="mb-3 text-xs font-semibold uppercase text-gray-500">
-                    Account
-                </p>
+                <h1 className="mb-6 text-3xl font-bold">Settings</h1>
 
-                <div className="space-y-3">
+                <div className="space-y-4">
+                    {menus.map((item) => {
+                        const Icon = item.icon;
+
+                        return (
+                            <button
+                                key={item.title}
+                                onClick={() => router.push(item.path)}
+                                className="flex w-full items-center justify-between rounded-2xl bg-white p-5 shadow-sm transition hover:shadow-md"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="rounded-xl bg-green-100 p-3 text-green-600">
+                                        <Icon size={22} />
+                                    </div>
+
+                                    <span className="font-semibold">
+                                        {item.title}
+                                    </span>
+                                </div>
+
+                                <ChevronRight
+                                    size={20}
+                                    className="text-gray-400"
+                                />
+                            </button>
+                        );
+                    })}
+
                     <button
-                        onClick={() => router.push("/profile")}
-                        className="flex w-full items-center justify-between rounded-2xl bg-white p-4 shadow-sm"
+                        onClick={logout}
+                        className="flex w-full items-center justify-between rounded-2xl bg-red-50 p-5 text-red-600 shadow-sm transition hover:bg-red-100"
                     >
-                        <div className="flex items-center gap-3">
-                            <User className="text-green-600" size={20} />
-                            <span className="font-medium">Profile</span>
-                        </div>
-                        <ChevronRight size={18} className="text-gray-400" />
-                    </button>
+                        <div className="flex items-center gap-4">
+                            <div className="rounded-xl bg-red-100 p-3">
+                                <LogOut size={22} />
+                            </div>
 
-                    <button
-                        onClick={() => router.push("/change-pin")}
-                        className="flex w-full items-center justify-between rounded-2xl bg-white p-4 shadow-sm"
-                    >
-                        <div className="flex items-center gap-3">
-                            <Lock className="text-green-600" size={20} />
-                            <span className="font-medium">Transaction PIN</span>
+                            <span className="font-semibold">
+                                Logout
+                            </span>
                         </div>
-                        <ChevronRight size={18} className="text-gray-400" />
+
+                        <ChevronRight size={20} />
                     </button>
                 </div>
             </div>
-
-            <button
-                onClick={() => router.push("/set-pin")}
-                className="flex w-full items-center justify-between rounded-2xl bg-white p-4 shadow-sm"
-            >
-                <div className="flex items-center gap-3">
-                    <ShieldCheck className="text-green-600" size={20} />
-                    <span className="font-medium">Create PIN</span>
-                </div>
-
-                <ChevronRight size={18} className="text-gray-400" />
-            </button>
-
-            {/* Preferences */}
-            <div className="mb-6">
-                <p className="mb-3 text-xs font-semibold uppercase text-gray-500">
-                    Preferences
-                </p>
-
-                <div className="space-y-3">
-                    <div className="flex items-center justify-between rounded-2xl bg-white p-4 shadow-sm">
-                        <div className="flex items-center gap-3">
-                            <Bell className="text-green-600" size={20} />
-                            <span className="font-medium">Notifications</span>
-                        </div>
-
-                        <button
-                            onClick={() => setNotifications(!notifications)}
-                            className={`h-7 w-12 rounded-full transition ${notifications ? "bg-green-600" : "bg-gray-300"
-                                }`}
-                        >
-                            <div
-                                className={`h-5 w-5 rounded-full bg-white transition ${notifications ? "translate-x-6" : "translate-x-1"
-                                    }`}
-                            />
-                        </button>
-                    </div>
-
-
-                </div>
-            </div>
-
-            {/* Logout */}
-            <button
-                onClick={logout}
-                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-red-500 py-4 font-semibold text-white"
-            >
-                <LogOut size={18} />
-                Logout
-            </button>
         </main>
     );
 }
