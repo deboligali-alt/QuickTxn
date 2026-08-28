@@ -1,32 +1,44 @@
 "use client";
 
 import { useEffect } from "react";
-import { socket } from "@/lib/socket";
+import { io, Socket } from "socket.io-client";
+
+let socket: Socket | null = null;
 
 export default function useDashboardRealtime(
-    userId: string | undefined,
-    refresh: () => void,
+    userId?: string,
+    refresh?: () => void,
     onSuccess?: () => void
 ) {
     useEffect(() => {
         if (!userId) return;
 
-        socket.connect();
+        if (!socket) {
+            socket = io(process.env.NEXT_PUBLIC_SOCKET_URL!, {
+                transports: ["websocket"],
+            });
+        }
 
         socket.emit("join", userId);
 
-        const update = () => {
-            refresh();
+        socket.on("wallet_updated", () => {
+            refresh?.();
             onSuccess?.();
-        };
+        });
 
-        socket.on("wallet_updated", update);
-        socket.on("new_transaction", update);
+        socket.on("new_transaction", () => {
+            refresh?.();
+            onSuccess?.();
+        });
+
+        socket.on("notification", () => {
+            refresh?.();
+        });
 
         return () => {
-            socket.off("wallet_updated", update);
-            socket.off("new_transaction", update);
-            socket.disconnect();
+            socket?.off("wallet_updated");
+            socket?.off("new_transaction");
+            socket?.off("notification");
         };
     }, [userId, refresh, onSuccess]);
 }
