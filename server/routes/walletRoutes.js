@@ -1,6 +1,5 @@
 const express = require("express");
 const router = express.Router();
-
 const {
     getBalance,
     fundWallet,
@@ -9,6 +8,7 @@ const {
     bankTransfer,
     resolveAccount,
     getBanks,
+    getTransferHistory,
     getVirtualAccount,
 } = require("../controllers/walletController");
 const verifyToken = require("../middleware/authMiddleware");
@@ -255,6 +255,24 @@ router.post(
     "/bank-transfer",
     verifyToken,
     bankTransfer
+);
+
+/**
+ * @swagger
+ * /api/wallet/bank-history:
+ *   get:
+ *     summary: Get user's bank transfer history
+ *     tags: [Wallet]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Bank transfer history retrieved successfully
+ */
+router.get(
+    "/bank-history",
+    verifyToken,
+    getTransferHistory
 );
 
 /**

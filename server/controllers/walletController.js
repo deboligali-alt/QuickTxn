@@ -1,7 +1,10 @@
 const { pool } = require("../config/db");
 const axios = require("axios");
 const pinService = require("../services/pinService");
-
+const paystackTransfer = require("../services/paystackTransferService");
+const walletService = require("../services/walletService");
+const transactionService = require("../services/transactionService");
+const notificationService = require("../services/notificationService");
 // ======================================
 // GET WALLET BALANCE
 // ======================================
@@ -511,35 +514,7 @@ const resolveAccount = async (req, res) => {
     }
 };
 
-// ======================================
-// GET ALL BANKS
-// ======================================
-const getBanks = async (req, res) => {
-    try {
 
-        const response = await axios.get(
-            "https://api.paystack.co/bank?country=nigeria",
-            {
-                headers: {
-                    Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-                },
-            }
-        );
-
-        return res.status(200).json({
-            success: true,
-            data: response.data.data,
-        });
-
-    } catch (error) {
-
-        return res.status(500).json({
-            success: false,
-            message: "Unable to fetch banks.",
-        });
-
-    }
-};
 
 // ======================================
 // BANK TRANSFER
@@ -747,6 +722,58 @@ const getVirtualAccount = async (req, res) => {
     }
 };
 
+const getBanks = async (req, res) => {
+    try {
+        const banks = await paystackTransfer.getBanks();
+
+        res.json({
+            success: true,
+            data: banks,
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: "Unable to fetch banks",
+        });
+    }
+};
+
+// ======================================
+// BANK TRANSFER HISTORY
+// ======================================
+const getTransferHistory = async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT
+                id,
+                account_name,
+                account_number,
+                bank_code,
+                amount,
+                reference,
+                provider_reference,
+                status,
+                created_at
+             FROM bank_transfers
+             WHERE user_id = $1
+             ORDER BY created_at DESC`,
+            [req.user.id]
+        );
+
+        return res.status(200).json({
+            success: true,
+            count: result.rows.length,
+            data: result.rows,
+        });
+    } catch (error) {
+        console.error(error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Unable to fetch transfer history.",
+        });
+    }
+};
 // ======================================
 // EXPORTS
 // ======================================
@@ -755,8 +782,13 @@ module.exports = {
     fundWallet,
     verifyPayment,
     transferMoney,
-    resolveAccount,
+
+    // Bank Transfer
     getBanks,
+    resolveAccount,
     bankTransfer,
+    getTransferHistory,
+
+    // Virtual Account
     getVirtualAccount,
 };

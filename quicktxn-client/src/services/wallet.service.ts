@@ -1,5 +1,8 @@
 import api from "@/lib/api";
 
+// ==============================
+// Wallet
+// ==============================
 export const getWallet = async (token: string) => {
     const response = await api.get("/wallet/balance", {
         headers: {
@@ -27,8 +30,11 @@ export const fundWallet = async (
     return response.data;
 };
 
+// ==============================
+// Bank Transfer
+// ==============================
 export const getBanks = async (token: string) => {
-    const response = await api.get("/wallet/banks", {
+    const response = await api.get("/bank/banks", {
         headers: {
             Authorization: `Bearer ${token}`,
         },
@@ -37,14 +43,13 @@ export const getBanks = async (token: string) => {
     return response.data;
 };
 
-
 export const resolveAccount = async (
     token: string,
     accountNumber: string,
     bankCode: string
 ) => {
     const response = await api.post(
-        "/wallet/resolve-account",
+        "/bank/resolve",
         {
             accountNumber,
             bankCode,
@@ -59,7 +64,6 @@ export const resolveAccount = async (
     return response.data;
 };
 
-
 export const bankTransfer = async (
     token: string,
     data: {
@@ -71,7 +75,7 @@ export const bankTransfer = async (
     }
 ) => {
     const response = await api.post(
-        "/wallet/bank-transfer",
+        "/bank/transfer",
         data,
         {
             headers: {
@@ -79,6 +83,16 @@ export const bankTransfer = async (
             },
         }
     );
+
+    return response.data;
+};
+
+export const getTransferHistory = async (token: string) => {
+    const response = await api.get("/bank/history", {
+        headers: {
+            Authorization: `Bearer ${token}`,
+        },
+    });
 
     return response.data;
 };

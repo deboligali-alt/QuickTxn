@@ -5,7 +5,7 @@ import {
     Wifi,
     Trophy,
     Repeat,
-    ArrowUpRight,
+    Landmark,
     Wallet,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -37,7 +37,7 @@ const services = [
     },
     {
         title: "Transfer",
-        icon: ArrowUpRight,
+        icon: Landmark,
         color: "bg-green-100 text-green-600",
         path: "/transfer",
     },
@@ -66,7 +66,7 @@ export default function ServicesGrid() {
                         <button
                             key={service.title}
                             onClick={() => router.push(service.path)}
-                            className="rounded-2xl bg-white p-4 shadow-sm transition active:scale-95"
+                            className="rounded-2xl bg-white p-4 shadow-sm transition hover:shadow-md active:scale-95"
                         >
                             <div
                                 className={`mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full ${service.color}`}

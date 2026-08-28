@@ -39,7 +39,7 @@ const adminTransactionRoutes = require("./routes/adminTransactionRoutes");
 const adminAirtimeSwapRoutes = require("./routes/adminAirtimeSwapRoutes");
 
 const webhookRoutes = require("./routes/webhookRoutes");
-
+const bankTransferRoutes = require("./routes/bankTransferRoutes");
 const app = express();
 
 // ==========================
@@ -119,6 +119,7 @@ app.use("/api/public", publicRoutes);
 // Paystack
 // ==========================
 app.use("/api/paystack", paystackRoutes);
+app.use("/api/bank", bankTransferRoutes);
 
 // ==========================
 // Admin Routes
