@@ -117,7 +117,7 @@ app.use("/api/notifications", notificationRoutes);
 // Contact & Public
 // ==========================
 app.use("/api/contact", contactRoutes);
-app.use("/api/public", publicRoutes);
+app.use("/api/public", publicRoutes);c
 
 // ==========================
 // Paystack
