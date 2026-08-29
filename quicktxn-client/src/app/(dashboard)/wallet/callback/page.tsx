@@ -1,13 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import {
-    useRouter,
-    useSearchParams,
-} from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import api from "@/lib/api";
 
-export default function WalletCallbackPage() {
+function WalletCallbackContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
@@ -18,56 +15,24 @@ export default function WalletCallbackPage() {
     useEffect(() => {
         const verifyPayment = async () => {
             try {
-                console.log(
-                    "Callback URL:",
-                    window.location.href
-                );
-
-                console.log(
-                    "Query parameters:",
-                    window.location.search
-                );
-
-                // Paystack can return either "reference"
-                // or "trxref"
                 const reference =
                     searchParams.get("reference") ||
                     searchParams.get("trxref");
 
-                console.log(
-                    "Payment reference:",
-                    reference
-                );
-
                 if (!reference) {
-                    setStatus(
-                        "Payment reference was not found."
-                    );
+                    setStatus("Payment reference was not found.");
                     return;
                 }
 
-                const token =
-                    localStorage.getItem("token");
+                const token = localStorage.getItem("token");
 
                 if (!token) {
-                    setStatus(
-                        "Please login again."
-                    );
+                    setStatus("Please login again.");
                     return;
                 }
-
-                console.log(
-                    "Verifying payment with reference:",
-                    reference
-                );
 
                 const response = await api.get(
                     `/wallet/verify-payment/${reference}`
-                );
-
-                console.log(
-                    "Verification response:",
-                    response.data
                 );
 
                 if (response.data.success) {
@@ -75,11 +40,17 @@ export default function WalletCallbackPage() {
                         "Payment successful! Updating your wallet..."
                     );
 
-                    setTimeout(() => {
-                        sessionStorage.setItem("payment_success", "true");
+                    sessionStorage.setItem(
+                        "payment_success",
+                        "true"
+                    );
+                    sessionStorage.setItem(
+                        "refresh_dashboard",
+                        "true"
+                    );
 
-                        router.push("/dashboard");
-                        router.refresh();
+                    setTimeout(() => {
+                        router.replace("/dashboard");
                     }, 1500);
                 } else {
                     setStatus(
@@ -87,47 +58,49 @@ export default function WalletCallbackPage() {
                         "Payment verification failed."
                     );
                 }
-
-            } catch (error: unknown) {
-                console.error(
-                    "Payment verification error:",
-                    error
-                );
-
-                const err = error as any;
+            } catch (error: any) {
+                console.error(error);
 
                 setStatus(
-                    err.response?.data?.message ||
+                    error.response?.data?.message ||
                     "Payment verification failed."
                 );
             }
         };
 
         verifyPayment();
-
     }, [searchParams, router]);
 
     return (
         <main className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
-
             <div className="w-full max-w-md rounded-3xl bg-white p-8 text-center shadow-xl">
-
                 <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-
                     <div className="h-8 w-8 animate-spin rounded-full border-4 border-green-600 border-t-transparent" />
-
                 </div>
 
                 <h1 className="mt-6 text-2xl font-bold text-slate-900">
                     Wallet Funding
                 </h1>
 
-                <p className="mt-3 text-slate-500">
-                    {status}
-                </p>
-
+                <p className="mt-3 text-slate-500">{status}</p>
             </div>
-
         </main>
+    );
+}
+
+export default function WalletCallbackPage() {
+    return (
+        <Suspense
+            fallback={
+                <main className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
+                    <div className="text-center">
+                        <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-green-600 border-t-transparent" />
+                        <p className="mt-4 text-gray-600">Loading...</p>
+                    </div>
+                </main>
+            }
+        >
+            <WalletCallbackContent />
+        </Suspense>
     );
 }
