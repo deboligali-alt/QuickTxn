@@ -1,4 +1,6 @@
-import AuthGuard from "@/components/AuthGuard";
+"use client";
+
+import Sidebar from "@/components/layout/Sidebar";
 import BottomNavigation from "@/components/layout/dashboard/BottomNavigation";
 
 export default function DashboardLayout({
@@ -7,14 +9,17 @@ export default function DashboardLayout({
     children: React.ReactNode;
 }) {
     return (
-        <AuthGuard>
-            <div className="min-h-screen bg-slate-50">
-                <main className="mx-auto w-full max-w-md pb-24">
-                    {children}
-                </main>
+        <div className="min-h-screen bg-gray-50">
+            {/* Desktop Sidebar */}
+            <Sidebar />
 
-                <BottomNavigation />
+            {/* Main Content */}
+            <div className="lg:ml-72">
+                {children}
             </div>
-        </AuthGuard>
+
+            {/* Mobile Bottom Navigation */}
+            <BottomNavigation />
+        </div>
     );
 }

@@ -45,86 +45,89 @@ export default function Sidebar() {
     const logout = () => {
         if (loggingOut) return;
 
-        try {
-            setLoggingOut(true);
+        setLoggingOut(true);
 
-            localStorage.removeItem("token");
-            localStorage.removeItem("user");
-            sessionStorage.clear();
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        sessionStorage.clear();
 
-            toast.success("Logged out successfully.");
-            router.replace("/login");
-        } finally {
-            setShowLogout(false);
-            setLoggingOut(false);
-        }
+        toast.success("Logged out successfully");
+        router.replace("/login");
     };
 
     return (
         <>
-            <aside className="sticky top-0 hidden h-screen w-72 flex-col bg-green-700 text-white shadow-xl lg:flex">
-                <div className="border-b border-green-600 p-6">
-                    <h1 className="text-3xl font-bold">QuickTxn</h1>
-                    <p className="mt-1 text-sm text-green-100">
-                        Digital Wallet
-                    </p>
+            {/* Desktop Sidebar */}
+            <aside className="fixed left-0 top-0 z-40 hidden h-screen w-72 flex-col bg-green-700 text-white shadow-2xl lg:flex">
+                {/* Logo */}
+                <div className="border-b border-green-600 px-6 py-6">
+                    <h1 className="text-3xl font-bold tracking-tight">QuickTxn</h1>
+                    <p className="mt-1 text-sm text-green-100">Digital Wallet</p>
                 </div>
 
-                <nav className="flex-1 space-y-2 overflow-y-auto p-4">
-                    {menu.map((item) => {
-                        const Icon = item.icon;
-                        const active =
-                            pathname === item.href ||
-                            pathname.startsWith(item.href + "/");
+                {/* Menu */}
+                <nav className="flex-1 overflow-y-auto px-3 py-4">
+                    <div className="space-y-1">
+                        {menu.map((item) => {
+                            const Icon = item.icon;
 
-                        return (
-                            <Link
-                                key={item.name}
-                                href={item.href}
-                                className={`flex items-center gap-3 rounded-xl px-4 py-3 transition ${active
-                                        ? "bg-white text-green-700 font-semibold shadow"
-                                        : "hover:bg-green-600"
-                                    }`}
-                            >
-                                <Icon size={20} />
-                                <span>{item.name}</span>
-                            </Link>
-                        );
-                    })}
+                            const active =
+                                pathname === item.href ||
+                                pathname.startsWith(item.href + "/");
+
+                            return (
+                                <Link
+                                    key={item.name}
+                                    href={item.href}
+                                    className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-all ${active
+                                            ? "bg-white text-green-700 shadow-md"
+                                            : "text-white hover:bg-green-600"
+                                        }`}
+                                >
+                                    <Icon size={20} />
+                                    <span className="font-medium">{item.name}</span>
+                                </Link>
+                            );
+                        })}
+                    </div>
                 </nav>
 
+                {/* Logout */}
                 <div className="border-t border-green-600 p-4">
                     <button
                         onClick={() => setShowLogout(true)}
-                        className="flex w-full items-center gap-3 rounded-xl bg-red-500 px-4 py-3 hover:bg-red-600"
+                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-500 px-4 py-3 font-semibold transition hover:bg-red-600"
                     >
-                        <LogOut size={20} />
+                        <LogOut size={18} />
                         Logout
                     </button>
                 </div>
             </aside>
 
+            {/* Logout Modal */}
             {showLogout && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-                    <div className="w-full max-w-sm rounded-2xl bg-white p-6">
-                        <h2 className="text-xl font-bold">Logout</h2>
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+                        <h2 className="text-xl font-bold text-gray-900">Logout</h2>
+
                         <p className="mt-2 text-gray-600">
-                            Are you sure you want to logout?
+                            Are you sure you want to logout from your account?
                         </p>
 
                         <div className="mt-6 flex justify-end gap-3">
                             <button
                                 onClick={() => setShowLogout(false)}
-                                className="rounded-lg border px-4 py-2"
+                                className="rounded-lg border border-gray-300 px-4 py-2 font-medium"
                             >
                                 Cancel
                             </button>
 
                             <button
                                 onClick={logout}
-                                className="rounded-lg bg-red-600 px-4 py-2 text-white"
+                                disabled={loggingOut}
+                                className="rounded-lg bg-red-600 px-4 py-2 font-medium text-white hover:bg-red-700 disabled:opacity-60"
                             >
-                                Logout
+                                {loggingOut ? "Logging out..." : "Logout"}
                             </button>
                         </div>
                     </div>

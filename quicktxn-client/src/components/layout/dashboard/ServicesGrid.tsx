@@ -7,11 +7,12 @@ import {
     Repeat,
     Landmark,
     Wallet,
+    Tv,
+    Zap,
+    GraduationCap,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Tv } from "lucide-react";
-import { Zap } from "lucide-react";
-import { GraduationCap } from "lucide-react";
+
 const services = [
     {
         title: "Airtime",
@@ -22,7 +23,7 @@ const services = [
     {
         title: "WAEC",
         icon: GraduationCap,
-        color: "bg-blue-100 text-blue-600",
+        color: "bg-sky-100 text-sky-600",
         path: "/waec",
     },
     {
@@ -73,12 +74,12 @@ export default function ServicesGrid() {
     const router = useRouter();
 
     return (
-        <section className="mt-5">
-            <h2 className="mb-4 text-lg font-bold text-gray-900">
-                Services
-            </h2>
+        <section className="mt-6">
+            <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-xl font-bold text-gray-900">Services</h2>
+            </div>
 
-            <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-4 xl:grid-cols-6">
+            <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
                 {services.map((service) => {
                     const Icon = service.icon;
 
@@ -86,15 +87,15 @@ export default function ServicesGrid() {
                         <button
                             key={service.title}
                             onClick={() => router.push(service.path)}
-                            className="rounded-2xl bg-white p-3 shadow-sm transition hover:shadow-md active:scale-95 sm:p-4"
+                            className="group rounded-2xl bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg active:scale-95 sm:p-4"
                         >
                             <div
-                                className={`mx-auto mb-2 flex h-11 w-11 items-center justify-center rounded-full sm:h-12 sm:w-12 ${service.color}`}
+                                className={`mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full transition-transform group-hover:scale-110 sm:h-12 sm:w-12 ${service.color}`}
                             >
-                                <Icon size={22} className="sm:h-6 sm:w-6" />
+                                <Icon size={22} />
                             </div>
 
-                            <p className="text-xs font-semibold text-gray-700 sm:text-sm">
+                            <p className="text-center text-[11px] font-semibold text-gray-700 sm:text-xs">
                                 {service.title}
                             </p>
                         </button>
