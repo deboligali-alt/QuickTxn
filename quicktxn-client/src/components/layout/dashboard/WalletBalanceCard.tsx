@@ -18,11 +18,10 @@ export default function WalletBalanceCard({ wallet }: WalletProps) {
     const [showBalance, setShowBalance] = useState(true);
     const [displayBalance, setDisplayBalance] = useState(0);
 
-    // Smooth balance animation
     useEffect(() => {
         let start = 0;
         const end = Number(balance);
-        const duration = 800;
+        const duration = 700;
 
         if (end === 0) {
             setDisplayBalance(0);
@@ -46,43 +45,42 @@ export default function WalletBalanceCard({ wallet }: WalletProps) {
     }, [balance]);
 
     return (
-        <section className="mt-4">
-            <div className="rounded-[28px] bg-gradient-to-br from-green-600 via-green-500 to-emerald-600 p-5 text-white shadow-xl sm:p-6 lg:p-8">
+        <section>
+            <div className="rounded-3xl bg-gradient-to-r from-green-600 to-emerald-500 p-5 sm:p-7 text-white shadow-lg">
                 <div className="flex items-center justify-between">
-                    <p className="text-sm text-green-100 sm:text-base">
+                    <p className="text-xs font-medium text-green-100 sm:text-sm">
                         Available Balance
                     </p>
 
-                    <button onClick={() => setShowBalance(!showBalance)}>
-                        {showBalance ? (
-                            <Eye size={20} />
-                        ) : (
-                            <EyeOff size={20} />
-                        )}
+                    <button
+                        onClick={() => setShowBalance(!showBalance)}
+                        className="rounded-full p-1 hover:bg-white/10"
+                    >
+                        {showBalance ? <Eye size={18} /> : <EyeOff size={18} />}
                     </button>
                 </div>
 
-                <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
+                <h2 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
                     {showBalance
                         ? `₦${displayBalance.toLocaleString()}.00`
                         : "₦••••••"}
                 </h2>
 
-                <div className="mt-6 grid grid-cols-2 gap-3 sm:flex sm:gap-4">
+                <div className="mt-5 grid grid-cols-2 gap-3">
                     <button
                         onClick={() => router.push("/wallet/fund")}
-                        className="flex items-center justify-center gap-2 rounded-xl bg-white/20 py-3 font-medium transition hover:bg-white/30 active:scale-95 sm:flex-1"
+                        className="flex items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold text-green-700 transition active:scale-95"
                     >
                         <Plus size={18} />
-                        <span>Fund</span>
+                        Fund
                     </button>
 
                     <button
                         onClick={() => router.push("/transfer")}
-                        className="flex items-center justify-center gap-2 rounded-xl bg-white/20 py-3 font-medium transition hover:bg-white/30 active:scale-95 sm:flex-1"
+                        className="flex items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 py-3 text-sm font-semibold text-white transition active:scale-95"
                     >
                         <ArrowUpRight size={18} />
-                        <span>Transfer</span>
+                        Transfer
                     </button>
                 </div>
             </div>

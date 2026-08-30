@@ -110,7 +110,7 @@ export default function WalletPage() {
 
     return (
         <main className="min-h-screen bg-slate-50">
-            <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
+            <div className="mx-auto w-full max-w-5xl px-4 py-4 sm:px-6 lg:px-8 pb-24">
 
                 {/* HEADER */}
 
@@ -172,7 +172,7 @@ export default function WalletPage() {
                         opacity: 1,
                         scale: 1,
                     }}
-                    className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-green-700 via-green-600 to-emerald-500 p-6 text-white shadow-2xl shadow-green-600/20 sm:p-8"
+                    className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-green-600 to-emerald-500 p-5 text-white shadow-lg sm:p-6"
                 >
                     {/* Decorative shapes */}
 
@@ -230,8 +230,7 @@ export default function WalletPage() {
                             <p className="text-sm text-green-100">
                                 Wallet Balance
                             </p>
-
-                            <h2 className="mt-2 text-4xl font-extrabold tracking-tight sm:text-5xl">
+                            <h2 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
                                 {showBalance
                                     ? `₦${formattedBalance}`
                                     : "₦••••••"}
@@ -239,11 +238,11 @@ export default function WalletPage() {
 
                         </div>
 
-                        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                        <div className="mt-5 grid grid-cols-2 gap-3">
 
                             <Link
                                 href="/wallet/fund"
-                                className="flex items-center justify-center gap-2 rounded-xl bg-white px-6 py-3.5 font-bold text-green-700 transition hover:bg-green-50"
+                                className="flex items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold text-green-700 transition hover:bg-green-50"
                             >
                                 <Plus size={19} />
                                 Fund Wallet
@@ -251,7 +250,7 @@ export default function WalletPage() {
 
                             <Link
                                 href="/transfer"
-                                className="flex items-center justify-center gap-2 rounded-xl bg-white/10 px-6 py-3.5 font-bold text-white backdrop-blur transition hover:bg-white/20"
+                                className="flex items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 py-3 text-sm font-semibold text-white transition hover:bg-white/20"
                             >
                                 <ArrowUpRight size={19} />
                                 Send Money
@@ -264,13 +263,13 @@ export default function WalletPage() {
 
                 {/* ACTION CARDS */}
 
-                <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-3">
 
                     {/* FUND */}
 
                     <Link
                         href="/wallet/fund"
-                        className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+                        className="group rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow-md"
                     >
                         <div className="flex items-center justify-between">
 
@@ -299,7 +298,7 @@ export default function WalletPage() {
 
                     <Link
                         href="/transfer"
-                        className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+                        className="group rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow-md"
                     >
                         <div className="flex items-center justify-between">
 
@@ -327,8 +326,8 @@ export default function WalletPage() {
                     {/* BANK TRANSFER */}
 
                     <Link
-                        href="/bank-transfer"
-                        className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+                        href="/wallet/bank-transfer"
+                        className="group rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow-md"
                     >
                         <div className="flex items-center justify-between">
 

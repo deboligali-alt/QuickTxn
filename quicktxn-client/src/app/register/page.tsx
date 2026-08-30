@@ -1,4 +1,5 @@
 "use client";
+
 import { toast } from "sonner";
 import axios from "axios";
 import { useState } from "react";
@@ -11,6 +12,7 @@ import {
     Lock,
     Eye,
     EyeOff,
+    ArrowLeft,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { register } from "@/services/auth.service";
@@ -19,7 +21,6 @@ export default function RegisterPage() {
     const router = useRouter();
 
     const [showPassword, setShowPassword] = useState(false);
-
     const [loading, setLoading] = useState(false);
 
     const [form, setForm] = useState({
@@ -50,12 +51,8 @@ export default function RegisterPage() {
 
             toast.success(response.message);
 
-            router.push(
-                `/verify-otp?email=${form.email}`
-            );
-
+            router.push(`/verify-otp?email=${form.email}`);
         } catch (error: unknown) {
-
             if (axios.isAxiosError(error)) {
                 toast.error(
                     error.response?.data?.message ??
@@ -64,21 +61,15 @@ export default function RegisterPage() {
             } else {
                 toast.error("Registration failed.");
             }
-
         } finally {
-
             setLoading(false);
-
         }
     };
 
     return (
-        <main className="grid min-h-screen lg:grid-cols-2">
-
-            {/* Left Side */}
-
-            <div className="hidden lg:flex flex-col justify-center bg-gradient-to-br from-green-700 via-green-600 to-emerald-500 p-16 text-white">
-
+        <main className="grid min-h-screen bg-slate-100 lg:grid-cols-2">
+            {/* Desktop Left */}
+            <section className="hidden overflow-hidden bg-gradient-to-br from-green-700 via-green-600 to-emerald-500 p-16 text-white lg:flex lg:flex-col lg:justify-center">
                 <motion.div
                     initial={{ opacity: 0, x: -40 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -89,43 +80,52 @@ export default function RegisterPage() {
 
                     <p className="mt-8 text-xl leading-9 text-green-100">
                         Join thousands of users making secure
-                        payments, transfers, airtime and data
-                        purchases with QuickTxn.
+                        transfers, wallet funding, airtime,
+                        data and bill payments with QuickTxn.
                     </p>
                 </motion.div>
+            </section>
 
-            </div>
-
-            {/* Right Side */}
-
-            <div className="flex items-center justify-center bg-slate-100 p-8">
-
+            {/* Mobile + Right */}
+            <section className="flex min-h-screen items-center justify-center px-4 py-6 sm:p-8">
                 <motion.div
                     initial={{ opacity: 0, y: 25 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="w-full max-w-lg rounded-3xl bg-white p-10 shadow-2xl"
+                    className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-xl sm:max-w-md sm:p-8"
                 >
+                    {/* Mobile Back */}
+                    <Link
+                        href="/"
+                        className="mb-5 inline-flex items-center gap-2 text-sm text-slate-500 lg:hidden"
+                    >
+                        <ArrowLeft size={17} />
+                        Back
+                    </Link>
 
-                    <h2 className="text-4xl font-bold">
-                        Create Account
-                    </h2>
+                    {/* Header */}
+                    <div>
+                        <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-green-100 text-green-600">
+                            <User size={22} />
+                        </div>
 
-                    <p className="mt-2 text-slate-500">
-                        Open your QuickTxn account
-                    </p>
+                        <h2 className="text-2xl font-bold sm:text-3xl">
+                            Create Account
+                        </h2>
+
+                        <p className="mt-1 text-sm text-slate-500">
+                            Open your QuickTxn account
+                        </p>
+                    </div>
 
                     <form
                         onSubmit={handleRegister}
-                        className="mt-8 space-y-5"
+                        className="mt-6 space-y-4"
                     >
-
-                        {/* Full Name */}
-
+                        {/* Name */}
                         <div className="relative">
-
                             <User
-                                className="absolute left-4 top-4 text-slate-400"
-                                size={20}
+                                size={18}
+                                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
                             />
 
                             <input
@@ -133,19 +133,16 @@ export default function RegisterPage() {
                                 placeholder="Full Name"
                                 value={form.full_name}
                                 onChange={handleChange}
-                                className="w-full rounded-xl border py-4 pl-12 pr-4 outline-none focus:border-green-600"
+                                className="h-12 w-full rounded-xl border border-slate-300 pl-11 pr-3 text-sm outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
                                 required
                             />
-
                         </div>
 
                         {/* Email */}
-
                         <div className="relative">
-
                             <Mail
-                                className="absolute left-4 top-4 text-slate-400"
-                                size={20}
+                                size={18}
+                                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
                             />
 
                             <input
@@ -154,19 +151,16 @@ export default function RegisterPage() {
                                 placeholder="Email Address"
                                 value={form.email}
                                 onChange={handleChange}
-                                className="w-full rounded-xl border py-4 pl-12 pr-4 outline-none focus:border-green-600"
+                                className="h-12 w-full rounded-xl border border-slate-300 pl-11 pr-3 text-sm outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
                                 required
                             />
-
                         </div>
 
                         {/* Phone */}
-
                         <div className="relative">
-
                             <Phone
-                                className="absolute left-4 top-4 text-slate-400"
-                                size={20}
+                                size={18}
+                                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
                             />
 
                             <input
@@ -174,19 +168,16 @@ export default function RegisterPage() {
                                 placeholder="Phone Number"
                                 value={form.phone}
                                 onChange={handleChange}
-                                className="w-full rounded-xl border py-4 pl-12 pr-4 outline-none focus:border-green-600"
+                                className="h-12 w-full rounded-xl border border-slate-300 pl-11 pr-3 text-sm outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
                                 required
                             />
-
                         </div>
 
                         {/* Password */}
-
                         <div className="relative">
-
                             <Lock
-                                className="absolute left-4 top-4 text-slate-400"
-                                size={20}
+                                size={18}
+                                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
                             />
 
                             <input
@@ -199,57 +190,47 @@ export default function RegisterPage() {
                                 placeholder="Password"
                                 value={form.password}
                                 onChange={handleChange}
-                                className="w-full rounded-xl border py-4 pl-12 pr-12 outline-none focus:border-green-600"
+                                className="h-12 w-full rounded-xl border border-slate-300 pl-11 pr-11 text-sm outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
                                 required
                             />
 
                             <button
                                 type="button"
                                 onClick={() =>
-                                    setShowPassword(
-                                        !showPassword
-                                    )
+                                    setShowPassword(!showPassword)
                                 }
-                                className="absolute right-4 top-4"
+                                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500"
                             >
                                 {showPassword ? (
-                                    <EyeOff size={20} />
+                                    <EyeOff size={18} />
                                 ) : (
-                                    <Eye size={20} />
+                                    <Eye size={18} />
                                 )}
                             </button>
-
                         </div>
 
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full rounded-xl bg-green-600 py-4 font-semibold text-white transition hover:bg-green-700"
+                            className="h-12 w-full rounded-xl bg-green-600 text-sm font-semibold text-white transition hover:bg-green-700 disabled:bg-slate-400"
                         >
                             {loading
                                 ? "Creating Account..."
                                 : "Create Account"}
                         </button>
-
                     </form>
 
-                    <p className="mt-8 text-center">
-
+                    <p className="mt-6 text-center text-sm text-slate-500">
                         Already have an account?
-
                         <Link
                             href="/login"
-                            className="ml-2 font-semibold text-green-600"
+                            className="ml-1 font-semibold text-green-600"
                         >
                             Login
                         </Link>
-
                     </p>
-
                 </motion.div>
-
-            </div>
-
+            </section>
         </main>
     );
 }

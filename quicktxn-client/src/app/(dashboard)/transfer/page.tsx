@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
-import { ArrowLeftRight } from "lucide-react";
+import { ArrowLeft, ArrowLeftRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 interface Bank {
@@ -27,7 +27,6 @@ export default function BankTransferPage() {
     const [pin, setPin] = useState("");
     const [loading, setLoading] = useState(false);
 
-    // Load banks + beneficiary
     useEffect(() => {
         const loadBanks = async () => {
             try {
@@ -53,7 +52,6 @@ export default function BankTransferPage() {
         }
     }, []);
 
-    // Auto verify account
     useEffect(() => {
         const verify = async () => {
             if (accountNumber.length !== 10 || !bankCode) return;
@@ -97,7 +95,7 @@ export default function BankTransferPage() {
             });
 
             const save = window.confirm(
-                `Transfer successful.\n\nDo you want to save ${accountName} as a beneficiary?`
+                `Transfer successful.\n\nSave ${accountName} as beneficiary?`
             );
 
             if (save) {
@@ -112,6 +110,7 @@ export default function BankTransferPage() {
                     bankCode,
                 });
             }
+
             const selectedBank = banks.find(
                 (b) => b.code === bankCode
             );
@@ -130,28 +129,54 @@ export default function BankTransferPage() {
 
             router.push("/transfer-success");
         } catch (error: any) {
-            alert(error.response?.data?.message || "Transfer failed");
+            alert(
+                error.response?.data?.message || "Transfer failed"
+            );
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <main className="mx-auto min-h-screen max-w-md bg-gray-50 p-4 pb-24">
-            <h1 className="mb-6 text-2xl font-bold">Bank Transfer</h1>
+        <main className="mx-auto min-h-screen max-w-md bg-gray-50 px-4 py-5 pb-24">
+            {/* Header */}
+            <button
+                onClick={() => router.back()}
+                className="mb-4 flex items-center gap-2 text-sm text-gray-600"
+            >
+                <ArrowLeft size={18} />
+                Back
+            </button>
 
-            <div className="rounded-3xl bg-gradient-to-br from-green-600 to-emerald-600 p-6 text-white">
+            <h1 className="text-2xl font-bold text-gray-900">
+                Bank Transfer
+            </h1>
+
+            <p className="mt-1 text-sm text-gray-500">
+                Send money to any Nigerian bank securely.
+            </p>
+
+            {/* Hero Card */}
+            <div className="mt-5 rounded-3xl bg-gradient-to-r from-green-600 to-emerald-500 p-5 text-white shadow-lg">
                 <div className="flex items-center gap-3">
-                    <ArrowLeftRight size={28} />
+                    <div className="rounded-full bg-white/20 p-3">
+                        <ArrowLeftRight size={24} />
+                    </div>
 
                     <div>
-                        <p className="text-sm text-green-100">Send Money</p>
-                        <h2 className="text-xl font-bold">Fast & Secure</h2>
+                        <p className="text-xs text-green-100">
+                            Instant Transfer
+                        </p>
+
+                        <h2 className="text-lg font-bold">
+                            Fast & Secure
+                        </h2>
                     </div>
                 </div>
             </div>
 
-            <div className="mt-6 space-y-4">
+            {/* Form */}
+            <div className="mt-5 rounded-2xl bg-white p-4 shadow-sm space-y-4">
                 <div>
                     <label className="mb-2 block text-sm font-medium">
                         Select Bank
@@ -160,7 +185,7 @@ export default function BankTransferPage() {
                     <select
                         value={bankCode}
                         onChange={(e) => setBankCode(e.target.value)}
-                        className="w-full rounded-2xl border bg-white p-4"
+                        className="h-12 w-full rounded-xl border border-gray-200 px-3 text-sm outline-none focus:border-green-600"
                     >
                         <option value="">Choose Bank</option>
 
@@ -180,8 +205,10 @@ export default function BankTransferPage() {
                     <input
                         value={accountNumber}
                         maxLength={10}
-                        onChange={(e) => setAccountNumber(e.target.value)}
-                        className="w-full rounded-2xl border bg-white p-4"
+                        onChange={(e) =>
+                            setAccountNumber(e.target.value)
+                        }
+                        className="h-12 w-full rounded-xl border border-gray-200 px-4 text-sm outline-none focus:border-green-600"
                         placeholder="0123456789"
                     />
                 </div>
@@ -194,8 +221,8 @@ export default function BankTransferPage() {
                     <input
                         readOnly
                         value={accountName}
-                        className="w-full rounded-2xl border bg-gray-100 p-4 font-semibold text-green-700"
-                        placeholder="Verified name"
+                        className="h-12 w-full rounded-xl border border-green-100 bg-green-50 px-4 text-sm font-semibold text-green-700"
+                        placeholder="Verified account name"
                     />
                 </div>
 
@@ -208,7 +235,7 @@ export default function BankTransferPage() {
                         type="number"
                         value={amount}
                         onChange={(e) => setAmount(e.target.value)}
-                        className="w-full rounded-2xl border bg-white p-4 text-xl font-bold"
+                        className="h-12 w-full rounded-xl border border-gray-200 px-4 text-lg font-bold outline-none focus:border-green-600"
                         placeholder="₦0"
                     />
                 </div>
@@ -223,8 +250,8 @@ export default function BankTransferPage() {
                         maxLength={4}
                         value={pin}
                         onChange={(e) => setPin(e.target.value)}
-                        className="w-full rounded-2xl border bg-white p-4"
-                        placeholder="****"
+                        className="h-12 w-full rounded-xl border border-gray-200 px-4 text-center text-lg tracking-[8px] outline-none focus:border-green-600"
+                        placeholder="••••"
                     />
                 </div>
             </div>
@@ -232,9 +259,11 @@ export default function BankTransferPage() {
             <button
                 onClick={transferMoney}
                 disabled={loading}
-                className="mt-8 w-full rounded-2xl bg-green-600 py-4 text-lg font-semibold text-white disabled:opacity-60"
+                className="mt-5 h-12 w-full rounded-xl bg-green-600 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-60"
             >
-                {loading ? "Processing..." : "Transfer Money"}
+                {loading
+                    ? "Processing..."
+                    : "Transfer Money"}
             </button>
         </main>
     );

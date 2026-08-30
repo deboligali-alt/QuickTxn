@@ -225,7 +225,7 @@ export default function LoginPage() {
                 RIGHT SIDE
             ====================================== */}
 
-      <section className="flex min-h-screen items-center justify-center p-5 sm:p-8">
+      <section className="flex min-h-screen items-center justify-center px-4 py-6 sm:p-8">
 
         <motion.div
           initial={{
@@ -239,7 +239,7 @@ export default function LoginPage() {
           transition={{
             duration: 0.5,
           }}
-          className="w-full max-w-md rounded-3xl bg-white p-7 shadow-2xl sm:p-10"
+          className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-xl sm:max-w-md sm:p-8"
         >
 
           {/* Mobile Back */}
@@ -255,15 +255,14 @@ export default function LoginPage() {
           {/* Heading */}
 
           <div>
-            <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-green-100 text-green-600">
+            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-green-100 text-green-600">
               <Lock size={23} />
             </div>
 
-            <h2 className="text-4xl font-extrabold text-slate-900">
+            <h2 className="text-2xl font-bold sm:text-3xl">
               Welcome Back 👋
             </h2>
-
-            <p className="mt-3 text-slate-500">
+            <p className="mt-1 text-sm text-slate-500">
               Sign in to continue to QuickTxn
             </p>
           </div>
@@ -312,7 +311,7 @@ export default function LoginPage() {
                       e.target.value
                     )
                   }
-                  className="w-full rounded-xl border border-slate-300 py-4 pl-12 pr-4 outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
+                  className="h-12 w-full rounded-xl border border-slate-300 pl-11 pr-3 text-sm outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
                   required
                 />
 
@@ -352,7 +351,7 @@ export default function LoginPage() {
                       e.target.value
                     )
                   }
-                  className="w-full rounded-xl border border-slate-300 py-4 pl-12 pr-12 outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
+                  className="h-12 w-full rounded-xl border border-slate-300 pl-11 pr-3 text-sm outline-none transition focus:border-green-600 focus:ring-2 focus:ring-green-100"
                   required
                 />
 
@@ -396,7 +395,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-xl bg-green-600 py-4 font-semibold text-white shadow-lg shadow-green-600/20 transition hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+              className="h-12 w-full rounded-xl bg-green-600 text-sm font-semibold text-white transition hover:bg-green-700"
             >
               {loading
                 ? "Signing in..."
@@ -423,7 +422,7 @@ export default function LoginPage() {
 
           <Link
             href="/register"
-            className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-green-600 py-4 font-semibold text-green-600 transition hover:bg-green-50"
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border-2 border-green-600 text-sm font-semibold text-green-600 transition hover:bg-green-50"
           >
             <UserPlus size={19} />
             Create Account

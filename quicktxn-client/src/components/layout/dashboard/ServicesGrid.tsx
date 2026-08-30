@@ -51,7 +51,7 @@ const services = [
         path: "/betting",
     },
     {
-        title: "Swap",
+        title: "Airtime to Cash",
         icon: Repeat,
         color: "bg-pink-100 text-pink-600",
         path: "/airtime-swap",
@@ -74,12 +74,10 @@ export default function ServicesGrid() {
     const router = useRouter();
 
     return (
-        <section className="mt-6">
-            <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900">Services</h2>
-            </div>
+        <section className="mt-5">
+            <h2 className="mb-3 text-lg font-bold text-gray-900">Services</h2>
 
-            <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
                 {services.map((service) => {
                     const Icon = service.icon;
 
@@ -87,15 +85,15 @@ export default function ServicesGrid() {
                         <button
                             key={service.title}
                             onClick={() => router.push(service.path)}
-                            className="group rounded-2xl bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg active:scale-95 sm:p-4"
+                            className="rounded-xl bg-white p-3 shadow-sm transition hover:shadow-md active:scale-95"
                         >
                             <div
-                                className={`mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full transition-transform group-hover:scale-110 sm:h-12 sm:w-12 ${service.color}`}
+                                className={`mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full ${service.color}`}
                             >
-                                <Icon size={22} />
+                                <Icon size={20} />
                             </div>
 
-                            <p className="text-center text-[11px] font-semibold text-gray-700 sm:text-xs">
+                            <p className="text-center text-[11px] font-medium leading-tight text-gray-700">
                                 {service.title}
                             </p>
                         </button>

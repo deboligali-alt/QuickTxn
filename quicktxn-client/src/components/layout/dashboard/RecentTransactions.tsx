@@ -1,9 +1,6 @@
 "use client";
 
-import {
-    ArrowDownLeft,
-    ArrowUpRight,
-} from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 interface Transaction {
@@ -15,41 +12,44 @@ interface Transaction {
     created_at: string;
 }
 
+interface Props {
+    transactions: Transaction[];
+}
+
 export default function RecentTransactions({
     transactions,
-}: {
-    transactions: Transaction[];
-}) {
+}: Props) {
     const router = useRouter();
 
-    const recent = transactions.slice(0, 5);
+    const recent = transactions.slice(0, 4);
 
     return (
-        <section className="mt-8">
-            <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-xl font-bold">
-                    Recent Transactions
-                </h2>
+        <section className="mt-6">
+            <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-lg font-bold">Recent Transactions</h2>
 
                 <button
                     onClick={() => router.push("/transactions")}
                     className="text-sm font-semibold text-green-600"
                 >
-                    See all
+                    View More
                 </button>
             </div>
 
-            {/* Mobile Cards */}
-            <div className="space-y-3 lg:hidden">
-                {recent.map((tx) => (
-                    <div
-                        key={tx.id}
-                        className="rounded-2xl bg-white p-4 shadow-sm"
-                    >
-                        <div className="flex items-center justify-between">
+            <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
+                {recent.length === 0 ? (
+                    <div className="p-8 text-center text-sm text-gray-500">
+                        No transactions yet
+                    </div>
+                ) : (
+                    recent.map((tx) => (
+                        <div
+                            key={tx.id}
+                            className="flex items-center justify-between border-b px-4 py-3 last:border-0"
+                        >
                             <div className="flex items-center gap-3">
                                 <div
-                                    className={`rounded-full p-3 ${tx.type === "CREDIT"
+                                    className={`flex h-10 w-10 items-center justify-center rounded-full ${tx.type === "CREDIT"
                                             ? "bg-green-100 text-green-600"
                                             : "bg-red-100 text-red-600"
                                         }`}
@@ -62,21 +62,18 @@ export default function RecentTransactions({
                                 </div>
 
                                 <div>
-                                    <p className="font-semibold">
+                                    <p className="text-sm font-semibold">
                                         {tx.description}
                                     </p>
-
                                     <p className="text-xs text-gray-500">
-                                        {new Date(
-                                            tx.created_at
-                                        ).toLocaleDateString("en-NG")}
+                                        {new Date(tx.created_at).toLocaleDateString("en-GB")}
                                     </p>
                                 </div>
                             </div>
 
                             <div className="text-right">
                                 <p
-                                    className={`font-bold ${tx.type === "CREDIT"
+                                    className={`text-sm font-bold ${tx.type === "CREDIT"
                                             ? "text-green-600"
                                             : "text-red-600"
                                         }`}
@@ -85,81 +82,13 @@ export default function RecentTransactions({
                                     {Number(tx.amount).toLocaleString()}
                                 </p>
 
-                                <span className="text-xs text-gray-500">
+                                <p className="text-[11px] capitalize text-gray-500">
                                     {tx.status}
-                                </span>
+                                </p>
                             </div>
                         </div>
-                    </div>
-                ))}
-            </div>
-
-            {/* Desktop Table */}
-            <div className="hidden overflow-hidden rounded-3xl bg-white shadow-sm lg:block">
-                <table className="w-full">
-                    <thead className="bg-gray-50 text-left text-sm text-gray-500">
-                        <tr>
-                            <th className="px-6 py-4">Transaction</th>
-                            <th className="px-6 py-4">Date</th>
-                            <th className="px-6 py-4">Status</th>
-                            <th className="px-6 py-4 text-right">
-                                Amount
-                            </th>
-                        </tr>
-                    </thead>
-
-                    <tbody>
-                        {recent.map((tx) => (
-                            <tr
-                                key={tx.id}
-                                className="border-t hover:bg-gray-50"
-                            >
-                                <td className="px-6 py-4">
-                                    <div className="flex items-center gap-3">
-                                        <div
-                                            className={`rounded-full p-2 ${tx.type === "CREDIT"
-                                                    ? "bg-green-100 text-green-600"
-                                                    : "bg-red-100 text-red-600"
-                                                }`}
-                                        >
-                                            {tx.type === "CREDIT" ? (
-                                                <ArrowDownLeft size={16} />
-                                            ) : (
-                                                <ArrowUpRight size={16} />
-                                            )}
-                                        </div>
-
-                                        <span className="font-medium">
-                                            {tx.description}
-                                        </span>
-                                    </div>
-                                </td>
-
-                                <td className="px-6 py-4 text-sm text-gray-500">
-                                    {new Date(
-                                        tx.created_at
-                                    ).toLocaleDateString("en-NG")}
-                                </td>
-
-                                <td className="px-6 py-4">
-                                    <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
-                                        {tx.status}
-                                    </span>
-                                </td>
-
-                                <td
-                                    className={`px-6 py-4 text-right font-bold ${tx.type === "CREDIT"
-                                            ? "text-green-600"
-                                            : "text-red-600"
-                                        }`}
-                                >
-                                    {tx.type === "CREDIT" ? "+" : "-"}₦
-                                    {Number(tx.amount).toLocaleString()}
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                    ))
+                )}
             </div>
         </section>
     );
