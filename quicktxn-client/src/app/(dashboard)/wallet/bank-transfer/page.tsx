@@ -1,31 +1,50 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import { ShieldCheck } from "lucide-react";
+
+interface TransferData {
+    accountName?: string;
+    accountNumber?: string;
+    bankName?: string;
+    amount?: number;
+    recipientCode?: string;
+}
 
 export default function BankTransferPinPage() {
     const router = useRouter();
 
     const [pin, setPin] = useState("");
     const [loading, setLoading] = useState(false);
+    const [transferData, setTransferData] = useState<TransferData | null>(null);
 
-    const transferData = JSON.parse(
-        sessionStorage.getItem("transferData") || "{}"
-    );
+    // ✅ Read sessionStorage only in the browser
+    useEffect(() => {
+        const saved = sessionStorage.getItem("transferData");
+
+        if (!saved) {
+            router.replace("/transfer");
+            return;
+        }
+
+        setTransferData(JSON.parse(saved));
+    }, [router]);
 
     const pressNumber = (num: string) => {
         if (pin.length < 4) {
-            setPin(pin + num);
+            setPin((prev) => prev + num);
         }
     };
 
     const removeDigit = () => {
-        setPin(pin.slice(0, -1));
+        setPin((prev) => prev.slice(0, -1));
     };
 
     const submitTransfer = async () => {
+        if (!transferData) return;
+
         if (pin.length !== 4) {
             alert("Enter your 4-digit PIN");
             return;
@@ -42,7 +61,7 @@ export default function BankTransferPinPage() {
             sessionStorage.setItem("payment_success", "true");
             sessionStorage.removeItem("transferData");
 
-            router.push("/dashboard");
+            router.replace("/dashboard");
         } catch (error: any) {
             alert(
                 error.response?.data?.message || "Transfer failed"
@@ -59,14 +78,23 @@ export default function BankTransferPinPage() {
         "", "0", "⌫",
     ];
 
+    // Prevent prerender error
+    if (!transferData) {
+        return (
+            <main className="flex min-h-screen items-center justify-center bg-gray-50">
+                <div className="text-center">
+                    <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-green-600 border-t-transparent" />
+                    <p className="mt-4 text-gray-500">Loading transfer...</p>
+                </div>
+            </main>
+        );
+    }
+
     return (
         <main className="mx-auto min-h-screen max-w-md bg-gray-50 p-4 pb-12">
             <div className="mb-8 text-center">
                 <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
-                    <ShieldCheck
-                        className="text-green-600"
-                        size={38}
-                    />
+                    <ShieldCheck className="text-green-600" size={38} />
                 </div>
 
                 <h1 className="text-2xl font-bold">
@@ -99,10 +127,7 @@ export default function BankTransferPinPage() {
                     </p>
 
                     <h3 className="mt-1 text-3xl font-bold text-green-600">
-                        ₦
-                        {Number(
-                            transferData.amount || 0
-                        ).toLocaleString()}
+                        ₦{Number(transferData.amount || 0).toLocaleString()}
                     </h3>
                 </div>
             </div>
@@ -112,8 +137,8 @@ export default function BankTransferPinPage() {
                     <div
                         key={i}
                         className={`h-4 w-4 rounded-full ${i < pin.length
-                            ? "bg-green-600"
-                            : "bg-gray-300"
+                                ? "bg-green-600"
+                                : "bg-gray-300"
                             }`}
                     />
                 ))}
