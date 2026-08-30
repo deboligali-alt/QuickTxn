@@ -12,6 +12,7 @@ import { getDashboardData } from "@/lib/dashboard";
 
 export default function DashboardPage() {
     const [showToast, setShowToast] = useState(false);
+    const [toastMessage, setToastMessage] = useState("");
     const [userId, setUserId] = useState<string>();
     const [dashboard, setDashboard] = useState<any>(null);
 
@@ -41,18 +42,33 @@ export default function DashboardPage() {
         }
     }, [loadDashboard]);
 
+    // Payment + Cashback Toast
     useEffect(() => {
         const success = sessionStorage.getItem("payment_success");
+        const cashback = sessionStorage.getItem("cashback_amount");
 
         if (success) {
+            if (cashback && Number(cashback) > 0) {
+                setToastMessage(
+                    `₦${Number(cashback).toLocaleString()} cashback has been credited to your wallet.`
+                );
+            } else {
+                setToastMessage(
+                    "Your wallet and transaction history have been updated."
+                );
+            }
+
             setShowToast(true);
+
             sessionStorage.removeItem("payment_success");
+            sessionStorage.removeItem("cashback_amount");
 
             setTimeout(() => setShowToast(false), 4000);
         }
     }, []);
 
     useDashboardRealtime(userId, loadDashboard, () => {
+        setToastMessage("A new transaction has been received.");
         setShowToast(true);
         setTimeout(() => setShowToast(false), 3500);
     });
@@ -61,18 +77,22 @@ export default function DashboardPage() {
         <>
             <Toast
                 show={showToast}
-                title="Transaction Successful"
-                message="Your wallet and transaction history have been updated."
+                title="Payment Successful 🎉"
+                message={toastMessage}
                 onClose={() => setShowToast(false)}
             />
 
             <main className="min-h-screen bg-gray-50">
                 <div className="mx-auto w-full max-w-7xl px-4 py-5 pb-28 sm:px-6 lg:px-8">
-                    <DashboardHeader fullName={dashboard?.user?.full_name} />
+                    <DashboardHeader
+                        fullName={dashboard?.user?.full_name}
+                    />
 
                     {/* Wallet */}
                     <div className="mt-4">
-                        <WalletBalanceCard wallet={dashboard?.wallet} />
+                        <WalletBalanceCard
+                            wallet={dashboard?.wallet}
+                        />
                     </div>
 
                     {/* Services */}
@@ -81,14 +101,18 @@ export default function DashboardPage() {
                     {/* Recent Transactions */}
                     <div className="mt-6">
                         <RecentTransactions
-                            transactions={dashboard?.transactions || []}
+                            transactions={
+                                dashboard?.transactions || []
+                            }
                         />
                     </div>
 
                     {/* Analytics */}
                     <div className="mt-6">
                         <AnalyticsCard
-                            transactions={dashboard?.transactions || []}
+                            transactions={
+                                dashboard?.transactions || []
+                            }
                         />
                     </div>
                 </div>

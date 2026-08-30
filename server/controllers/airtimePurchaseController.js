@@ -1,5 +1,5 @@
 const { pool } = require("../config/db");
-
+const { calculateCashback } = require("../utils/cashback");
 const walletService = require("../services/walletService");
 const transactionService = require("../services/transactionService");
 const notificationService = require("../services/notificationService");
@@ -128,6 +128,49 @@ const purchaseAirtime = async (req, res) => {
         );
 
         // ========================================
+        // Cashback Reward (2%)
+        // ========================================
+        const cashback = calculateCashback(
+            "AIRTIME",
+            amount
+        );
+
+        if (cashback > 0) {
+
+            // Credit wallet
+            await client.query(
+                `UPDATE wallets
+         SET balance = balance + $1
+         WHERE user_id = $2`,
+                [cashback, req.user.id]
+            );
+
+            // Save cashback transaction
+            await transactionService.createTransaction(
+                {
+                    senderId: req.user.id,
+                    type: "CASHBACK",
+                    amount: cashback,
+                    status: "SUCCESS",
+                    description: "Airtime Cashback Reward",
+                    reference: `CB-${Date.now()}`
+                },
+                client
+            );
+
+            // Notify user
+            await notificationService.createNotification(
+                {
+                    userId: req.user.id,
+                    title: "Cashback Reward",
+                    message: `₦${cashback} cashback has been added to your wallet.`
+                },
+                client
+            );
+
+        }
+
+        // ========================================
         // Generate QuickTxn reference
         // ========================================
         const reference =
@@ -215,83 +258,74 @@ const purchaseAirtime = async (req, res) => {
                 "Airtime purchased successfully.",
 
             data: {
-                network:
-                    normalizedNetwork,
-
+                network: normalizedNetwork,
                 phoneNumber,
-
                 amount,
-
+                cashback, // ✅ Added
                 reference,
-
-                provider:
-                    "VTPASS",
-
-                providerReference:
-                    providerResult.providerReference,
-
-                status:
-                    "SUCCESS"
+                provider: "VTPASS",
+                providerReference: providerResult.providerReference,
+                status: "SUCCESS"
             }
         });
 
-  } catch (error) {
+    } catch (error) {
 
-    try {
-        await client.query("ROLLBACK");
-    } catch (rollbackError) {
+        try {
+            await client.query("ROLLBACK");
+        } catch (rollbackError) {
+            console.error(
+                "Rollback Error:",
+                rollbackError
+            );
+        }
+
         console.error(
-            "Rollback Error:",
-            rollbackError
+            "Airtime Purchase Error:",
+            error.message
         );
-    }
 
-    console.error(
-        "Airtime Purchase Error:",
-        error.message
-    );
+        const providerFailure =
+            error.message === "TRANSACTION FAILED" ||
+            error.message === "Airtime purchase failed.";
 
-    const providerFailure =
-        error.message === "TRANSACTION FAILED" ||
-        error.message === "Airtime purchase failed.";
+        if (providerFailure) {
+            return res.status(502).json({
+                success: false,
+                message:
+                    "Airtime transaction failed. Your wallet was not debited."
+            });
+        }
 
-    if (providerFailure) {
-        return res.status(502).json({
+        if (
+            error.message ===
+            "Invalid transaction PIN." ||
+            error.message ===
+            "Transaction PIN has not been set."
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: error.message
+            });
+        }
+
+        if (
+            error.message ===
+            "Insufficient wallet balance."
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: error.message
+            });
+        }
+
+        return res.status(500).json({
             success: false,
             message:
-                "Airtime transaction failed. Your wallet was not debited."
+                "Unable to complete airtime purchase."
         });
-    }
 
-    if (
-        error.message ===
-        "Invalid transaction PIN." ||
-        error.message ===
-        "Transaction PIN has not been set."
-    ) {
-        return res.status(400).json({
-            success: false,
-            message: error.message
-        });
-    }
-
-    if (
-        error.message ===
-        "Insufficient wallet balance."
-    ) {
-        return res.status(400).json({
-            success: false,
-            message: error.message
-        });
-    }
-
-    return res.status(500).json({
-        success: false,
-        message:
-            "Unable to complete airtime purchase."
-    });
-
-} finally {
+    } finally {
 
         client.release();
 

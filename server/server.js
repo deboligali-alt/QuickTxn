@@ -5,7 +5,8 @@ const { Server } = require("socket.io");
 
 const app = require("./app");
 const { connectDB } = require("./config/db");
-
+// const cron = require("node-cron");
+// const sendDataReminders = require("./jobs/dataReminderJob");
 const PORT = process.env.PORT || 5000;
 
 const server = http.createServer(app);
@@ -37,6 +38,13 @@ io.on("connection", (socket) => {
 });
 
 connectDB();
+
+// Run every day at 9:00 AM
+// cron.schedule("0 9 * * *", async () => {
+//     console.log("Running data expiry reminder...");
+
+//     await sendDataReminders();
+// });
 
 server.listen(PORT, () => {
     console.log("================================");

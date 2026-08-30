@@ -1,5 +1,5 @@
 const { pool } = require("../config/db");
-
+const { calculateCashback } = require("../utils/cashback");
 const walletService = require("../services/walletService");
 const transactionService = require("../services/transactionService");
 const notificationService = require("../services/notificationService");
@@ -146,6 +146,48 @@ const purchaseData = async (req, res) => {
         );
 
         // ========================================
+        // Cashback Reward (3%)
+        // ========================================
+        const cashback = calculateCashback(
+            "DATA",
+            plan.amount
+        );
+
+        if (cashback > 0) {
+
+            // Credit wallet
+            await client.query(
+                `UPDATE wallets
+         SET balance = balance + $1
+         WHERE user_id = $2`,
+                [cashback, req.user.id]
+            );
+
+            // Save cashback transaction
+            await transactionService.createTransaction(
+                {
+                    senderId: req.user.id,
+                    type: "CASHBACK",
+                    amount: cashback,
+                    status: "SUCCESS",
+                    description: "Data Cashback Reward",
+                    reference: `CB-${Date.now()}`
+                },
+                client
+            );
+
+            // Notify user
+            await notificationService.createNotification(
+                {
+                    userId: req.user.id,
+                    title: "Cashback Reward",
+                    message: `₦${cashback} cashback has been added to your wallet.`
+                },
+                client
+            );
+
+        }
+        // ========================================
         // Generate QuickTxn Reference
         // ========================================
         const reference =
@@ -154,21 +196,30 @@ const purchaseData = async (req, res) => {
         // ========================================
         // Save Data Purchase
         // ========================================
+        // Calculate expiry date
+        const duration = plan.duration_days || 30;
+
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + duration);
+
+        // Save purchase
         await client.query(
             `INSERT INTO data_purchases
-            (
-                user_id,
-                network,
-                plan_name,
-                plan_code,
-                phone_number,
-                amount,
-                status,
-                provider,
-                reference
-            )
-            VALUES
-            ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+  (
+    user_id,
+    network,
+    plan_name,
+    plan_code,
+    phone_number,
+    amount,
+    duration_days,
+    expires_at,
+    status,
+    provider,
+    reference
+  )
+  VALUES
+  ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
             [
                 req.user.id,
                 network.toUpperCase(),
@@ -176,9 +227,11 @@ const purchaseData = async (req, res) => {
                 plan.plan_code,
                 phoneNumber,
                 plan.amount,
+                duration,
+                expiresAt,
                 "SUCCESS",
                 "VTPASS",
-                reference
+                reference,
             ]
         );
 
@@ -215,30 +268,16 @@ const purchaseData = async (req, res) => {
             message:
                 "Data purchased successfully.",
             data: {
-                network:
-                    network.toUpperCase(),
-
-                plan:
-                    plan.plan_name,
-
-                planCode:
-                    plan.plan_code,
-
-                amount:
-                    plan.amount,
-
+                network: network.toUpperCase(),
+                plan: plan.plan_name,
+                planCode: plan.plan_code,
+                amount: plan.amount,
+                cashback,
                 phoneNumber,
-
                 reference,
-
-                provider:
-                    "VTPASS",
-
-                providerReference:
-                    providerResult.providerReference,
-
-                status:
-                    "SUCCESS"
+                provider: "VTPASS",
+                providerReference: providerResult.providerReference,
+                status: "SUCCESS"
             }
         });
 

@@ -6,7 +6,6 @@ import {
     Trophy,
     Repeat,
     Landmark,
-    Wallet,
     Tv,
     Zap,
     GraduationCap,
@@ -17,14 +16,14 @@ const services = [
     {
         title: "Airtime",
         icon: Smartphone,
-        color: "bg-blue-100 text-blue-600",
+        color: "bg-gradient-to-br from-green-500 to-emerald-600 text-white",
         path: "/airtime",
     },
     {
-        title: "WAEC",
-        icon: GraduationCap,
-        color: "bg-sky-100 text-sky-600",
-        path: "/waec",
+        title: "Data",
+        icon: Wifi,
+        color: "bg-gradient-to-br from-blue-500 to-indigo-600 text-white",
+        path: "/data",
     },
     {
         title: "Electricity",
@@ -39,10 +38,10 @@ const services = [
         path: "/cable",
     },
     {
-        title: "Data",
-        icon: Wifi,
-        color: "bg-purple-100 text-purple-600",
-        path: "/data",
+        title: "WAEC",
+        icon: GraduationCap,
+        color: "bg-sky-100 text-sky-600",
+        path: "/waec",
     },
     {
         title: "Betting",
@@ -62,12 +61,6 @@ const services = [
         color: "bg-green-100 text-green-600",
         path: "/transfer",
     },
-    {
-        title: "Wallet",
-        icon: Wallet,
-        color: "bg-emerald-100 text-emerald-600",
-        path: "/wallet",
-    },
 ];
 
 export default function ServicesGrid() {
@@ -79,7 +72,7 @@ export default function ServicesGrid() {
                 Services
             </h2>
 
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+            <div className="grid grid-cols-4 gap-3">
                 {services.map((service) => {
                     const Icon = service.icon;
 
@@ -87,15 +80,15 @@ export default function ServicesGrid() {
                         <button
                             key={service.title}
                             onClick={() => router.push(service.path)}
-                            className="group rounded-2xl border border-gray-100 bg-white p-2.5 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md active:scale-95 sm:p-3"
+                            className="group rounded-2xl border border-gray-100 bg-white p-3 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md active:scale-95"
                         >
                             <div
-                                className={`mx-auto mb-2 flex h-9 w-9 items-center justify-center rounded-xl ${service.color} transition-transform group-hover:scale-110 sm:h-10 sm:w-10`}
+                                className={`mx-auto mb-2 flex h-11 w-11 items-center justify-center rounded-xl ${service.color} transition-transform group-hover:scale-110`}
                             >
-                                <Icon size={18} />
+                                <Icon size={20} />
                             </div>
 
-                            <p className="text-center text-[10px] font-semibold leading-tight text-gray-700 sm:text-xs">
+                            <p className="text-center text-[10px] font-semibold leading-tight text-gray-700">
                                 {service.title}
                             </p>
                         </button>
