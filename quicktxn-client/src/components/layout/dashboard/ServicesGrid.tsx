@@ -75,9 +75,11 @@ export default function ServicesGrid() {
 
     return (
         <section className="mt-5">
-            <h2 className="mb-3 text-lg font-bold text-gray-900">Services</h2>
+            <h2 className="mb-3 text-lg font-bold text-gray-900">
+                Services
+            </h2>
 
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
                 {services.map((service) => {
                     const Icon = service.icon;
 
@@ -85,15 +87,15 @@ export default function ServicesGrid() {
                         <button
                             key={service.title}
                             onClick={() => router.push(service.path)}
-                            className="rounded-xl bg-white p-3 shadow-sm transition hover:shadow-md active:scale-95"
+                            className="group rounded-2xl border border-gray-100 bg-white p-2.5 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md active:scale-95 sm:p-3"
                         >
                             <div
-                                className={`mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full ${service.color}`}
+                                className={`mx-auto mb-2 flex h-9 w-9 items-center justify-center rounded-xl ${service.color} transition-transform group-hover:scale-110 sm:h-10 sm:w-10`}
                             >
-                                <Icon size={20} />
+                                <Icon size={18} />
                             </div>
 
-                            <p className="text-center text-[11px] font-medium leading-tight text-gray-700">
+                            <p className="text-center text-[10px] font-semibold leading-tight text-gray-700 sm:text-xs">
                                 {service.title}
                             </p>
                         </button>

@@ -4,7 +4,12 @@ import { useEffect, useState } from "react";
 import { House, Receipt, Bell, Settings } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import api from "@/lib/api";
-
+interface NavItem {
+    label: string;
+    icon: any;
+    path: string;
+    badge?: number;
+}
 export default function BottomNavigation() {
     const pathname = usePathname();
     const router = useRouter();
@@ -31,7 +36,7 @@ export default function BottomNavigation() {
         loadNotifications();
     }, []);
 
-    const items = [
+    const items: NavItem[] = [
         { label: "Home", icon: House, path: "/dashboard" },
         { label: "History", icon: Receipt, path: "/transactions" },
         {
@@ -44,49 +49,38 @@ export default function BottomNavigation() {
     ];
 
     return (
-        <div className="fixed inset-x-0 bottom-0 z-50 flex justify-center lg:hidden">
-            <div className="w-full border-t border-gray-200 bg-white shadow-lg">
-                <nav className="grid h-20 grid-cols-4">
-                    {items.map((item) => {
-                        const Icon = item.icon;
-                        const active = pathname.startsWith(item.path);
+        <div className="fixed inset-x-0 bottom-3 z-50 flex justify-center lg:hidden px-3">
+            <nav className="flex w-full max-w-md items-center rounded-2xl border border-gray-200 bg-white/95 p-2 shadow-2xl backdrop-blur">
+                {items.map((item) => {
+                    const Icon = item.icon;
+                    const active = pathname.startsWith(item.path);
 
-                        return (
-                            <button
-                                key={item.label}
-                                onClick={() => router.push(item.path)}
-                                className="relative flex flex-col items-center justify-center gap-1"
-                            >
-                                <div className="relative">
-                                    <Icon
-                                        size={22}
-                                        className={
-                                            active
-                                                ? "text-green-600"
-                                                : "text-gray-500"
-                                        }
-                                    />
+                    return (
+                        <button
+                            key={item.label}
+                            onClick={() => router.push(item.path)}
+                            className={`relative flex flex-1 flex-col items-center justify-center rounded-xl py-2 transition ${active
+                                ? "bg-green-600 text-white"
+                                : "text-gray-500 hover:bg-gray-100"
+                                }`}
+                        >
+                            <div className="relative">
+                                <Icon size={20} />
 
-                                    {item.badge && item.badge > 0 && (
-                                        <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-                                            {item.badge > 99 ? "99+" : item.badge}
-                                        </span>
-                                    )}
-                                </div>
+                                {item.badge !== undefined && item.badge > 0 && (
+                                    <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                                        {item.badge > 99 ? "99+" : item.badge}
+                                    </span>
+                                )}
+                            </div>
 
-                                <span
-                                    className={`text-[11px] ${active
-                                        ? "font-semibold text-green-600"
-                                        : "text-gray-500"
-                                        }`}
-                                >
-                                    {item.label}
-                                </span>
-                            </button>
-                        );
-                    })}
-                </nav>
-            </div>
+                            <span className="mt-1 text-[10px] font-medium">
+                                {item.label}
+                            </span>
+                        </button>
+                    );
+                })}
+            </nav>
         </div>
     );
 }

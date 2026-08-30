@@ -21,6 +21,7 @@ export default function RecentTransactions({
 }: Props) {
     const router = useRouter();
 
+    // Show only the latest 4 transactions
     const recent = transactions.slice(0, 4);
 
     return (
@@ -28,12 +29,14 @@ export default function RecentTransactions({
             <div className="mb-3 flex items-center justify-between">
                 <h2 className="text-lg font-bold">Recent Transactions</h2>
 
-                <button
-                    onClick={() => router.push("/transactions")}
-                    className="text-sm font-semibold text-green-600"
-                >
-                    View More
-                </button>
+                {transactions.length > 4 && (
+                    <button
+                        onClick={() => router.push("/transactions")}
+                        className="text-sm font-semibold text-green-600"
+                    >
+                        View More
+                    </button>
+                )}
             </div>
 
             <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
@@ -65,6 +68,7 @@ export default function RecentTransactions({
                                     <p className="text-sm font-semibold">
                                         {tx.description}
                                     </p>
+
                                     <p className="text-xs text-gray-500">
                                         {new Date(tx.created_at).toLocaleDateString("en-GB")}
                                     </p>
