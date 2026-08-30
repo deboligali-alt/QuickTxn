@@ -67,88 +67,32 @@ export default function DashboardPage() {
             />
 
             <main className="min-h-screen bg-gray-50">
-                <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 pb-28">
+                <div className="mx-auto w-full max-w-7xl px-4 py-5 pb-28 sm:px-6 lg:px-8">
                     <DashboardHeader fullName={dashboard?.user?.full_name} />
 
-                    {/* Wallet + Desktop Stats */}
-                    <div className="mt-6 grid gap-6 xl:grid-cols-3">
-                        <div className="xl:col-span-2">
-                            <WalletBalanceCard wallet={dashboard?.wallet} />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 xl:grid-cols-2">
-                            <StatCard
-                                title="Transactions"
-                                value={dashboard?.transactions?.length || 0}
-                                color="green"
-                            />
-
-                            <StatCard
-                                title="Notifications"
-                                value={dashboard?.notifications?.length || 0}
-                                color="blue"
-                            />
-
-                            <StatCard
-                                title="Beneficiaries"
-                                value={dashboard?.beneficiaries?.length || 0}
-                                color="purple"
-                            />
-
-                            <StatCard
-                                title="Status"
-                                value="Active"
-                                color="emerald"
-                            />
-                        </div>
+                    {/* Wallet */}
+                    <div className="mt-4">
+                        <WalletBalanceCard wallet={dashboard?.wallet} />
                     </div>
 
+                    {/* Services */}
                     <ServicesGrid />
 
+                    {/* Recent Transactions */}
                     <div className="mt-6">
-                        <AnalyticsCard
+                        <RecentTransactions
                             transactions={dashboard?.transactions || []}
                         />
                     </div>
 
+                    {/* Analytics */}
                     <div className="mt-6">
-                        <RecentTransactions
+                        <AnalyticsCard
                             transactions={dashboard?.transactions || []}
                         />
                     </div>
                 </div>
             </main>
         </>
-    );
-}
-
-function StatCard({
-    title,
-    value,
-    color,
-}: {
-    title: string;
-    value: string | number;
-    color: "green" | "blue" | "purple" | "emerald";
-}) {
-    const styles = {
-        green: "bg-green-50 text-green-700",
-        blue: "bg-blue-50 text-blue-700",
-        purple: "bg-purple-50 text-purple-700",
-        emerald: "bg-emerald-50 text-emerald-700",
-    };
-
-    return (
-        <div className="rounded-2xl bg-white p-4 shadow-sm">
-            <div
-                className={`mb-3 inline-flex rounded-xl px-3 py-1 text-xs font-semibold ${styles[color]}`}
-            >
-                {title}
-            </div>
-
-            <h3 className="text-2xl font-bold text-gray-900">
-                {value}
-            </h3>
-        </div>
     );
 }
