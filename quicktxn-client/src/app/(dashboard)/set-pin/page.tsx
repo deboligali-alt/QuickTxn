@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import api from "@/lib/api";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 export default function SetPinPage() {
     const router = useRouter();
@@ -14,22 +15,26 @@ export default function SetPinPage() {
 
     const createPin = async () => {
         if (pin.length !== 4 || confirmPin.length !== 4) {
-            return alert("PIN must be exactly 4 digits.");
+            return toast.error("PIN must be exactly 4 digits.");
         }
 
         if (pin !== confirmPin) {
-            return alert("PINs do not match.");
+            return toast.error("PINs do not match.");
         }
 
         try {
             setLoading(true);
 
-            await api.post("/user/set-pin", { pin });
+            // ✅ Correct endpoint
+            await api.post("/pin/create", {
+                pin,
+                confirmPin,
+            });
 
-            alert("Transaction PIN created successfully.");
+            toast.success("Transaction PIN created successfully");
             router.push("/settings");
         } catch (error: any) {
-            alert(
+            toast.error(
                 error.response?.data?.message || "Unable to create PIN"
             );
         } finally {
@@ -39,6 +44,14 @@ export default function SetPinPage() {
 
     return (
         <main className="mx-auto min-h-screen max-w-md bg-gray-50 p-4">
+            <button
+                onClick={() => router.back()}
+                className="mb-6 flex items-center gap-2 text-gray-600"
+            >
+                <ArrowLeft size={18} />
+                Back
+            </button>
+
             <div className="mb-8 flex items-center gap-3">
                 <div className="rounded-full bg-green-100 p-3">
                     <ShieldCheck className="text-green-600" size={26} />
@@ -55,18 +68,24 @@ export default function SetPinPage() {
             <div className="space-y-4">
                 <input
                     type="password"
+                    inputMode="numeric"
                     maxLength={4}
                     value={pin}
-                    onChange={(e) => setPin(e.target.value)}
+                    onChange={(e) =>
+                        setPin(e.target.value.replace(/\D/g, ""))
+                    }
                     placeholder="Enter 4-digit PIN"
                     className="w-full rounded-2xl border bg-white p-4 text-center text-2xl tracking-[0.5em] outline-none"
                 />
 
                 <input
                     type="password"
+                    inputMode="numeric"
                     maxLength={4}
                     value={confirmPin}
-                    onChange={(e) => setConfirmPin(e.target.value)}
+                    onChange={(e) =>
+                        setConfirmPin(e.target.value.replace(/\D/g, ""))
+                    }
                     placeholder="Confirm PIN"
                     className="w-full rounded-2xl border bg-white p-4 text-center text-2xl tracking-[0.5em] outline-none"
                 />
