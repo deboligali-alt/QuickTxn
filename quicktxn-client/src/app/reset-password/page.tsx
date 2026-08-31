@@ -1,23 +1,25 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
-import { Suspense, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { resetPassword } from "@/services/auth.service";
 
-function ResetPasswordForm() {
+export default function ResetPasswordPage() {
     const router = useRouter();
-    const searchParams = useSearchParams();
 
-    const email = searchParams.get("email") || "";
-
+    const [email, setEmail] = useState("");
     const [otp, setOtp] = useState("");
     const [newPassword, setNewPassword] = useState("");
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState("");
+
+    // Read email only once
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        setEmail(params.get("email") || "");
+    }, []);
 
     const handleReset = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -31,6 +33,7 @@ function ResetPasswordForm() {
                 newPassword,
             });
 
+            // Green success message
             setSuccess(res.message);
 
             setTimeout(() => {
@@ -59,25 +62,24 @@ function ResetPasswordForm() {
                 <h1 className="text-2xl font-bold">Reset Password</h1>
 
                 <p className="mt-2 text-sm text-gray-500">
-                    Enter the OTP sent to{" "}
-                    <span className="font-medium">{email}</span>
+                    Enter the OTP sent to <span className="font-medium">{email}</span>
                 </p>
 
                 {success && (
-                    <div className="mt-4 rounded-xl border border-green-200 bg-green-50 p-3 text-sm font-medium text-green-700">
+                    <div className="mt-4 rounded-xl border border-green-200 bg-green-50 p-3 text-center text-sm font-semibold text-green-700">
                         ✅ {success}
                     </div>
                 )}
 
                 <form onSubmit={handleReset} className="mt-6 space-y-4">
                     <input
-                        autoFocus
                         type="text"
                         inputMode="numeric"
+                        autoComplete="one-time-code"
                         maxLength={6}
                         value={otp}
                         onChange={(e) =>
-                            setOtp(e.target.value.replace(/\D/g, ""))
+                            setOtp(e.target.value.replace(/\\D/g, ""))
                         }
                         placeholder="6-digit OTP"
                         className="w-full rounded-xl border p-3 text-center text-lg tracking-[0.3em] outline-none focus:border-green-600"
@@ -92,10 +94,10 @@ function ResetPasswordForm() {
 
                         <input
                             type="password"
+                            autoComplete="new-password"
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
                             placeholder="New Password"
-                            autoComplete="new-password"
                             className="w-full rounded-xl border p-3 pl-11 outline-none focus:border-green-600"
                             required
                         />
@@ -103,27 +105,13 @@ function ResetPasswordForm() {
 
                     <button
                         type="submit"
-                        disabled={loading}
-                        className="w-full rounded-xl bg-green-600 py-3 font-semibold text-white transition hover:bg-green-700 disabled:opacity-60"
+                        disabled={loading || success !== ""}
+                        className="w-full rounded-xl bg-green-600 py-3 font-semibold text-white disabled:opacity-60"
                     >
                         {loading ? "Updating..." : "Reset Password"}
                     </button>
                 </form>
             </div>
         </main>
-    );
-}
-
-export default function ResetPasswordPage() {
-    return (
-        <Suspense
-            fallback={
-                <main className="flex min-h-screen items-center justify-center bg-gray-50">
-                    <p className="text-gray-500">Loading...</p>
-                </main>
-            }
-        >
-            <ResetPasswordForm />
-        </Suspense>
     );
 }
