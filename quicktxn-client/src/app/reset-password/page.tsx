@@ -79,11 +79,11 @@ export default function ResetPasswordPage() {
                         ref={otpRef}
                         type="tel"
                         inputMode="numeric"
-                        pattern="[0-9]*"
-                        autoComplete="one-time-code"
-                        autoFocus
                         maxLength={6}
                         placeholder="000000"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck={false}
                         className="w-full rounded-xl border p-4 text-center text-2xl tracking-[8px] outline-none focus:border-green-600"
                         required
                     />
