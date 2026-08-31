@@ -9,12 +9,14 @@ import AnalyticsCard from "@/components/layout/dashboard/AnalyticsCard";
 import Toast from "@/components/ui/Toast";
 import useDashboardRealtime from "@/hooks/useDashboardRealtime";
 import { getDashboardData } from "@/lib/dashboard";
+import api from "@/lib/api";
 
 export default function DashboardPage() {
     const [showToast, setShowToast] = useState(false);
     const [toastMessage, setToastMessage] = useState("");
     const [userId, setUserId] = useState<string>();
     const [dashboard, setDashboard] = useState<any>(null);
+    const [unreadCount, setUnreadCount] = useState(0);
 
     const loadDashboard = useCallback(async () => {
         const token = localStorage.getItem("token");
@@ -26,6 +28,10 @@ export default function DashboardPage() {
 
             const payload = JSON.parse(atob(token.split(".")[1]));
             setUserId(payload.id);
+
+            // Load unread notifications
+            const unread = await api.get("/notifications/unread-count");
+            setUnreadCount(unread.data.count);
         } catch (err) {
             console.error(err);
         }
@@ -70,6 +76,10 @@ export default function DashboardPage() {
     useDashboardRealtime(userId, loadDashboard, () => {
         setToastMessage("A new transaction has been received.");
         setShowToast(true);
+
+        // Refresh dashboard & notification count
+        loadDashboard();
+
         setTimeout(() => setShowToast(false), 3500);
     });
 
@@ -87,33 +97,24 @@ export default function DashboardPage() {
                     <DashboardHeader
                         fullName={dashboard?.user?.full_name}
                         verified={dashboard?.user?.is_verified}
+                        unreadCount={unreadCount}
                     />
 
-                    {/* Wallet */}
                     <div className="mt-4">
-                        <WalletBalanceCard
-                            wallet={dashboard?.wallet}
-                        />
+                        <WalletBalanceCard wallet={dashboard?.wallet} />
                     </div>
 
-                    {/* Services */}
                     <ServicesGrid />
 
-                    {/* Recent Transactions */}
                     <div className="mt-6">
                         <RecentTransactions
-                            transactions={
-                                dashboard?.transactions || []
-                            }
+                            transactions={dashboard?.transactions || []}
                         />
                     </div>
 
-                    {/* Analytics */}
                     <div className="mt-6">
                         <AnalyticsCard
-                            transactions={
-                                dashboard?.transactions || []
-                            }
+                            transactions={dashboard?.transactions || []}
                         />
                     </div>
                 </div>
