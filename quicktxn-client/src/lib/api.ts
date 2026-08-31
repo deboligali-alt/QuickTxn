@@ -12,7 +12,7 @@ const api = axios.create({
   timeout: 10000,
 });
 
-// Automatically attach JWT
+// Attach JWT automatically
 api.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
     const token = localStorage.getItem("token");
@@ -25,7 +25,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle expired token
+// Only handle unauthorized requests
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -34,12 +34,15 @@ api.interceptors.response.use(
       error.response?.status === 401
     ) {
       localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      localStorage.removeItem("role");
 
       if (window.location.pathname !== "/login") {
         window.location.href = "/login";
       }
     }
 
+    // IMPORTANT: Return the original error (409, 400, 500, etc.)
     return Promise.reject(error);
   }
 );
