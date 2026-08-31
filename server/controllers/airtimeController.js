@@ -1,5 +1,6 @@
 const { pool } = require("../config/db");
 const axios = require("axios");
+const { giveCashback } = require("../services/cashbackService");
 const createSwapRequest = async (req, res) => {
     try {
         const { network, phoneNumber, airtimeAmount } = req.body;
@@ -84,6 +85,15 @@ const createSwapRequest = async (req, res) => {
                 "Airtime Swap Submitted",
                 `Your ${network.toUpperCase()} airtime swap request of ₦${Number(airtimeAmount).toLocaleString()} has been received and is awaiting admin approval.`
             ]
+        );
+        // ========================================
+        // Give Cashback
+        // ========================================
+        const cashback = await giveCashback(
+            req.user.id,
+            "AIRTIME",
+            amount,
+            client
         );
 
         return res.status(201).json({
@@ -295,8 +305,10 @@ const purchaseAirtime = async (req, res) => {
         res.status(200).json({
             success: true,
             message: "Airtime purchased successfully.",
+            data: {
+                cashback,
+            },
         });
-
     } catch (error) {
         await client.query("ROLLBACK");
         console.error(error.response?.data || error.message);

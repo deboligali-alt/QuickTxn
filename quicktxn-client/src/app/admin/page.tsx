@@ -11,6 +11,7 @@ import {
     XCircle,
     TrendingUp,
     ShieldCheck,
+    LogOut,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getDashboardStats } from "@/services/admin.service";
@@ -27,7 +28,12 @@ interface DashboardStats {
 
 export default function AdminDashboardPage() {
     const router = useRouter();
+    const handleLogout = () => {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
 
+        router.replace("/login");
+    };
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [loading, setLoading] = useState(true);
 
@@ -93,22 +99,29 @@ export default function AdminDashboardPage() {
                             </p>
                         </div>
 
-                        <div className="rounded-2xl bg-white/15 p-5 backdrop-blur sm:p-6">
-                            <p className="text-sm text-green-100">
-                                Platform Wallet
-                            </p>
+                        <div className="flex flex-col gap-3">
+                            <div className="rounded-2xl bg-white/15 p-5 backdrop-blur sm:p-6">
+                                <p className="text-sm text-green-100">
+                                    Platform Wallet
+                                </p>
 
-                            <h2 className="mt-2 text-2xl font-bold sm:text-3xl">
-                                ₦
-                                {Number(stats.totalWalletBalance).toLocaleString(
-                                    "en-NG"
-                                )}
-                            </h2>
+                                <h2 className="mt-2 text-2xl font-bold sm:text-3xl">
+                                    ₦{Number(stats.totalWalletBalance).toLocaleString("en-NG")}
+                                </h2>
 
-                            <div className="mt-4 flex items-center gap-2 text-sm">
-                                <TrendingUp size={16} />
-                                Live platform balance
+                                <div className="mt-4 flex items-center gap-2 text-sm">
+                                    <TrendingUp size={16} />
+                                    Live platform balance
+                                </div>
                             </div>
+
+                            <button
+                                onClick={handleLogout}
+                                className="flex items-center justify-center gap-2 rounded-2xl bg-red-600 py-3 font-semibold text-white transition hover:bg-red-700"
+                            >
+                                <LogOut size={18} />
+                                Logout
+                            </button>
                         </div>
                     </div>
                 </section>

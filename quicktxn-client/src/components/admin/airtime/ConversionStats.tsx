@@ -7,146 +7,117 @@ import {
     XCircle,
     Wallet,
 } from "lucide-react";
+import { getAllSwaps } from "@/services/admin.service";
 
-import api from "@/lib/api";
-
-interface AirtimeStats {
-    pending: number;
-    approved: number;
-    rejected: number;
-    todayVolume: number;
+interface Swap {
+    status: "PENDING" | "APPROVED" | "REJECTED";
+    receivable_amount: number;
 }
 
 export default function ConversionStats() {
-
-    const [stats, setStats] = useState<AirtimeStats>({
+    const [stats, setStats] = useState({
         pending: 0,
         approved: 0,
         rejected: 0,
-        todayVolume: 0,
+        totalAmount: 0,
     });
 
-    const [loading, setLoading] = useState(true);
-
     useEffect(() => {
-
         const loadStats = async () => {
-
             try {
-
                 const token = localStorage.getItem("token");
+                if (!token) return;
 
-                if (!token) {
-                    return;
-                }
+                const res = await getAllSwaps(token);
+                const swaps: Swap[] = res.data || [];
 
-                const response = await api.get(
-                    "/admin/airtime-swaps/stats",
-                    {
-                        headers: {
-                            Authorization: `Bearer ${token}`,
-                        },
-                    }
-                );
+                const pending = swaps.filter(
+                    (s) => s.status === "PENDING"
+                ).length;
 
-                if (response.data.success) {
+                const approved = swaps.filter(
+                    (s) => s.status === "APPROVED"
+                ).length;
 
-                    setStats(response.data.data);
+                const rejected = swaps.filter(
+                    (s) => s.status === "REJECTED"
+                ).length;
 
-                }
+                const totalAmount = swaps
+                    .filter((s) => s.status === "APPROVED")
+                    .reduce(
+                        (sum, s) =>
+                            sum + Number(s.receivable_amount),
+                        0
+                    );
 
-            } catch (error) {
-
-                console.error(
-                    "Failed to load airtime swap statistics:",
-                    error
-                );
-
-            } finally {
-
-                setLoading(false);
-
+                setStats({
+                    pending,
+                    approved,
+                    rejected,
+                    totalAmount,
+                });
+            } catch (err) {
+                console.error(err);
             }
-
         };
 
         loadStats();
-
     }, []);
 
-    const statCards = [
+    const cards = [
         {
             title: "Pending",
             value: stats.pending,
-            color: "bg-yellow-500",
             icon: Clock3,
+            color: "bg-yellow-100 text-yellow-600",
         },
         {
             title: "Approved",
             value: stats.approved,
-            color: "bg-green-600",
             icon: CheckCircle2,
+            color: "bg-green-100 text-green-600",
         },
         {
             title: "Rejected",
             value: stats.rejected,
-            color: "bg-red-500",
             icon: XCircle,
+            color: "bg-red-100 text-red-600",
         },
         {
-            title: "Today's Volume",
-            value: `₦${stats.todayVolume.toLocaleString("en-NG")}`,
-            color: "bg-blue-600",
+            title: "Wallet Credited",
+            value: `₦${stats.totalAmount.toLocaleString()}`,
             icon: Wallet,
+            color: "bg-blue-100 text-blue-600",
         },
     ];
 
     return (
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-
-            {statCards.map((item) => {
-
-                const Icon = item.icon;
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {cards.map((card) => {
+                const Icon = card.icon;
 
                 return (
                     <div
-                        key={item.title}
-                        className="rounded-2xl bg-white p-6 shadow"
+                        key={card.title}
+                        className="rounded-2xl bg-white p-5 shadow-sm"
                     >
-
-                        <div className="flex items-center justify-between">
-
-                            <div>
-
-                                <p className="text-slate-500">
-                                    {item.title}
-                                </p>
-
-                                <h2 className="mt-2 text-3xl font-bold">
-
-                                    {loading
-                                        ? "..."
-                                        : item.value}
-
-                                </h2>
-
-                            </div>
-
-                            <div
-                                className={`rounded-xl p-4 text-white ${item.color}`}
-                            >
-
-                                <Icon size={24} />
-
-                            </div>
-
+                        <div
+                            className={`mb-4 flex h-12 w-12 items-center justify-center rounded-xl ${card.color}`}
+                        >
+                            <Icon size={24} />
                         </div>
 
+                        <p className="text-sm text-gray-500">
+                            {card.title}
+                        </p>
+
+                        <h2 className="mt-1 text-2xl font-bold">
+                            {card.value}
+                        </h2>
                     </div>
                 );
-
             })}
-
         </div>
     );
 }

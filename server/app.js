@@ -42,6 +42,9 @@ const webhookRoutes = require("./routes/webhookRoutes");
 const bankTransferRoutes = require("./routes/bankTransferRoutes");
 const cableRoutes = require("./routes/cableRoutes");
 const waecRoutes = require("./routes/waecRoutes");
+const airtimeSwapRoutes = require("./routes/airtimeSwapRoutes");
+const kycRoutes = require("./routes/kycRoutes");
+const adminKycRoutes = require("./routes/adminKycRoutes");
 const app = express();
 
 // ==========================
@@ -89,14 +92,15 @@ app.get("/", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/pin", pinRoutes);
-
+app.use("/api/kyc", kycRoutes);
+app.use("/api/admin/kyc", adminKycRoutes);
 // ==========================
 // Wallet & Transactions
 // ==========================
 app.use("/api/wallet", walletRoutes);
 app.use("/api/transactions", transactionRoutes);
 app.use("/api/beneficiaries", beneficiaryRoutes);
-
+app.use("/api/airtime-swap", airtimeSwapRoutes);
 // ==========================
 // VTU Services
 // ==========================

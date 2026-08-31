@@ -1,11 +1,10 @@
 const { pool } = require("../config/db");
-const { calculateCashback } = require("../utils/cashback");
 const walletService = require("../services/walletService");
 const transactionService = require("../services/transactionService");
 const notificationService = require("../services/notificationService");
 const pinService = require("../services/pinService");
 const dataService = require("../services/dataService");
-
+const { giveCashback } = require("../services/cashbackService");
 
 
 // ========================================
@@ -145,13 +144,7 @@ const purchaseData = async (req, res) => {
             client
         );
 
-        // ========================================
-        // Cashback Reward (3%)
-        // ========================================
-        const cashback = calculateCashback(
-            "DATA",
-            plan.amount
-        );
+      
 
         if (cashback > 0) {
 
@@ -261,22 +254,27 @@ const purchaseData = async (req, res) => {
         // ========================================
         // Commit
         // ========================================
-        await client.query("COMMIT");
+        // ========================================
+        // Cashback Reward
+        // ========================================
+        const cashback = await giveCashback(
+            req.user.id,
+            "DATA",
+            plan.amount,
+            client
+        );
 
+        // Commit
+        await client.query("COMMIT");
         return res.status(201).json({
             success: true,
-            message:
-                "Data purchased successfully.",
+            message: "Data purchased successfully.",
             data: {
                 network: network.toUpperCase(),
                 plan: plan.plan_name,
-                planCode: plan.plan_code,
                 amount: plan.amount,
                 cashback,
-                phoneNumber,
                 reference,
-                provider: "VTPASS",
-                providerReference: providerResult.providerReference,
                 status: "SUCCESS"
             }
         });

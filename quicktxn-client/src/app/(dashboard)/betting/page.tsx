@@ -1,17 +1,17 @@
+
 "use client";
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import api from "@/lib/api";
-import { Trophy } from "lucide-react";
-import PageHeader from "@/components/ui/PageHeader";
+import { ArrowLeft, Trophy } from "lucide-react";
 
 interface Provider {
     provider_name: string;
     provider_code: string;
 }
 
-// Static logos
 const logos: Record<string, string> = {
     SPORTYBET: "/betting/sportybet.png",
     BET9JA: "/betting/bet9ja.png",
@@ -21,6 +21,8 @@ const logos: Record<string, string> = {
 };
 
 export default function BettingPage() {
+    const router = useRouter();
+
     const [providers, setProviders] = useState<Provider[]>([]);
     const [providerCode, setProviderCode] = useState("");
     const [bettingUserId, setBettingUserId] = useState("");
@@ -28,12 +30,12 @@ export default function BettingPage() {
     const [amount, setAmount] = useState("");
     const [pin, setPin] = useState("");
     const [loading, setLoading] = useState(false);
+
     useEffect(() => {
         const loadProviders = async () => {
             try {
                 const res = await api.get("/betting/providers");
-
-                setProviders(res.data.data);
+                setProviders(res.data.data || []);
 
                 if (res.data.data.length > 0) {
                     setProviderCode(res.data.data[0].provider_code);
@@ -47,7 +49,9 @@ export default function BettingPage() {
     }, []);
 
     const verifyCustomer = async () => {
-        if (!bettingUserId) return alert("Enter Betting User ID");
+        if (!bettingUserId) {
+            return alert("Enter Betting User ID");
+        }
 
         try {
             const res = await api.post("/betting/verify", {
@@ -73,6 +77,7 @@ export default function BettingPage() {
 
         try {
             setLoading(true);
+
             await api.post("/betting/fund", {
                 providerCode,
                 bettingUserId,
@@ -81,7 +86,7 @@ export default function BettingPage() {
             });
 
             sessionStorage.setItem("payment_success", "true");
-            window.location.href = "/dashboard";
+            router.push("/dashboard");
         } catch (error: any) {
             alert(error.response?.data?.message || "Payment failed");
         } finally {
@@ -90,139 +95,139 @@ export default function BettingPage() {
     };
 
     return (
-        <main className="mx-auto min-h-screen max-w-md bg-gray-50 pb-24">
-            <PageHeader name="Betting Wallet" />
+        <main className="min-h-screen bg-gray-50">
+            <div className="mx-auto max-w-md p-4 pb-24">
+                {/* Back Button */}
+                <button
+                    onClick={() => router.back()}
+                    className="mb-4 flex items-center gap-2 text-gray-700"
+                >
+                    <ArrowLeft size={18} />
+                    Back
+                </button>
 
-            <div className="p-4">
-                <div className="rounded-3xl bg-gradient-to-br from-green-600 to-emerald-600 p-6 text-white">
+                {/* Header */}
+                <div className="rounded-3xl bg-gradient-to-br from-green-600 to-emerald-600 p-5 text-white">
                     <div className="flex items-center gap-3">
                         <Trophy size={28} />
                         <div>
                             <p className="text-sm text-green-100">
                                 Instant Betting Top-up
                             </p>
-                            <h2 className="text-xl font-bold">
-                                Fund Betting Wallet
-                            </h2>
+                            <h1 className="text-2xl font-bold">
+                                Betting Wallet
+                            </h1>
                         </div>
                     </div>
                 </div>
 
-                <div className="mt-6 space-y-4">
-                    <div>
-                        <label className="mb-2 block text-sm font-medium">
-                            Betting Company
-                        </label>
+                {/* Form */}
+                <div className="mt-5 rounded-3xl bg-white p-5 shadow-sm">
+                    <h2 className="mb-4 text-lg font-bold">
+                        Select Betting Company
+                    </h2>
 
-                        <div className="mb-3 flex items-center gap-3 rounded-2xl bg-white p-3">
-                            <Image
-                                src={logos[providerCode]}
-                                alt={providerCode}
-                                width={48}
-                                height={48}
-                                className="rounded-xl"
-                            />
-
-                            <div>
-                                <p className="text-xs text-gray-500">Selected</p>
-                                <p className="font-semibold">
-                                    {providers.find(
-                                        (p) => p.provider_code === providerCode
-                                    )?.provider_name}
-                                </p>
-                            </div>
-                        </div>
-
-                        <select
-                            value={providerCode}
-                            onChange={(e) => setProviderCode(e.target.value)}
-                            className="w-full rounded-2xl border bg-white p-4"
-                        >
-                            {providers.map((provider) => (
-                                <option
-                                    key={provider.provider_code}
-                                    value={provider.provider_code}
-                                >
-                                    {provider.provider_name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div>
-                        <label className="mb-2 block text-sm font-medium">
-                            Betting User ID
-                        </label>
-
-                        <div className="flex gap-2">
-                            <input
-                                value={bettingUserId}
-                                onChange={(e) =>
-                                    setBettingUserId(e.target.value)
-                                }
-                                placeholder="Enter User ID"
-                                className="flex-1 rounded-2xl border bg-white p-4"
-                            />
-
+                    {/* Logo Grid */}
+                    <div className="mb-6 grid grid-cols-3 gap-3">
+                        {providers.map((provider) => (
                             <button
-                                onClick={verifyCustomer}
-                                className="rounded-2xl bg-green-600 px-4 text-white"
+                                key={provider.provider_code}
+                                onClick={() => {
+                                    setProviderCode(provider.provider_code);
+                                    setCustomerName("");
+                                }}
+                                className={`rounded-2xl border-2 p-3 transition ${providerCode === provider.provider_code
+                                        ? "border-green-600 bg-green-50"
+                                        : "border-gray-200 bg-white"
+                                    }`}
                             >
-                                Verify
+                                <div className="flex flex-col items-center gap-2">
+                                    <Image
+                                        src={
+                                            logos[provider.provider_code] ||
+                                            "/betting/sportybet.png"
+                                        }
+                                        alt={provider.provider_name}
+                                        width={40}
+                                        height={40}
+                                        className="rounded-lg object-contain"
+                                    />
+                                    <span className="text-[11px] font-semibold text-center">
+                                        {provider.provider_name}
+                                    </span>
+                                </div>
                             </button>
-                        </div>
+                        ))}
                     </div>
 
-                    <div>
-                        <label className="mb-2 block text-sm font-medium">
-                            Customer Name
-                        </label>
+                    {/* User ID */}
+                    <label className="mb-2 block text-sm font-medium">
+                        Betting User ID
+                    </label>
 
+                    <div className="mb-4 flex gap-2">
                         <input
-                            readOnly
-                            value={customerName}
-                            placeholder="Verified customer name"
-                            className="w-full rounded-2xl border bg-gray-100 p-4 font-semibold text-green-700"
+                            value={bettingUserId}
+                            onChange={(e) => setBettingUserId(e.target.value)}
+                            placeholder="Enter User ID"
+                            className="flex-1 rounded-xl border p-3 outline-none focus:border-green-500"
                         />
+                        <button
+                            onClick={verifyCustomer}
+                            className="rounded-xl bg-green-600 px-4 font-medium text-white"
+                        >
+                            Verify
+                        </button>
                     </div>
 
-                    <div>
-                        <label className="mb-2 block text-sm font-medium">
-                            Amount
-                        </label>
+                    {/* Customer Name */}
+                    <label className="mb-2 block text-sm font-medium">
+                        Customer Name
+                    </label>
 
-                        <input
-                            type="number"
-                            value={amount}
-                            onChange={(e) => setAmount(e.target.value)}
-                            placeholder="₦1000"
-                            className="w-full rounded-2xl border bg-white p-4 text-2xl font-bold"
-                        />
-                    </div>
+                    <input
+                        readOnly
+                        value={customerName}
+                        placeholder="Verified customer name"
+                        className="mb-4 w-full rounded-xl border bg-gray-100 p-3 font-semibold text-green-700"
+                    />
 
-                    <div>
-                        <label className="mb-2 block text-sm font-medium">
-                            Transaction PIN
-                        </label>
+                    {/* Amount */}
+                    <label className="mb-2 block text-sm font-medium">
+                        Amount
+                    </label>
 
-                        <input
-                            type="password"
-                            maxLength={4}
-                            value={pin}
-                            onChange={(e) => setPin(e.target.value)}
-                            placeholder="****"
-                            className="w-full rounded-2xl border bg-white p-4 text-center text-xl tracking-[0.5em]"
-                        />
-                    </div>
+                    <input
+                        type="number"
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                        placeholder="₦1000"
+                        className="mb-4 w-full rounded-xl border p-3 text-xl font-bold outline-none focus:border-green-500"
+                    />
+
+                    {/* PIN */}
+                    <label className="mb-2 block text-sm font-medium">
+                        Transaction PIN
+                    </label>
+
+                    <input
+                        type="password"
+                        maxLength={4}
+                        value={pin}
+                        onChange={(e) => setPin(e.target.value)}
+                        placeholder="****"
+                        className="w-full rounded-xl border p-3 text-center text-lg tracking-[0.5em] outline-none focus:border-green-500"
+                    />
+
+                    {/* Button */}
+                    <button
+                        onClick={fundWallet}
+                        disabled={loading}
+                        className="mt-6 w-full rounded-xl bg-green-600 py-4 text-lg font-semibold text-white transition hover:bg-green-700 disabled:opacity-60"
+                    >
+                        {loading ? "Processing..." : "Pay from Wallet"}
+                    </button>
                 </div>
-
-                <button
-                    onClick={fundWallet}
-                    disabled={loading}
-                    className="mt-8 w-full rounded-2xl bg-green-600 py-4 text-lg font-semibold text-white disabled:opacity-60"
-                >
-                    {loading ? "Processing..." : "Pay from Wallet"}
-                </button>
             </div>
         </main>
     );

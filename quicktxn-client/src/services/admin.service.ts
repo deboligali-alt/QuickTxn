@@ -4,17 +4,12 @@ import api from "@/lib/api";
 // Admin Dashboard
 // ========================================
 
-export const getDashboardStats = async (
-    token: string
-) => {
-    const response = await api.get(
-        "/admin/dashboard",
-        {
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
-        }
-    );
+export const getDashboardStats = async (token: string) => {
+    const response = await api.get("/admin/dashboard", {
+        headers: {
+            Authorization: `Bearer ${token}`,
+        },
+    });
 
     return response.data;
 };
@@ -23,17 +18,26 @@ export const getDashboardStats = async (
 // Users
 // ========================================
 
-export const getAllUsers = async (
-    token: string
-) => {
-    const response = await api.get(
-        "/admin/users",
-        {
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
-        }
-    );
+export const getAllUsers = async (token: string) => {
+    const response = await api.get("/admin/users", {
+        headers: {
+            Authorization: `Bearer ${token}`,
+        },
+    });
+
+    return response.data;
+};
+
+// ========================================
+// Transactions
+// ========================================
+
+export const getAdminTransactions = async (token: string) => {
+    const response = await api.get("/admin/transactions", {
+        headers: {
+            Authorization: `Bearer ${token}`,
+        },
+    });
 
     return response.data;
 };
@@ -42,56 +46,22 @@ export const getAllUsers = async (
 // Airtime Swaps
 // ========================================
 
-export const getAllSwaps = async (
-    token: string
-) => {
-    const response = await api.get(
-        "/admin/airtime-swaps",
-        {
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
-        }
-    );
+export const getAllSwaps = async (token: string) => {
+    const response = await api.get("/admin/airtime-swaps", {
+        headers: {
+            Authorization: `Bearer ${token}`,
+        },
+    });
 
     return response.data;
 };
 
-// ========================================
-// Get Single Airtime Swap
-// ========================================
-
-export const getSwap = async (
-    token: string,
-    id: string
-) => {
-    const response = await api.get(
-        `/admin/airtime-swaps/${id}`,
-        {
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
-        }
-    );
-
-    return response.data;
-};
-
-// ========================================
-// Airtime Swap Statistics
-// ========================================
-
-export const getSwapStats = async (
-    token: string
-) => {
-    const response = await api.get(
-        "/admin/airtime-swaps/stats",
-        {
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
-        }
-    );
+export const getSwap = async (token: string, id: string) => {
+    const response = await api.get(`/admin/airtime-swaps/${id}`, {
+        headers: {
+            Authorization: `Bearer ${token}`,
+        },
+    });
 
     return response.data;
 };
@@ -100,10 +70,7 @@ export const getSwapStats = async (
 // Approve Airtime Swap
 // ========================================
 
-export const approveSwap = async (
-    token: string,
-    id: string
-) => {
+export const approveSwap = async (token: string, id: string) => {
     const response = await api.patch(
         `/admin/airtime-swaps/${id}/approve`,
         {},
@@ -124,11 +91,13 @@ export const approveSwap = async (
 export const rejectSwap = async (
     token: string,
     id: string,
-    adminNote: string
+    rejectionReason: string,
+    adminNote?: string
 ) => {
     const response = await api.patch(
         `/admin/airtime-swaps/${id}/reject`,
         {
+            rejectionReason,
             adminNote,
         },
         {

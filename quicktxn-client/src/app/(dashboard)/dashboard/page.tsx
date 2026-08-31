@@ -86,6 +86,7 @@ export default function DashboardPage() {
                 <div className="mx-auto w-full max-w-7xl px-4 py-5 pb-28 sm:px-6 lg:px-8">
                     <DashboardHeader
                         fullName={dashboard?.user?.full_name}
+                        verified={dashboard?.user?.is_verified}
                     />
 
                     {/* Wallet */}

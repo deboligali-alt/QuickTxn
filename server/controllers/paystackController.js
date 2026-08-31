@@ -447,7 +447,55 @@ const handlePaystackWebhook = async (req, res) => {
         });
     }
 };
+// ==========================================
+// Initialize Wallet Funding
+// ==========================================
+const initializePayment = async (req, res) => {
+    try {
+        const { amount } = req.body;
+
+        if (!amount || Number(amount) < 100) {
+            return res.status(400).json({
+                success: false,
+                message: "Minimum funding amount is ₦100.",
+            });
+        }
+
+        const response = await axios.post(
+            "https://api.paystack.co/transaction/initialize",
+            {
+                email: req.user.email,
+                amount: Number(amount) * 100, // Kobo
+                callback_url: process.env.PAYSTACK_CALLBACK_URL,
+                metadata: {
+                    userId: req.user.id,
+                    purpose: "wallet_funding",
+                },
+            },
+            {
+                headers: {
+                    Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+                    "Content-Type": "application/json",
+                },
+            }
+        );
+
+        return res.status(200).json({
+            success: true,
+            authorization_url: response.data.data.authorization_url,
+            reference: response.data.data.reference,
+        });
+    } catch (error) {
+        console.error(error.response?.data || error.message);
+
+        return res.status(500).json({
+            success: false,
+            message: "Unable to initialize payment.",
+        });
+    }
+};
 
 module.exports = {
+    initializePayment,
     handlePaystackWebhook,
 };
