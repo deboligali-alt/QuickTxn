@@ -4,12 +4,11 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const sendEmail = require("../utils/sendEmail");
 
-
 const registerUser = async (req, res) => {
     try {
         const { full_name, email, phone, password } = req.body;
 
-        // Check if all fields are provided
+        // Validate required fields
         if (!full_name || !email || !phone || !password) {
             return res.status(400).json({
                 success: false,
@@ -17,41 +16,57 @@ const registerUser = async (req, res) => {
             });
         }
 
-        // 👇 ADD THIS HERE
-        const existingUser = await pool.query(
-            `SELECT * FROM users WHERE email = $1 OR phone = $2`,
-            [email, phone]
+        // Check email first
+        const emailExists = await pool.query(
+            "SELECT id FROM users WHERE email = $1",
+            [email]
         );
 
-        if (existingUser.rows.length > 0) {
-            return res.status(400).json({
+        if (emailExists.rows.length > 0) {
+            return res.status(409).json({
                 success: false,
-                message: "Email or phone number already exists."
+                message: "Email address is already registered."
             });
         }
 
-        // Hash the password
+        // Check phone separately
+        const phoneExists = await pool.query(
+            "SELECT id FROM users WHERE phone = $1",
+            [phone]
+        );
+
+        if (phoneExists.rows.length > 0) {
+            return res.status(409).json({
+                success: false,
+                message: "Phone number is already registered."
+            });
+        }
+
+        // Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
-        // Generate a 6-digit OTP
-        const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-        // OTP expires in 10 minutes
-        const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+        // Generate OTP
+        const otpCode = Math.floor(
+            100000 + Math.random() * 900000
+        ).toString();
 
-        // Save user into the database
-        // Save user and return the new user's ID
+        const otpExpires = new Date(
+            Date.now() + 10 * 60 * 1000
+        );
+
+        // Create user
         const newUser = await pool.query(
             `INSERT INTO users
-  (
-    full_name,
-    email,
-    phone,
-    password,
-    otp_code,
-    otp_expires
-  )
-  VALUES ($1, $2, $3, $4, $5, $6)
-  RETURNING id`,
+            (
+                full_name,
+                email,
+                phone,
+                password,
+                otp_code,
+                otp_expires
+            )
+            VALUES ($1,$2,$3,$4,$5,$6)
+            RETURNING id`,
             [
                 full_name,
                 email,
@@ -62,43 +77,41 @@ const registerUser = async (req, res) => {
             ]
         );
 
-        // Create wallet automatically
+        // Create wallet
         await pool.query(
             `INSERT INTO wallets (user_id, balance)
-   VALUES ($1, $2)`,
+             VALUES ($1,$2)`,
             [newUser.rows[0].id, 0]
         );
 
+        // Send OTP email
         await sendEmail(
             email,
             "Verify Your QuickTxn Account",
             `
-        <h2>Welcome to QuickTxn!</h2>
-        <p>Your verification code is:</p>
+            <h2>Welcome to QuickTxn!</h2>
+            <p>Your verification code is:</p>
 
-        <h1 style="letter-spacing: 5px;">${otpCode}</h1>
+            <h1 style="letter-spacing:5px;">${otpCode}</h1>
 
-        <p>This OTP will expire in 10 minutes.</p>
-
-        <p>If you didn't create this account, you can ignore this email.</p>
-    `
+            <p>This OTP expires in 10 minutes.</p>
+            `
         );
 
         return res.status(201).json({
             success: true,
-            message: "Registration successful. Please check your email for the verification code."
+            message:
+                "Registration successful. Please check your email for the verification code."
         });
 
     } catch (error) {
         console.error(error);
 
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: "Server Error"
         });
     }
-
-
 };
 
 
