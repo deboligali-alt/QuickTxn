@@ -9,7 +9,7 @@ import {
     Shield,
     Moon,
     BadgeCheck,
-    Info,
+    Fingerprint,
     ChevronRight,
     LogOut,
 } from "lucide-react";
@@ -32,39 +32,66 @@ export default function SettingsPage() {
     });
 
     const [darkMode, setDarkMode] = useState(false);
+    const [biometric, setBiometric] = useState(false);
 
+    // Load profile
     useEffect(() => {
         const loadProfile = async () => {
             try {
-                const res = await api.get("/auth/profile");
-                setUser(res.data.user);
-            } catch (err) {
-                console.error(err);
+                const res = await api.get("/user/profile");
+                setUser(res.data.data);
+            } catch {
+                toast.error("Unable to load profile");
             }
         };
 
         loadProfile();
 
-        const theme = localStorage.getItem("theme");
-        setDarkMode(theme === "dark");
+        const savedDark = localStorage.getItem("darkMode") === "true";
+        const savedBio = localStorage.getItem("biometric") === "true";
+
+        setDarkMode(savedDark);
+        setBiometric(savedBio);
+
+        document.documentElement.classList.toggle("dark", savedDark);
     }, []);
 
+    // Dark mode
     const toggleDarkMode = () => {
         const next = !darkMode;
-        setDarkMode(next);
 
-        if (next) {
-            document.documentElement.classList.add("dark");
-            localStorage.setItem("theme", "dark");
-        } else {
-            document.documentElement.classList.remove("dark");
-            localStorage.setItem("theme", "light");
-        }
+        setDarkMode(next);
+        localStorage.setItem("darkMode", String(next));
+        document.documentElement.classList.toggle("dark", next);
+
+        toast.success(next ? "Dark mode enabled" : "Light mode enabled");
     };
 
+    // Biometric
+    const toggleBiometric = async () => {
+        if (!window.PublicKeyCredential) {
+            toast.error("Biometric is not supported on this device.");
+            return;
+        }
+
+        const next = !biometric;
+
+        setBiometric(next);
+        localStorage.setItem("biometric", String(next));
+
+        toast.success(
+            next
+                ? "Biometric login enabled"
+                : "Biometric login disabled"
+        );
+    };
+
+    // Logout
     const logout = () => {
         localStorage.removeItem("token");
+        localStorage.removeItem("user");
         sessionStorage.clear();
+
         toast.success("Logged out successfully");
         router.replace("/login");
     };
@@ -91,12 +118,8 @@ export default function SettingsPage() {
             </div>
 
             <div className="flex-1">
-                <h3 className="font-semibold text-gray-900">
-                    {title}
-                </h3>
-                <p className="text-xs text-gray-500">
-                    {subtitle}
-                </p>
+                <h3 className="font-semibold text-gray-900">{title}</h3>
+                <p className="text-xs text-gray-500">{subtitle}</p>
             </div>
 
             {right || <ChevronRight size={18} color="#9CA3AF" />}
@@ -104,11 +127,12 @@ export default function SettingsPage() {
     );
 
     return (
-        <main className="min-h-screen bg-gray-50">
+        <main className="min-h-screen bg-gray-50 dark:bg-gray-900">
             <div className="mx-auto max-w-md p-4 pb-24">
+                {/* Back */}
                 <button
                     onClick={() => router.back()}
-                    className="mb-4 flex items-center gap-2 text-gray-600"
+                    className="mb-4 flex items-center gap-2 text-gray-600 dark:text-gray-300"
                 >
                     <ArrowLeft size={18} />
                     Back
@@ -131,14 +155,13 @@ export default function SettingsPage() {
                             <h2 className="text-xl font-bold">
                                 {user.full_name || "QuickTxn User"}
                             </h2>
-                            <p className="text-sm text-green-100">
-                                {user.email}
-                            </p>
+
+                            <p className="text-sm text-green-100">{user.email}</p>
                         </div>
                     </div>
                 </motion.div>
 
-                {/* Menu */}
+                {/* Settings */}
                 <div className="mt-5 space-y-3">
                     <Item
                         icon={<User size={22} />}
@@ -176,19 +199,34 @@ export default function SettingsPage() {
                     />
 
                     <Item
+                        icon={<Fingerprint size={22} />}
+                        title="Biometric Login"
+                        subtitle="Use fingerprint or Face ID"
+                        right={
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleBiometric();
+                                }}
+                                className={`relative h-7 w-12 rounded-full transition ${biometric ? "bg-green-600" : "bg-gray-300"
+                                    }`}
+                            >
+                                <span
+                                    className={`absolute top-1 h-5 w-5 rounded-full bg-white transition ${biometric ? "left-6" : "left-1"
+                                        }`}
+                                />
+                            </button>
+                        }
+                    />
+
+                    <Item
                         icon={<BadgeCheck size={22} />}
                         title="KYC Verification"
                         subtitle="Verify your identity"
                         onClick={() => router.push("/kyc")}
                     />
 
-                    <Item
-                        icon={<Info size={22} />}
-                        title="About QuickTxn"
-                        subtitle="Privacy, support & version"
-                        onClick={() => router.push("/about")}
-                    />
-
+                    {/* Logout */}
                     <button
                         onClick={logout}
                         className="flex w-full items-center gap-4 rounded-2xl bg-white p-4 text-left shadow-sm"
@@ -198,9 +236,7 @@ export default function SettingsPage() {
                         </div>
 
                         <div>
-                            <h3 className="font-semibold text-red-600">
-                                Logout
-                            </h3>
+                            <h3 className="font-semibold text-red-600">Logout</h3>
                             <p className="text-xs text-gray-500">
                                 Securely sign out of your account
                             </p>
