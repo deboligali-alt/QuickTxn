@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Lock } from "lucide-react";
 import { toast } from "sonner";
@@ -10,10 +10,11 @@ export default function ResetPasswordPage() {
     const router = useRouter();
 
     const [email, setEmail] = useState("");
-    const [otp, setOtp] = useState("");
-    const [newPassword, setNewPassword] = useState("");
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState("");
+
+    const otpRef = useRef<HTMLInputElement>(null);
+    const passwordRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -22,6 +23,9 @@ export default function ResetPasswordPage() {
 
     const handleReset = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        const otp = otpRef.current?.value || "";
+        const newPassword = passwordRef.current?.value || "";
 
         try {
             setLoading(true);
@@ -71,25 +75,19 @@ export default function ResetPasswordPage() {
                 )}
 
                 <form onSubmit={handleReset} className="mt-6 space-y-4">
-                    {/* OTP */}
                     <input
+                        ref={otpRef}
                         type="tel"
                         inputMode="numeric"
                         pattern="[0-9]*"
                         autoComplete="one-time-code"
                         autoFocus
                         maxLength={6}
-                        value={otp}
-                        onChange={(e) => {
-                            const value = e.target.value.replace(/\D/g, "");
-                            setOtp(value);
-                        }}
                         placeholder="000000"
                         className="w-full rounded-xl border p-4 text-center text-2xl tracking-[8px] outline-none focus:border-green-600"
                         required
                     />
 
-                    {/* New Password */}
                     <div className="relative">
                         <Lock
                             size={18}
@@ -97,10 +95,9 @@ export default function ResetPasswordPage() {
                         />
 
                         <input
+                            ref={passwordRef}
                             type="password"
                             autoComplete="new-password"
-                            value={newPassword}
-                            onChange={(e) => setNewPassword(e.target.value)}
                             placeholder="New Password"
                             className="w-full rounded-xl border p-3 pl-11 outline-none focus:border-green-600"
                             required
