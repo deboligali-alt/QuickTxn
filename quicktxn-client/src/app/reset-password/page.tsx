@@ -15,7 +15,6 @@ export default function ResetPasswordPage() {
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState("");
 
-    // Read email only once
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         setEmail(params.get("email") || "");
@@ -33,7 +32,6 @@ export default function ResetPasswordPage() {
                 newPassword,
             });
 
-            // Green success message
             setSuccess(res.message);
 
             setTimeout(() => {
@@ -62,7 +60,8 @@ export default function ResetPasswordPage() {
                 <h1 className="text-2xl font-bold">Reset Password</h1>
 
                 <p className="mt-2 text-sm text-gray-500">
-                    Enter the OTP sent to <span className="font-medium">{email}</span>
+                    Enter the OTP sent to{" "}
+                    <span className="font-medium">{email}</span>
                 </p>
 
                 {success && (
@@ -72,20 +71,25 @@ export default function ResetPasswordPage() {
                 )}
 
                 <form onSubmit={handleReset} className="mt-6 space-y-4">
+                    {/* OTP */}
                     <input
-                        type="text"
+                        type="tel"
                         inputMode="numeric"
+                        pattern="[0-9]*"
                         autoComplete="one-time-code"
+                        autoFocus
                         maxLength={6}
                         value={otp}
-                        onChange={(e) =>
-                            setOtp(e.target.value.replace(/\\D/g, ""))
-                        }
-                        placeholder="6-digit OTP"
-                        className="w-full rounded-xl border p-3 text-center text-lg tracking-[0.3em] outline-none focus:border-green-600"
+                        onChange={(e) => {
+                            const value = e.target.value.replace(/\D/g, "");
+                            setOtp(value);
+                        }}
+                        placeholder="000000"
+                        className="w-full rounded-xl border p-4 text-center text-2xl tracking-[8px] outline-none focus:border-green-600"
                         required
                     />
 
+                    {/* New Password */}
                     <div className="relative">
                         <Lock
                             size={18}
@@ -106,7 +110,7 @@ export default function ResetPasswordPage() {
                     <button
                         type="submit"
                         disabled={loading || success !== ""}
-                        className="w-full rounded-xl bg-green-600 py-3 font-semibold text-white disabled:opacity-60"
+                        className="w-full rounded-xl bg-green-600 py-3 font-semibold text-white transition hover:bg-green-700 disabled:opacity-60"
                     >
                         {loading ? "Updating..." : "Reset Password"}
                     </button>
