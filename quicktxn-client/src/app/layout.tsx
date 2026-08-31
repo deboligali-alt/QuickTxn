@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Toaster } from "react-hot-toast";
+import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
   title: "QuickTxn",
@@ -19,12 +19,9 @@ export default function RootLayout({
 
         <Toaster
           position="top-right"
-          toastOptions={{
-            duration: 4000,
-            style: {
-              borderRadius: "12px",
-            },
-          }}
+          richColors
+          closeButton
+          duration={4000}
         />
       </body>
     </html>
