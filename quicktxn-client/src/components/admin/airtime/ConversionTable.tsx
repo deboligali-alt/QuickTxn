@@ -1,255 +1,210 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { RefreshCw, CheckCircle2, XCircle } from "lucide-react";
-import StatusBadge from "./StatusBadge";
-import { getAllSwaps } from "@/services/admin.service";
+import { useEffect, useState } from "react";
 import api from "@/lib/api";
+import { CheckCircle, XCircle, Eye } from "lucide-react";
+import { toast } from "sonner";
 
-interface Conversion {
+interface Swap {
     id: string;
     full_name: string;
-    email: string;
     network: string;
     phone_number: string;
-    airtime_amount: number | string;
-    receivable_amount: number | string;
-    rate: number | string;
+    airtime_amount: number;
+    receivable_amount: number;
+    rate: number;
+    screenshot: string;
     status: "PENDING" | "APPROVED" | "REJECTED";
-    transaction_reference: string;
     created_at: string;
 }
 
-interface ConversionTableProps {
-    search?: string;
-    status?: string;
-}
-
 export default function ConversionTable({
-    search = "",
-    status = "All",
-}: ConversionTableProps) {
-    const [conversions, setConversions] = useState<Conversion[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
+    search,
+    status,
+}: {
+    search: string;
+    status: string;
+}) {
+    const [swaps, setSwaps] = useState<Swap[]>([]);
+    const [selected, setSelected] = useState<Swap | null>(null);
 
-    const loadSwaps = useCallback(async () => {
+    const loadSwaps = async () => {
         try {
-            setLoading(true);
-            setError("");
-
-            const token = localStorage.getItem("token");
-            if (!token) {
-                setError("You are not logged in.");
-                return;
-            }
-
-            const response = await getAllSwaps(token);
-
-            if (!response.success) {
-                setError(response.message || "Unable to load swaps.");
-                return;
-            }
-
-            setConversions(response.data || []);
+            const res = await api.get("/admin/airtime-swaps");
+            setSwaps(res.data.data);
         } catch {
-            setError("Unable to load airtime swap requests.");
-        } finally {
-            setLoading(false);
+            toast.error("Unable to load requests");
         }
-    }, []);
+    };
 
     useEffect(() => {
         loadSwaps();
-    }, [loadSwaps]);
+    }, []);
 
-    const approveSwap = async (id: string) => {
-        try {
-            await api.patch(`/admin/airtime-swaps/${id}/approve`);
-            alert("Wallet credited successfully.");
-            loadSwaps();
-        } catch (err: any) {
-            alert(err.response?.data?.message || "Approval failed");
-        }
-    };
+    const filtered = swaps.filter((item) => {
+        const matchSearch = item.full_name
+            .toLowerCase()
+            .includes(search.toLowerCase());
 
-    const rejectSwap = async (id: string) => {
-        const reason =
-            prompt("Reason for rejection") || "Rejected by admin";
+        const matchStatus =
+            status === "All" || item.status === status;
 
-        try {
-            await api.patch(`/admin/airtime-swaps/${id}/reject`, {
-                rejectionReason: reason,
-            });
-
-            alert("Swap rejected.");
-            loadSwaps();
-        } catch (err: any) {
-            alert(err.response?.data?.message || "Rejection failed");
-        }
-    };
-
-    const filtered = conversions.filter((item) => {
-        const q = search.toLowerCase().trim();
-
-        const matchesSearch =
-            !q ||
-            item.full_name?.toLowerCase().includes(q) ||
-            item.email?.toLowerCase().includes(q) ||
-            item.phone_number?.toLowerCase().includes(q) ||
-            item.transaction_reference?.toLowerCase().includes(q) ||
-            item.network?.toLowerCase().includes(q);
-
-        const matchesStatus =
-            status === "All" || item.status === status.toUpperCase();
-
-        return matchesSearch && matchesStatus;
+        return matchSearch && matchStatus;
     });
 
-    if (loading) {
-        return (
-            <div className="rounded-2xl bg-white p-10 text-center shadow">
-                Loading airtime conversions...
-            </div>
-        );
-    }
+    const approve = async (id: string) => {
+        await api.patch(`/admin/airtime-swaps/${id}/approve`);
+        toast.success("Wallet credited successfully");
+        loadSwaps();
+        setSelected(null);
+    };
 
-    if (error) {
-        return (
-            <div className="rounded-2xl bg-white p-10 text-center shadow">
-                <p className="font-semibold text-red-600">{error}</p>
+    const reject = async (id: string) => {
+        await api.patch(`/admin/airtime-swaps/${id}/reject`, {
+            rejectionReason: "Rejected by admin",
+        });
 
-                <button
-                    onClick={loadSwaps}
-                    className="mt-4 inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-white"
-                >
-                    <RefreshCw size={16} />
-                    Retry
-                </button>
-            </div>
-        );
-    }
+        toast.success("Request rejected");
+        loadSwaps();
+        setSelected(null);
+    };
 
     return (
-        <div className="overflow-hidden rounded-2xl bg-white shadow">
-            <div className="flex items-center justify-between border-b p-4">
-                <div>
-                    <h3 className="font-bold">Airtime Conversions</h3>
-                    <p className="text-sm text-gray-500">
-                        {filtered.length} of {conversions.length} requests
-                    </p>
-                </div>
-
-                <button
-                    onClick={loadSwaps}
-                    className="flex items-center gap-2 rounded-lg border px-3 py-2"
-                >
-                    <RefreshCw size={16} />
-                    Refresh
-                </button>
-            </div>
-
-            <div className="overflow-x-auto">
-                <table className="w-full min-w-[1100px]">
-                    <thead className="bg-gray-100">
-                        <tr>
-                            <th className="p-4 text-left">Reference</th>
-                            <th className="p-4 text-left">Customer</th>
-                            <th className="p-4 text-left">Network</th>
-                            <th className="p-4 text-left">Airtime</th>
-                            <th className="p-4 text-left">Receive</th>
-                            <th className="p-4 text-left">Status</th>
-                            <th className="p-4 text-left">Time</th>
-                            <th className="p-4 text-center">Action</th>
+        <>
+            <div className="overflow-hidden rounded-2xl bg-white shadow">
+                <table className="w-full">
+                    <thead className="bg-gray-50">
+                        <tr className="text-left text-sm">
+                            <th className="p-4">User</th>
+                            <th>Receive</th>
+                            <th>Status</th>
+                            <th></th>
                         </tr>
                     </thead>
 
                     <tbody>
-                        {filtered.length === 0 ? (
-                            <tr>
-                                <td
-                                    colSpan={8}
-                                    className="p-10 text-center text-gray-500"
-                                >
-                                    No requests found.
+                        {filtered.map((swap) => (
+                            <tr key={swap.id} className="border-t">
+                                <td className="p-4">
+                                    <p className="font-semibold">
+                                        {swap.full_name}
+                                    </p>
+
+                                    <p className="text-xs text-gray-500">
+                                        {swap.network} • {swap.phone_number}
+                                    </p>
+                                </td>
+
+                                <td>
+                                    <p className="font-bold text-green-600">
+                                        ₦
+                                        {swap.receivable_amount.toLocaleString()}
+                                    </p>
+
+                                    <p className="text-xs text-gray-500">
+                                        from ₦
+                                        {swap.airtime_amount.toLocaleString()}
+                                    </p>
+                                </td>
+
+                                <td>
+                                    <span
+                                        className={`rounded-full px-3 py-1 text-xs ${swap.status === "PENDING"
+                                                ? "bg-yellow-100 text-yellow-700"
+                                                : swap.status === "APPROVED"
+                                                    ? "bg-green-100 text-green-700"
+                                                    : "bg-red-100 text-red-700"
+                                            }`}
+                                    >
+                                        {swap.status}
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <button
+                                        onClick={() => setSelected(swap)}
+                                        className="text-green-600"
+                                    >
+                                        <Eye size={18} />
+                                    </button>
                                 </td>
                             </tr>
-                        ) : (
-                            filtered.map((item) => (
-                                <tr
-                                    key={item.id}
-                                    className="border-t hover:bg-gray-50"
-                                >
-                                    <td className="p-4 font-semibold">
-                                        {item.transaction_reference}
-                                    </td>
-
-                                    <td className="p-4">
-                                        <p className="font-semibold">
-                                            {item.full_name}
-                                        </p>
-                                        <p className="text-sm text-gray-500">
-                                            {item.phone_number}
-                                        </p>
-                                    </td>
-
-                                    <td className="p-4">{item.network}</td>
-
-                                    <td className="p-4">
-                                        ₦
-                                        {Number(
-                                            item.airtime_amount
-                                        ).toLocaleString("en-NG")}
-                                    </td>
-
-                                    <td className="p-4 font-bold text-green-600">
-                                        ₦
-                                        {Number(
-                                            item.receivable_amount
-                                        ).toLocaleString("en-NG")}
-                                    </td>
-
-                                    <td className="p-4">
-                                        <StatusBadge status={item.status} />
-                                    </td>
-
-                                    <td className="p-4 text-sm">
-                                        {new Date(item.created_at).toLocaleString(
-                                            "en-NG"
-                                        )}
-                                    </td>
-
-                                    <td className="p-4">
-                                        {item.status === "PENDING" ? (
-                                            <div className="flex justify-center gap-2">
-                                                <button
-                                                    onClick={() => approveSwap(item.id)}
-                                                    className="flex items-center gap-1 rounded-lg bg-green-600 px-3 py-2 text-sm text-white hover:bg-green-700"
-                                                >
-                                                    <CheckCircle2 size={15} />
-                                                    Approve
-                                                </button>
-
-                                                <button
-                                                    onClick={() => rejectSwap(item.id)}
-                                                    className="flex items-center gap-1 rounded-lg bg-red-600 px-3 py-2 text-sm text-white hover:bg-red-700"
-                                                >
-                                                    <XCircle size={15} />
-                                                    Reject
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <span className="text-xs text-gray-400">
-                                                Completed
-                                            </span>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))
-                        )}
+                        ))}
                     </tbody>
                 </table>
             </div>
-        </div>
+
+            {/* Preview Modal */}
+            {selected && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-5">
+                    <div className="w-full max-w-lg rounded-3xl bg-white p-6">
+                        <h2 className="text-xl font-bold">
+                            Airtime Conversion
+                        </h2>
+
+                        <div className="mt-4 space-y-2 text-sm">
+                            <p>
+                                <b>User:</b> {selected.full_name}
+                            </p>
+
+                            <p>
+                                <b>Network:</b> {selected.network}
+                            </p>
+
+                            <p>
+                                <b>Phone:</b> {selected.phone_number}
+                            </p>
+
+                            <p>
+                                <b>Sent:</b> ₦
+                                {selected.airtime_amount.toLocaleString()}
+                            </p>
+
+                            <p className="text-green-600">
+                                <b>User Receives:</b> ₦
+                                {selected.receivable_amount.toLocaleString()}
+                            </p>
+
+                            <p>
+                                <b>Rate:</b> {selected.rate}%
+                            </p>
+                        </div>
+
+                        <img
+                            src={selected.screenshot}
+                            alt="Receipt"
+                            className="mt-5 h-64 w-full rounded-xl object-cover"
+                        />
+
+                        {selected.status === "PENDING" && (
+                            <div className="mt-5 flex gap-3">
+                                <button
+                                    onClick={() => approve(selected.id)}
+                                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-green-600 py-3 font-semibold text-white"
+                                >
+                                    <CheckCircle size={18} />
+                                    Approve
+                                </button>
+
+                                <button
+                                    onClick={() => reject(selected.id)}
+                                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-600 py-3 font-semibold text-white"
+                                >
+                                    <XCircle size={18} />
+                                    Reject
+                                </button>
+                            </div>
+                        )}
+
+                        <button
+                            onClick={() => setSelected(null)}
+                            className="mt-3 w-full rounded-xl border py-3"
+                        >
+                            Close
+                        </button>
+                    </div>
+                </div>
+            )}
+        </>
     );
 }

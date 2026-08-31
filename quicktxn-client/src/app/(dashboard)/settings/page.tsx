@@ -7,7 +7,6 @@ import {
     ArrowLeft,
     User,
     Shield,
-    Moon,
     BadgeCheck,
     Fingerprint,
     ChevronRight,
@@ -31,10 +30,8 @@ export default function SettingsPage() {
         phone: "",
     });
 
-    const [darkMode, setDarkMode] = useState(false);
     const [biometric, setBiometric] = useState(false);
 
-    // Load profile
     useEffect(() => {
         const loadProfile = async () => {
             try {
@@ -47,49 +44,79 @@ export default function SettingsPage() {
 
         loadProfile();
 
-        const savedDark = localStorage.getItem("darkMode") === "true";
-        const savedBio = localStorage.getItem("biometric") === "true";
+        const enabled =
+            localStorage.getItem("biometric") === "true";
 
-        setDarkMode(savedDark);
-        setBiometric(savedBio);
-
-        document.documentElement.classList.toggle("dark", savedDark);
+        setBiometric(enabled);
     }, []);
 
-    // Dark mode
-    const toggleDarkMode = () => {
-        const next = !darkMode;
-
-        setDarkMode(next);
-        localStorage.setItem("darkMode", String(next));
-        document.documentElement.classList.toggle("dark", next);
-
-        toast.success(next ? "Dark mode enabled" : "Light mode enabled");
-    };
-
-    // Biometric
+    // REAL Fingerprint / Face ID
     const toggleBiometric = async () => {
         if (!window.PublicKeyCredential) {
-            toast.error("Biometric is not supported on this device.");
+            toast.error("Fingerprint or Face ID is not supported");
             return;
         }
 
-        const next = !biometric;
+        // Disable biometric
+        if (biometric) {
+            setBiometric(false);
+            localStorage.removeItem("biometric");
+            toast.success("Biometric login disabled");
+            return;
+        }
 
-        setBiometric(next);
-        localStorage.setItem("biometric", String(next));
+        try {
+            const credential = (await navigator.credentials.create({
+                publicKey: {
+                    challenge: crypto.getRandomValues(new Uint8Array(32)),
+                    rp: {
+                        name: "QuickTxn",
+                    },
+                    user: {
+                        id: crypto.getRandomValues(new Uint8Array(16)),
+                        name: user.email,
+                        displayName: user.full_name,
+                    },
+                    pubKeyCredParams: [
+                        {
+                            type: "public-key",
+                            alg: -7,
+                        },
+                    ],
+                    authenticatorSelection: {
+                        authenticatorAttachment: "platform",
+                        userVerification: "required",
+                    },
+                    timeout: 60000,
+                },
+            })) as PublicKeyCredential;
 
-        toast.success(
-            next
-                ? "Biometric login enabled"
-                : "Biometric login disabled"
-        );
+            // Send credential to backend
+            await api.post("/biometric/register", {
+                credentialId: btoa(
+                    String.fromCharCode(
+                        ...new Uint8Array(credential.rawId)
+                    )
+                ),
+                publicKey: "platform-authenticator",
+            });
+
+            setBiometric(true);
+            localStorage.setItem("biometric", "true");
+
+            toast.success("Fingerprint / Face ID enabled");
+        } catch (err: any) {
+            toast.error(
+                err.response?.data?.message ||
+                "Biometric setup cancelled"
+            );
+        }
     };
 
-    // Logout
     const logout = () => {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
+        localStorage.removeItem("biometric");
         sessionStorage.clear();
 
         toast.success("Logged out successfully");
@@ -118,21 +145,30 @@ export default function SettingsPage() {
             </div>
 
             <div className="flex-1">
-                <h3 className="font-semibold text-gray-900">{title}</h3>
-                <p className="text-xs text-gray-500">{subtitle}</p>
+                <h3 className="font-semibold text-gray-900">
+                    {title}
+                </h3>
+                <p className="text-xs text-gray-500">
+                    {subtitle}
+                </p>
             </div>
 
-            {right || <ChevronRight size={18} color="#9CA3AF" />}
+            {right || (
+                <ChevronRight
+                    size={18}
+                    color="#9CA3AF"
+                />
+            )}
         </button>
     );
 
     return (
-        <main className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <main className="min-h-screen bg-gray-50">
             <div className="mx-auto max-w-md p-4 pb-24">
                 {/* Back */}
                 <button
                     onClick={() => router.back()}
-                    className="mb-4 flex items-center gap-2 text-gray-600 dark:text-gray-300"
+                    className="mb-4 flex items-center gap-2 text-gray-600"
                 >
                     <ArrowLeft size={18} />
                     Back
@@ -147,16 +183,21 @@ export default function SettingsPage() {
                     <div className="flex items-center gap-4">
                         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/20 text-2xl font-bold">
                             {user.full_name
-                                ? user.full_name.charAt(0).toUpperCase()
+                                ? user.full_name
+                                    .charAt(0)
+                                    .toUpperCase()
                                 : "Q"}
                         </div>
 
                         <div>
                             <h2 className="text-xl font-bold">
-                                {user.full_name || "QuickTxn User"}
+                                {user.full_name ||
+                                    "QuickTxn User"}
                             </h2>
 
-                            <p className="text-sm text-green-100">{user.email}</p>
+                            <p className="text-sm text-green-100">
+                                {user.email}
+                            </p>
                         </div>
                     </div>
                 </motion.div>
@@ -166,7 +207,7 @@ export default function SettingsPage() {
                     <Item
                         icon={<User size={22} />}
                         title="My Profile"
-                        subtitle="Edit name, email & phone"
+                        subtitle="Edit your personal information"
                         onClick={() => router.push("/profile")}
                     />
 
@@ -174,45 +215,30 @@ export default function SettingsPage() {
                         icon={<Shield size={22} />}
                         title="Security"
                         subtitle="Password & Transaction PIN"
-                        onClick={() => router.push("/settings/security")}
-                    />
-
-                    <Item
-                        icon={<Moon size={22} />}
-                        title="Dark Mode"
-                        subtitle="Switch app appearance"
-                        right={
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleDarkMode();
-                                }}
-                                className={`relative h-7 w-12 rounded-full transition ${darkMode ? "bg-green-600" : "bg-gray-300"
-                                    }`}
-                            >
-                                <span
-                                    className={`absolute top-1 h-5 w-5 rounded-full bg-white transition ${darkMode ? "left-6" : "left-1"
-                                        }`}
-                                />
-                            </button>
+                        onClick={() =>
+                            router.push("/settings/security")
                         }
                     />
 
                     <Item
                         icon={<Fingerprint size={22} />}
                         title="Biometric Login"
-                        subtitle="Use fingerprint or Face ID"
+                        subtitle="Use Fingerprint or Face ID"
                         right={
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     toggleBiometric();
                                 }}
-                                className={`relative h-7 w-12 rounded-full transition ${biometric ? "bg-green-600" : "bg-gray-300"
+                                className={`relative h-7 w-12 rounded-full transition ${biometric
+                                    ? "bg-green-600"
+                                    : "bg-gray-300"
                                     }`}
                             >
                                 <span
-                                    className={`absolute top-1 h-5 w-5 rounded-full bg-white transition ${biometric ? "left-6" : "left-1"
+                                    className={`absolute top-1 h-5 w-5 rounded-full bg-white transition ${biometric
+                                        ? "left-6"
+                                        : "left-1"
                                         }`}
                                 />
                             </button>
@@ -236,7 +262,9 @@ export default function SettingsPage() {
                         </div>
 
                         <div>
-                            <h3 className="font-semibold text-red-600">Logout</h3>
+                            <h3 className="font-semibold text-red-600">
+                                Logout
+                            </h3>
                             <p className="text-xs text-gray-500">
                                 Securely sign out of your account
                             </p>

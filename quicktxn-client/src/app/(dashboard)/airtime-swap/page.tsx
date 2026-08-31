@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import {
@@ -9,6 +9,7 @@ import {
     Repeat,
     Phone,
     Wallet,
+    Shield,
 } from "lucide-react";
 import NetworkLogo from "@/components/ui/NetworkLogo";
 import { toast } from "sonner";
@@ -21,9 +22,35 @@ export default function AirtimeSwapPage() {
     const [network, setNetwork] = useState("MTN");
     const [phone, setPhone] = useState("");
     const [amount, setAmount] = useState("");
+    const [pin, setPin] = useState("");
+    const [rate, setRate] = useState(85);
+
     const [screenshot, setScreenshot] = useState("");
     const [fileName, setFileName] = useState("");
     const [loading, setLoading] = useState(false);
+
+    const receiveAmount = Math.floor((Number(amount || 0) * rate) / 100);
+
+    // Load conversion rate
+    useEffect(() => {
+        const loadRate = async () => {
+            try {
+                const res = await api.get("/airtime-swap/rates");
+
+                const current = res.data.data.find(
+                    (item: any) => item.network === network
+                );
+
+                if (current) {
+                    setRate(Number(current.rate));
+                }
+            } catch {
+                setRate(85);
+            }
+        };
+
+        loadRate();
+    }, [network]);
 
     // Convert image to Base64
     const handleImage = (
@@ -43,9 +70,10 @@ export default function AirtimeSwapPage() {
         reader.readAsDataURL(file);
     };
 
+    // Submit
     const submitSwap = async () => {
-        if (!phone || !amount || !screenshot) {
-            toast.error("Complete all fields");
+        if (!phone || !amount || !screenshot || pin.length !== 4) {
+            toast.error("Complete all fields including your PIN");
             return;
         }
 
@@ -57,10 +85,10 @@ export default function AirtimeSwapPage() {
                 senderPhone: phone,
                 amount: Number(amount),
                 screenshot,
+                pin,
             });
 
-            toast.success("Swap request submitted");
-
+            toast.success("Swap request submitted successfully");
             router.push("/dashboard");
         } catch (err: any) {
             toast.error(
@@ -74,10 +102,10 @@ export default function AirtimeSwapPage() {
     return (
         <main className="min-h-screen bg-gray-50">
             <div className="mx-auto max-w-md p-4 pb-24">
-                {/* Premium Back Button */}
+                {/* Back */}
                 <button
                     onClick={() => router.back()}
-                    className="mb-5 flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-sm transition-all hover:bg-gray-100 hover:shadow-md active:scale-95"
+                    className="mb-5 flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-sm transition hover:bg-gray-100"
                 >
                     <ArrowLeft size={20} className="text-gray-700" />
                 </button>
@@ -86,10 +114,12 @@ export default function AirtimeSwapPage() {
                 <div className="rounded-3xl bg-gradient-to-r from-pink-500 to-red-500 p-6 text-white">
                     <div className="flex items-center gap-3">
                         <Repeat size={30} />
+
                         <div>
                             <p className="text-sm text-pink-100">
                                 Convert Airtime
                             </p>
+
                             <h1 className="text-2xl font-bold">
                                 Airtime to Cash
                             </h1>
@@ -103,6 +133,7 @@ export default function AirtimeSwapPage() {
                         Swap Details
                     </h2>
 
+                    {/* Network */}
                     <label className="mb-2 block text-sm font-medium">
                         Select Network
                     </label>
@@ -113,15 +144,13 @@ export default function AirtimeSwapPage() {
                                 key={item}
                                 onClick={() => setNetwork(item)}
                                 className={`rounded-2xl border-2 p-3 transition ${network === item
-                                    ? "border-pink-500 bg-pink-50"
-                                    : "border-gray-200"
+                                        ? "border-pink-500 bg-pink-50"
+                                        : "border-gray-200"
                                     }`}
                             >
                                 <div className="flex flex-col items-center gap-2">
-                                    <NetworkLogo
-                                        network={item}
-                                        size="lg"
-                                    />
+                                    <NetworkLogo network={item} size="lg" />
+
                                     <span className="text-sm font-bold">
                                         {item}
                                     </span>
@@ -130,6 +159,7 @@ export default function AirtimeSwapPage() {
                         ))}
                     </div>
 
+                    {/* Phone */}
                     <label className="mb-2 block text-sm font-medium">
                         Sender Phone
                     </label>
@@ -153,6 +183,7 @@ export default function AirtimeSwapPage() {
                         />
                     </div>
 
+                    {/* Amount */}
                     <label className="mb-2 block text-sm font-medium">
                         Airtime Amount
                     </label>
@@ -172,6 +203,22 @@ export default function AirtimeSwapPage() {
                         />
                     </div>
 
+                    {/* Receive Card */}
+                    <div className="mb-5 rounded-2xl border border-green-200 bg-green-50 p-4">
+                        <p className="text-sm text-green-700">
+                            You'll Receive
+                        </p>
+
+                        <h2 className="mt-1 text-3xl font-bold text-green-600">
+                            ₦{receiveAmount.toLocaleString()}
+                        </h2>
+
+                        <p className="mt-1 text-xs text-green-700">
+                            Current conversion rate: {rate}%
+                        </p>
+                    </div>
+
+                    {/* Receipt */}
                     <label className="mb-2 block text-sm font-medium">
                         Upload Airtime Receipt
                     </label>
@@ -207,6 +254,32 @@ export default function AirtimeSwapPage() {
                         />
                     )}
 
+                    {/* PIN */}
+                    <label className="mb-2 mt-5 block text-sm font-medium">
+                        Transaction PIN
+                    </label>
+
+                    <div className="relative">
+                        <Shield
+                            size={18}
+                            className="absolute left-4 top-4 text-gray-400"
+                        />
+
+                        <input
+                            type="password"
+                            maxLength={4}
+                            value={pin}
+                            onChange={(e) =>
+                                setPin(
+                                    e.target.value.replace(/\D/g, "")
+                                )
+                            }
+                            placeholder="****"
+                            className="w-full rounded-xl border p-3 pl-11 text-center text-xl tracking-[0.5em] outline-none focus:border-pink-500"
+                        />
+                    </div>
+
+                    {/* Submit */}
                     <button
                         onClick={submitSwap}
                         disabled={loading}

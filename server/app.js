@@ -45,6 +45,7 @@ const waecRoutes = require("./routes/waecRoutes");
 const airtimeSwapRoutes = require("./routes/airtimeSwapRoutes");
 const kycRoutes = require("./routes/kycRoutes");
 const adminKycRoutes = require("./routes/adminKycRoutes");
+const biometricRoutes = require("./routes/biometricRoutes");
 const app = express();
 
 // ==========================
@@ -138,7 +139,7 @@ app.use("/api/admin/airtime-rates", adminAirtimeRateRoutes);
 app.use("/api/admin/users", adminUserRoutes);
 app.use("/api/admin/transactions", adminTransactionRoutes);
 app.use("/api/admin/airtime-swaps", adminAirtimeSwapRoutes);
-
+app.use("/api/biometric", biometricRoutes);
 // ==========================
 // Webhooks
 // ==========================

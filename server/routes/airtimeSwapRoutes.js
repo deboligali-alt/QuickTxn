@@ -1,13 +1,22 @@
+
 const express = require("express");
 const router = express.Router();
 
-const auth = require("../middleware/authMiddleware"); // use your real filename
+const authMiddleware = require("../middleware/authMiddleware");
+
 const {
-    createSwap,
-    getMySwaps,
+    createSwapRequest,
+    getRates,
+    getSwapHistory,
 } = require("../controllers/airtimeSwapController");
 
-router.post("/", auth, createSwap);
-router.get("/my", auth, getMySwaps);
+// Conversion rates
+router.get("/rates", authMiddleware, getRates);
+
+// User history
+router.get("/history", authMiddleware, getSwapHistory);
+
+// Submit request
+router.post("/", authMiddleware, createSwapRequest);
 
 module.exports = router;
