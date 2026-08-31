@@ -38,26 +38,35 @@ export default function RegisterPage() {
             [e.target.name]: e.target.value,
         });
     };
-
     const handleRegister = async (
         e: React.FormEvent
     ) => {
         e.preventDefault();
 
+        if (loading) return;
+
         try {
             setLoading(true);
 
-            const response = await register(form);
+            const response = await register({
+                full_name: form.full_name.trim(),
+                email: form.email.trim().toLowerCase(),
+                phone: form.phone.trim(),
+                password: form.password,
+            });
 
             toast.success(response.message);
 
-            router.push(`/verify-otp?email=${form.email}`);
+            router.push(
+                `/verify-otp?email=${encodeURIComponent(form.email)}`
+            );
         } catch (error: unknown) {
             if (axios.isAxiosError(error)) {
-                toast.error(
-                    error.response?.data?.message ??
-                    "Registration failed."
-                );
+                const message =
+                    error.response?.data?.message ||
+                    "Registration failed.";
+
+                toast.error(message);
             } else {
                 toast.error("Registration failed.");
             }

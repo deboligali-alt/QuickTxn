@@ -15,30 +15,31 @@ const registerUser = async (req, res) => {
                 message: "Please fill in all fields."
             });
         }
-
-        // Check email first
+        // Check email
         const emailExists = await pool.query(
-            "SELECT id FROM users WHERE email = $1",
-            [email]
+            "SELECT id FROM users WHERE LOWER(email) = LOWER($1)",
+            [email.trim()]
         );
 
         if (emailExists.rows.length > 0) {
             return res.status(409).json({
                 success: false,
-                message: "Email address is already registered."
+                field: "email",
+                message: "Email address already exists."
             });
         }
 
-        // Check phone separately
+        // Check phone
         const phoneExists = await pool.query(
             "SELECT id FROM users WHERE phone = $1",
-            [phone]
+            [phone.trim()]
         );
 
         if (phoneExists.rows.length > 0) {
             return res.status(409).json({
                 success: false,
-                message: "Phone number is already registered."
+                field: "phone",
+                message: "Phone number already exists."
             });
         }
 
