@@ -38,6 +38,7 @@ export default function RegisterPage() {
             [e.target.name]: e.target.value,
         });
     };
+
     const handleRegister = async (
         e: React.FormEvent
     ) => {
@@ -58,18 +59,14 @@ export default function RegisterPage() {
             toast.success(response.message);
 
             router.push(
-                `/verify-otp?email=${encodeURIComponent(form.email)}`
+                `/verify-otp?email=${encodeURIComponent(form.email.trim())}`
             );
-        } catch (error: unknown) {
-            if (axios.isAxiosError(error)) {
-                const message =
-                    error.response?.data?.message ||
-                    "Registration failed.";
+        } catch (error: any) {
+            const message =
+                error?.response?.data?.message ||
+                "Registration failed.";
 
-                toast.error(message);
-            } else {
-                toast.error("Registration failed.");
-            }
+            toast.error(message);
         } finally {
             setLoading(false);
         }
