@@ -197,41 +197,61 @@ const loginUser = async (req, res) => {
 
 
 const forgotPassword = async (req, res) => {
-    const { email } = req.body;
-
     try {
-        // Check if user exists
+        const { email } = req.body;
+
+        if (!email) {
+            return res.status(400).json({
+                success: false,
+                message: "Email is required."
+            });
+        }
+
         const result = await pool.query(
-            "SELECT id FROM users WHERE email = $1",
+            "SELECT * FROM users WHERE email = $1",
             [email]
         );
 
         if (result.rows.length === 0) {
             return res.status(404).json({
                 success: false,
-                message: "User not found."
+                message: "Email address not found."
             });
         }
 
-        // Generate reset token
-        const resetToken = crypto.randomBytes(32).toString("hex");
+        const otpCode = Math.floor(
+            100000 + Math.random() * 900000
+        ).toString();
 
-        // Expires in 15 minutes
-        const expires = new Date(Date.now() + 15 * 60 * 1000);
+        const otpExpires = new Date(
+            Date.now() + 10 * 60 * 1000
+        );
 
-        // Save token
         await pool.query(
             `UPDATE users
-             SET reset_token = $1,
-                 reset_token_expires = $2
+             SET otp_code = $1,
+                 otp_expires = $2
              WHERE email = $3`,
-            [resetToken, expires, email]
+            [otpCode, otpExpires, email]
+        );
+
+        await sendEmail(
+            email,
+            "QuickTxn Password Reset",
+            `
+            <h2>Reset Your Password</h2>
+
+            <p>Your password reset code is:</p>
+
+            <h1 style="letter-spacing:5px;">${otpCode}</h1>
+
+            <p>This code expires in 10 minutes.</p>
+            `
         );
 
         return res.status(200).json({
             success: true,
-            message: "Password reset token generated.",
-            resetToken
+            message: "Password reset OTP has been sent to your email."
         });
 
     } catch (error) {
@@ -243,41 +263,64 @@ const forgotPassword = async (req, res) => {
         });
     }
 };
-
 const resetPassword = async (req, res) => {
-    const { resetToken, newPassword } = req.body;
-
     try {
-        // Find user with valid token
+        const { email, otp, newPassword } = req.body;
+
+        if (!email || !otp || !newPassword) {
+            return res.status(400).json({
+                success: false,
+                message: "Email, OTP and new password are required."
+            });
+        }
+
+        // Find user
         const result = await pool.query(
-            `SELECT id
-             FROM users
-             WHERE reset_token = $1
-             AND reset_token_expires > NOW()`,
-            [resetToken]
+            "SELECT * FROM users WHERE email = $1",
+            [email]
         );
 
         if (result.rows.length === 0) {
-            return res.status(400).json({
+            return res.status(404).json({
                 success: false,
-                message: "Invalid or expired reset token."
+                message: "Email address not found."
             });
         }
 
+        const user = result.rows[0];
+
+        // Verify OTP
+        if (user.otp_code !== otp) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid OTP."
+            });
+        }
+
+        // Check expiry
+        if (new Date(user.otp_expires) < new Date()) {
+            return res.status(400).json({
+                success: false,
+                message: "OTP has expired."
+            });
+        }
+
+        // Hash new password
         const hashedPassword = await bcrypt.hash(newPassword, 10);
 
+        // Update password & clear OTP
         await pool.query(
             `UPDATE users
              SET password = $1,
-                 reset_token = NULL,
-                 reset_token_expires = NULL
-             WHERE id = $2`,
-            [hashedPassword, result.rows[0].id]
+                 otp_code = NULL,
+                 otp_expires = NULL
+             WHERE email = $2`,
+            [hashedPassword, email]
         );
 
         return res.status(200).json({
             success: true,
-            message: "Password reset successful."
+            message: "Password reset successfully."
         });
 
     } catch (error) {
@@ -289,7 +332,6 @@ const resetPassword = async (req, res) => {
         });
     }
 };
-
 const verifyOTP = async (req, res) => {
     try {
         const { email, otp } = req.body;
