@@ -8,7 +8,7 @@ interface Transaction {
     type: "CREDIT" | "DEBIT";
     amount: number;
     description: string;
-    status: string;
+    status: "SUCCESS" | "FAILED" | "PENDING";
     created_at: string;
 }
 
@@ -21,13 +21,34 @@ export default function RecentTransactions({
 }: Props) {
     const router = useRouter();
 
-    // Show only the latest 4 transactions
     const recent = transactions.slice(0, 4);
+
+    const getStatusStyle = (status: string) => {
+        switch (status?.toUpperCase()) {
+            case "SUCCESS":
+                return {
+                    badge: "bg-green-100 text-green-700",
+                    amount: "text-green-600",
+                };
+            case "FAILED":
+                return {
+                    badge: "bg-red-100 text-red-700",
+                    amount: "text-red-600",
+                };
+            default:
+                return {
+                    badge: "bg-orange-100 text-orange-700",
+                    amount: "text-orange-600",
+                };
+        }
+    };
 
     return (
         <section className="mt-6">
             <div className="mb-3 flex items-center justify-between">
-                <h2 className="text-lg font-bold">Recent Transactions</h2>
+                <h2 className="text-lg font-bold">
+                    Recent Transactions
+                </h2>
 
                 {transactions.length > 4 && (
                     <button
@@ -45,53 +66,58 @@ export default function RecentTransactions({
                         No transactions yet
                     </div>
                 ) : (
-                    recent.map((tx) => (
-                        <div
-                            key={tx.id}
-                            className="flex items-center justify-between border-b px-4 py-3 last:border-0"
-                        >
-                            <div className="flex items-center gap-3">
-                                <div
-                                    className={`flex h-10 w-10 items-center justify-center rounded-full ${tx.type === "CREDIT"
-                                            ? "bg-green-100 text-green-600"
-                                            : "bg-red-100 text-red-600"
-                                        }`}
-                                >
-                                    {tx.type === "CREDIT" ? (
-                                        <ArrowDownLeft size={18} />
-                                    ) : (
-                                        <ArrowUpRight size={18} />
-                                    )}
+                    recent.map((tx) => {
+                        const style = getStatusStyle(tx.status);
+
+                        return (
+                            <div
+                                key={tx.id}
+                                className="flex items-center justify-between border-b px-4 py-3 last:border-0"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div
+                                        className={`flex h-10 w-10 items-center justify-center rounded-full ${tx.type === "CREDIT"
+                                                ? "bg-green-100 text-green-600"
+                                                : "bg-red-100 text-red-600"
+                                            }`}
+                                    >
+                                        {tx.type === "CREDIT" ? (
+                                            <ArrowDownLeft size={18} />
+                                        ) : (
+                                            <ArrowUpRight size={18} />
+                                        )}
+                                    </div>
+
+                                    <div>
+                                        <p className="text-sm font-semibold text-gray-800">
+                                            {tx.description}
+                                        </p>
+
+                                        <p className="text-xs text-gray-500">
+                                            {new Date(tx.created_at).toLocaleDateString(
+                                                "en-GB"
+                                            )}
+                                        </p>
+                                    </div>
                                 </div>
 
-                                <div>
-                                    <p className="text-sm font-semibold">
-                                        {tx.description}
+                                <div className="text-right">
+                                    <p
+                                        className={`text-sm font-bold ${style.amount}`}
+                                    >
+                                        {tx.type === "CREDIT" ? "+" : "-"}₦
+                                        {Number(tx.amount).toLocaleString()}
                                     </p>
 
-                                    <p className="text-xs text-gray-500">
-                                        {new Date(tx.created_at).toLocaleDateString("en-GB")}
-                                    </p>
+                                    <span
+                                        className={`mt-1 inline-block rounded-full px-2 py-1 text-[10px] font-bold ${style.badge}`}
+                                    >
+                                        {tx.status}
+                                    </span>
                                 </div>
                             </div>
-
-                            <div className="text-right">
-                                <p
-                                    className={`text-sm font-bold ${tx.type === "CREDIT"
-                                            ? "text-green-600"
-                                            : "text-red-600"
-                                        }`}
-                                >
-                                    {tx.type === "CREDIT" ? "+" : "-"}₦
-                                    {Number(tx.amount).toLocaleString()}
-                                </p>
-
-                                <p className="text-[11px] capitalize text-gray-500">
-                                    {tx.status}
-                                </p>
-                            </div>
-                        </div>
-                    ))
+                        );
+                    })
                 )}
             </div>
         </section>
