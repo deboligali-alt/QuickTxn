@@ -1,19 +1,34 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
-import { ArrowLeft, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Smartphone, CheckCircle2 } from "lucide-react";
 import { buyAirtime } from "@/services/airtime.service";
 
 const networks = [
-    { name: "MTN", logo: "/networks/mtn.png" },
-    { name: "AIRTEL", logo: "/networks/airtel.png" },
-    { name: "GLO", logo: "/networks/glo.png" },
-    { name: "9MOBILE", logo: "/networks/9mobile.png" },
+    {
+        name: "MTN",
+        color: "bg-yellow-400",
+        logo: "/networks/mtn.png",
+    },
+    {
+        name: "AIRTEL",
+        color: "bg-red-500",
+        logo: "/networks/airtel.png",
+    },
+    {
+        name: "GLO",
+        color: "bg-green-600",
+        logo: "/networks/glo.png",
+    },
+    {
+        name: "9MOBILE",
+        color: "bg-emerald-500",
+        logo: "/networks/9mobile.png",
+    },
 ];
 
-const amounts = [100, 200, 500, 1000, 2000, 5000];
+const quickAmounts = [100, 200, 500, 1000, 2000, 5000];
 
 export default function AirtimePage() {
     const router = useRouter();
@@ -24,23 +39,32 @@ export default function AirtimePage() {
     const [pin, setPin] = useState("");
 
     const [loading, setLoading] = useState(false);
+
     const [success, setSuccess] = useState("");
     const [error, setError] = useState("");
+
+    useEffect(() => {
+        const saved = localStorage.getItem("user_phone");
+        if (saved) setPhoneNumber(saved);
+    }, []);
 
     const handlePurchase = async () => {
         setSuccess("");
         setError("");
 
-        if (phoneNumber.length !== 11) {
-            return setError("Enter a valid 11-digit phone number.");
+        if (!phoneNumber || phoneNumber.length !== 11) {
+            setError("Enter a valid 11-digit phone number.");
+            return;
         }
 
         if (!amount || Number(amount) < 50) {
-            return setError("Minimum airtime amount is ₦50.");
+            setError("Minimum airtime is ₦50.");
+            return;
         }
 
         if (pin.length !== 4) {
-            return setError("Enter your 4-digit transaction PIN.");
+            setError("Enter your 4-digit transaction PIN.");
+            return;
         }
 
         try {
@@ -49,7 +73,8 @@ export default function AirtimePage() {
             const token = localStorage.getItem("token");
 
             if (!token) {
-                return setError("Please login again.");
+                setError("Please login again.");
+                return;
             }
 
             const res = await buyAirtime(token, {
@@ -59,10 +84,8 @@ export default function AirtimePage() {
                 pin,
             });
 
-            // Green success message
             setSuccess(res.message);
 
-            // Dashboard toast
             sessionStorage.setItem("payment_success", "true");
 
             if (res.data?.cashback) {
@@ -80,8 +103,7 @@ export default function AirtimePage() {
             }, 1800);
         } catch (err: any) {
             setError(
-                err.response?.data?.message ||
-                "Airtime purchase failed."
+                err.response?.data?.message || "Airtime purchase failed."
             );
         } finally {
             setLoading(false);
@@ -91,7 +113,7 @@ export default function AirtimePage() {
     return (
         <main className="min-h-screen bg-gray-50">
             <div className="mx-auto max-w-md p-4 pb-24">
-
+                {/* Header */}
                 <button
                     onClick={() => router.back()}
                     className="mb-4 flex items-center gap-2 text-gray-700"
@@ -101,27 +123,35 @@ export default function AirtimePage() {
                 </button>
 
                 <div className="rounded-3xl bg-gradient-to-r from-green-600 to-emerald-500 p-6 text-white">
-                    <h1 className="text-2xl font-bold">
-                        Buy Airtime
-                    </h1>
-                    <p className="mt-1 text-sm text-green-100">
-                        Recharge any Nigerian network instantly
-                    </p>
+                    <div className="flex items-center gap-3">
+                        <Smartphone size={28} />
+                        <div>
+                            <p className="text-green-100 text-sm">
+                                Instant Recharge
+                            </p>
+                            <h1 className="text-2xl font-bold">
+                                Buy Airtime
+                            </h1>
+                        </div>
+                    </div>
                 </div>
 
+                {/* Success */}
                 {success && (
                     <div className="mt-4 flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 p-3 text-green-700">
                         <CheckCircle2 size={18} />
-                        <span className="font-semibold">{success}</span>
+                        <span className="font-medium">{success}</span>
                     </div>
                 )}
 
+                {/* Error */}
                 {error && (
-                    <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-red-700 font-semibold">
+                    <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-red-700 font-medium">
                         {error}
                     </div>
                 )}
 
+                {/* Network */}
                 <div className="mt-5 rounded-2xl bg-white p-4 shadow-sm">
                     <h2 className="mb-3 font-bold">
                         Select Network
@@ -133,20 +163,13 @@ export default function AirtimePage() {
                                 key={item.name}
                                 onClick={() => setNetwork(item.name)}
                                 className={`rounded-xl border-2 p-2 transition ${network === item.name
-                                        ? "border-green-600 bg-green-50"
+                                        ? "border-green-600"
                                         : "border-gray-200"
                                     }`}
                             >
-                                <div className="mx-auto flex h-10 w-10 items-center justify-center">
-                                    <Image
-                                        src={item.logo}
-                                        alt={item.name}
-                                        width={36}
-                                        height={36}
-                                        className="object-contain"
-                                    />
-                                </div>
-
+                                <div
+                                    className={`mx-auto h-10 w-10 rounded-full ${item.color}`}
+                                />
                                 <p className="mt-2 text-[11px] font-bold">
                                     {item.name}
                                 </p>
@@ -155,6 +178,7 @@ export default function AirtimePage() {
                     </div>
                 </div>
 
+                {/* Phone */}
                 <div className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
                     <label className="mb-2 block font-semibold">
                         Phone Number
@@ -174,6 +198,7 @@ export default function AirtimePage() {
                     />
                 </div>
 
+                {/* Amount */}
                 <div className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
                     <label className="mb-2 block font-semibold">
                         Amount
@@ -188,7 +213,7 @@ export default function AirtimePage() {
                     />
 
                     <div className="mt-3 grid grid-cols-3 gap-2">
-                        {amounts.map((amt) => (
+                        {quickAmounts.map((amt) => (
                             <button
                                 key={amt}
                                 onClick={() => setAmount(String(amt))}
@@ -200,6 +225,7 @@ export default function AirtimePage() {
                     </div>
                 </div>
 
+                {/* PIN */}
                 <div className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
                     <label className="mb-2 block font-semibold">
                         Transaction PIN
@@ -220,6 +246,7 @@ export default function AirtimePage() {
                     />
                 </div>
 
+                {/* Button */}
                 <button
                     onClick={handlePurchase}
                     disabled={loading}
