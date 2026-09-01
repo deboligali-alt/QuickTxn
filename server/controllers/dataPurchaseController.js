@@ -83,21 +83,12 @@ const purchaseData = async (req, res) => {
             amount: plan.amount,
         });
 
-        if (
-            !providerResult.success ||
-            providerResult.provider !== "VTPASS"
-        ) {
-            throw new Error(
-                "Data purchase was not confirmed by VTpass."
-            );
+        if (!providerResult.success || providerResult.provider !== "VTPASS") {
+            throw new Error("Data purchase was not confirmed by VTpass.");
         }
 
         // Debit wallet
-        await walletService.debitWallet(
-            req.user.id,
-            plan.amount,
-            client
-        );
+        await walletService.debitWallet(req.user.id, plan.amount, client);
 
         const reference = `DATA-${Date.now()}`;
 
@@ -221,8 +212,7 @@ const purchaseData = async (req, res) => {
 
         if (
             error.message === "Invalid transaction PIN." ||
-            error.message ===
-            "Transaction PIN has not been set." ||
+            error.message === "Transaction PIN has not been set." ||
             error.message === "Insufficient wallet balance."
         ) {
             return res.status(400).json({
@@ -248,27 +238,38 @@ const getDataPlans = async (req, res) => {
     try {
         const { network } = req.query;
 
-        let query = `
-      SELECT
-        id,
-        network,
-        plan_name,
-        plan_code,
-        amount
-      FROM data_plans
-      WHERE is_active = TRUE
-    `;
-
-        const values = [];
-
-        if (network) {
-            query += ` AND UPPER(network)=UPPER($1)`;
-            values.push(network);
+        if (!network) {
+            return res.status(400).json({
+                success: false,
+                message: "Network is required.",
+            });
         }
 
-        query += ` ORDER BY amount ASC`;
-
-        const result = await pool.query(query, values);
+        const result = await pool.query(
+            `SELECT
+          id,
+          network,
+          plan_name,
+          plan_code,
+          amount,
+          category
+       FROM data_plans
+       WHERE is_active = TRUE
+       AND UPPER(network) = UPPER($1)
+       ORDER BY
+         CASE category
+           WHEN 'DAILY' THEN 1
+           WHEN 'NIGHT' THEN 2
+           WHEN 'WEEKLY' THEN 3
+           WHEN 'MONTHLY' THEN 4
+           WHEN 'SPECIAL' THEN 5
+           WHEN 'SME' THEN 6
+           WHEN 'VOICE' THEN 7
+           ELSE 8
+         END,
+         amount ASC`,
+            [network]
+        );
 
         return res.status(200).json({
             success: true,
