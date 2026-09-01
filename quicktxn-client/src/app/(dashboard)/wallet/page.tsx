@@ -464,7 +464,7 @@ export default function WalletPage() {
                             </Link>
 
                             <Link
-                                href="/settings/pin"
+                                href="/settings/security"
                                 className="rounded-xl border border-slate-200 p-4 transition hover:bg-slate-50"
                             >
                                 <p className="text-sm font-bold text-slate-900">
@@ -472,7 +472,7 @@ export default function WalletPage() {
                                 </p>
 
                                 <p className="mt-1 text-xs text-slate-500">
-                                    Manage your PIN
+                                    Create & Manage your PIN
                                 </p>
                             </Link>
 
