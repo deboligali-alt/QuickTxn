@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Lock } from "lucide-react";
 import { toast } from "sonner";
@@ -10,11 +10,10 @@ export default function ResetPasswordPage() {
     const router = useRouter();
 
     const [email, setEmail] = useState("");
+    const [otp, setOtp] = useState("");
+    const [newPassword, setNewPassword] = useState("");
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState("");
-
-    const otpRef = useRef<HTMLInputElement>(null);
-    const passwordRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -24,8 +23,10 @@ export default function ResetPasswordPage() {
     const handleReset = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        const otp = otpRef.current?.value || "";
-        const newPassword = passwordRef.current?.value || "";
+        if (otp.length !== 6) {
+            toast.error("Enter the 6-digit OTP");
+            return;
+        }
 
         try {
             setLoading(true);
@@ -69,25 +70,28 @@ export default function ResetPasswordPage() {
                 </p>
 
                 {success && (
-                    <div className="mt-4 rounded-xl border border-green-200 bg-green-50 p-3 text-center text-sm font-semibold text-green-700">
+                    <div className="mt-4 rounded-xl border border-green-200 bg-green-50 p-3 text-center font-semibold text-green-700">
                         ✅ {success}
                     </div>
                 )}
 
                 <form onSubmit={handleReset} className="mt-6 space-y-4">
+                    {/* OTP */}
                     <input
-                        ref={otpRef}
-                        type="tel"
+                        type="text"
                         inputMode="numeric"
+                        autoComplete="one-time-code"
                         maxLength={6}
+                        value={otp}
+                        onChange={(e) =>
+                            setOtp(e.target.value.replace(/\D/g, ""))
+                        }
                         placeholder="000000"
-                        autoComplete="off"
-                        autoCorrect="off"
-                        spellCheck={false}
                         className="w-full rounded-xl border p-4 text-center text-2xl tracking-[8px] outline-none focus:border-green-600"
                         required
                     />
 
+                    {/* Password */}
                     <div className="relative">
                         <Lock
                             size={18}
@@ -95,9 +99,10 @@ export default function ResetPasswordPage() {
                         />
 
                         <input
-                            ref={passwordRef}
                             type="password"
                             autoComplete="new-password"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
                             placeholder="New Password"
                             className="w-full rounded-xl border p-3 pl-11 outline-none focus:border-green-600"
                             required
