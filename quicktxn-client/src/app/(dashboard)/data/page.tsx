@@ -24,6 +24,16 @@ const networks = [
     { id: "9MOBILE", name: "9mobile" },
 ];
 
+const categoryOrder = [
+    "DAILY",
+    "NIGHT",
+    "WEEKLY",
+    "MONTHLY",
+    "SPECIAL",
+    "SME",
+    "VOICE",
+];
+
 interface DataPlan {
     id: number;
     network: string;
@@ -39,18 +49,33 @@ export default function DataPage() {
     const [network, setNetwork] = useState("MTN");
     const [phone, setPhone] = useState("");
     const [plans, setPlans] = useState<DataPlan[]>([]);
+    const [category, setCategory] = useState("DAILY");
     const [selectedPlan, setSelectedPlan] =
         useState<DataPlan | null>(null);
     const [pin, setPin] = useState("");
     const [loading, setLoading] = useState(false);
 
-    const loadPlans = async (selected: string) => {
+    const loadPlans = async (selectedNetwork: string) => {
         const token = localStorage.getItem("token");
         if (!token) return;
 
         try {
-            const res = await getDataPlans(token, selected);
-            setPlans(res.data);
+            const res = await getDataPlans(token, selectedNetwork);
+
+            const data: DataPlan[] = res.data || [];
+
+            setPlans(data);
+
+            const hasDaily = data.some(
+                (p) => p.category === "DAILY"
+            );
+
+            setCategory(
+                hasDaily
+                    ? "DAILY"
+                    : data[0]?.category || "MONTHLY"
+            );
+
             setSelectedPlan(null);
         } catch {
             toast.error("Unable to load data plans");
@@ -65,23 +90,18 @@ export default function DataPage() {
         const groups: Record<string, DataPlan[]> = {};
 
         plans.forEach((plan) => {
-            const key = plan.category || "OTHER";
-            if (!groups[key]) groups[key] = [];
-            groups[key].push(plan);
+            if (!groups[plan.category]) {
+                groups[plan.category] = [];
+            }
+
+            groups[plan.category].push(plan);
         });
 
         return groups;
     }, [plans]);
 
-    const order = [
-        "DAILY",
-        "NIGHT",
-        "WEEKLY",
-        "MONTHLY",
-        "SPECIAL",
-        "SME",
-        "VOICE",
-    ];
+    const visiblePlans =
+        groupedPlans[category] || [];
 
     const buyData = async () => {
         if (!phone || !selectedPlan || pin.length !== 4) {
@@ -102,18 +122,28 @@ export default function DataPage() {
                 pin,
             });
 
-            sessionStorage.setItem("payment_success", "true");
+            sessionStorage.setItem(
+                "payment_success",
+                "true"
+            );
+
             sessionStorage.setItem(
                 "cashback_amount",
                 String(res.data.cashback || 0)
             );
-            sessionStorage.setItem("refresh_dashboard", "true");
+
+            sessionStorage.setItem(
+                "refresh_dashboard",
+                "true"
+            );
 
             toast.success("Data purchased successfully");
+
             router.push("/dashboard");
         } catch (err: any) {
             toast.error(
-                err.response?.data?.message || "Purchase failed"
+                err.response?.data?.message ||
+                "Purchase failed"
             );
         } finally {
             setLoading(false);
@@ -131,6 +161,7 @@ export default function DataPage() {
                     Back
                 </button>
 
+                {/* Header */}
                 <motion.div
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -145,6 +176,7 @@ export default function DataPage() {
                             <p className="text-sm text-blue-100">
                                 Fast Internet
                             </p>
+
                             <h1 className="text-2xl font-bold">
                                 Buy Data
                             </h1>
@@ -153,7 +185,7 @@ export default function DataPage() {
                 </motion.div>
 
                 <div className="mt-6 grid gap-6 lg:grid-cols-3">
-                    {/* Left */}
+                    {/* LEFT PANEL */}
                     <div className="lg:col-span-2 rounded-3xl bg-white p-6 shadow-sm">
                         <h2 className="text-lg font-bold">
                             Data Purchase
@@ -161,7 +193,7 @@ export default function DataPage() {
 
                         {/* Network */}
                         <div className="mt-6">
-                            <label className="mb-3 block text-sm font-semibold">
+                            <label className="mb-3 block text-sm font-bold text-gray-700">
                                 Select Network
                             </label>
 
@@ -175,7 +207,7 @@ export default function DataPage() {
                                         }}
                                         className={`rounded-2xl border-2 p-3 transition ${network === item.id
                                                 ? "border-blue-600 bg-blue-50"
-                                                : "border-gray-200"
+                                                : "border-gray-200 bg-white"
                                             }`}
                                     >
                                         <div className="flex flex-col items-center">
@@ -183,6 +215,7 @@ export default function DataPage() {
                                                 network={item.id}
                                                 size="lg"
                                             />
+
                                             <p className="mt-2 text-sm font-bold">
                                                 {item.name}
                                             </p>
@@ -201,7 +234,7 @@ export default function DataPage() {
 
                         {/* Phone */}
                         <div className="mt-6">
-                            <label className="mb-2 block text-sm font-semibold">
+                            <label className="mb-2 block text-sm font-bold text-gray-700">
                                 Phone Number
                             </label>
 
@@ -221,68 +254,81 @@ export default function DataPage() {
                                             e.target.value.replace(/\D/g, "")
                                         )
                                     }
-                                    className="h-12 w-full rounded-xl border pl-11 pr-4 outline-none focus:border-blue-600"
+                                    className="h-12 w-full rounded-xl border border-gray-300 pl-11 pr-4 outline-none focus:border-blue-600"
                                 />
                             </div>
                         </div>
 
-                        {/* Plans */}
+                        {/* Categories */}
                         <div className="mt-6">
-                            <label className="mb-4 block text-sm font-semibold">
-                                Select Data Plan
+                            <label className="mb-3 block text-sm font-bold text-gray-700">
+                                Data Categories
                             </label>
 
-                            {order.map((category) =>
-                                groupedPlans[category]?.length ? (
-                                    <div
-                                        key={category}
-                                        className="mb-7"
-                                    >
-                                        <h3 className="mb-3 text-base font-bold text-gray-800">
-                                            {category === "SME"
+                            <div className="flex gap-2 overflow-x-auto pb-2">
+                                {categoryOrder
+                                    .filter(
+                                        (cat) =>
+                                            groupedPlans[cat]?.length
+                                    )
+                                    .map((cat) => (
+                                        <button
+                                            key={cat}
+                                            onClick={() => {
+                                                setCategory(cat);
+                                                setSelectedPlan(null);
+                                            }}
+                                            className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-bold transition ${category === cat
+                                                    ? "bg-blue-600 text-white"
+                                                    : "bg-gray-100 text-gray-700"
+                                                }`}
+                                        >
+                                            {cat === "SME"
                                                 ? "SME Data"
-                                                : `${category} Plans`}
-                                        </h3>
+                                                : cat}
+                                        </button>
+                                    ))}
+                            </div>
+                        </div>
 
-                                        <div className="space-y-3">
-                                            {groupedPlans[category].map((plan) => (
-                                                <button
-                                                    key={plan.id}
-                                                    onClick={() =>
-                                                        setSelectedPlan(plan)
-                                                    }
-                                                    className={`w-full rounded-2xl border p-4 text-left transition ${selectedPlan?.id === plan.id
-                                                            ? "border-blue-600 bg-blue-50"
-                                                            : "border-gray-200 bg-white hover:border-blue-300"
-                                                        }`}
-                                                >
-                                                    <div className="flex items-center justify-between">
-                                                        <div className="pr-4">
-                                                            <p className="font-semibold text-gray-900">
-                                                                {plan.plan_name}
-                                                            </p>
-                                                        </div>
+                        {/* Plans Grid */}
+                        <div className="mt-6">
+                            <h3 className="mb-4 text-lg font-extrabold text-blue-700">
+                                {category === "SME"
+                                    ? "SME Data Plans"
+                                    : `${category} Plans`}
+                            </h3>
 
-                                                        <div className="text-right">
-                                                            <p className="text-lg font-bold text-blue-700">
-                                                                ₦
-                                                                {Number(
-                                                                    plan.amount
-                                                                ).toLocaleString()}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ) : null
-                            )}
+                            <div className="grid grid-cols-2 gap-3">
+                                {visiblePlans.map((plan) => (
+                                    <button
+                                        key={plan.id}
+                                        onClick={() =>
+                                            setSelectedPlan(plan)
+                                        }
+                                        className={`rounded-2xl border p-4 text-left transition ${selectedPlan?.id === plan.id
+                                                ? "border-blue-600 bg-blue-50 shadow-md"
+                                                : "border-gray-200 bg-white hover:border-blue-300"
+                                            }`}
+                                    >
+                                        <p className="line-clamp-2 text-sm font-bold text-gray-800">
+                                            {plan.plan_name}
+                                        </p>
+
+                                        <p className="mt-3 text-xl font-extrabold text-blue-700">
+                                            ₦
+                                            {Number(
+                                                plan.amount
+                                            ).toLocaleString()}
+                                        </p>
+                                    </button>
+                                ))}
+                            </div>
                         </div>
 
                         {/* PIN */}
                         <div className="mt-6">
-                            <label className="mb-2 block text-sm font-semibold">
+                            <label className="mb-2 block text-sm font-bold text-gray-700">
                                 Transaction PIN
                             </label>
 
@@ -303,7 +349,7 @@ export default function DataPage() {
                                             e.target.value.replace(/\D/g, "")
                                         )
                                     }
-                                    className="h-12 w-full rounded-xl border pl-11 pr-4 text-lg tracking-[0.4em] outline-none focus:border-blue-600"
+                                    className="h-12 w-full rounded-xl border border-gray-300 pl-11 pr-4 text-lg tracking-[0.4em] outline-none focus:border-blue-600"
                                 />
                             </div>
                         </div>
@@ -311,69 +357,144 @@ export default function DataPage() {
                         <button
                             onClick={buyData}
                             disabled={loading}
-                            className="mt-7 flex h-14 w-full items-center justify-center rounded-2xl bg-blue-600 font-semibold text-white disabled:opacity-60"
+                            className="mt-7 flex h-14 w-full items-center justify-center rounded-2xl bg-blue-600 font-bold text-white transition hover:bg-blue-700 disabled:opacity-60"
                         >
                             {loading
                                 ? "Processing..."
                                 : "Buy Data"}
                         </button>
                     </div>
-
-                    {/* Right */}
-                    <div className="space-y-5">
-                        <div className="rounded-3xl bg-white p-5 shadow-sm">
-                            <h3 className="mb-4 font-bold">
+                    {/* RIGHT PANEL */}
+                    <div className="space-y-6">
+                        {/* Purchase Summary */}
+                        <div className="rounded-3xl bg-white p-6 shadow-sm">
+                            <h3 className="text-lg font-bold text-gray-800">
                                 Purchase Summary
                             </h3>
 
-                            <div className="space-y-3 text-sm">
+                            <div className="mt-5 space-y-4">
                                 <div className="flex justify-between">
-                                    <span>Network</span>
-                                    <span className="font-semibold">
-                                        {network}
-                                    </span>
+                                    <span className="text-gray-500">Network</span>
+                                    <span className="font-bold">{network}</span>
                                 </div>
 
                                 <div className="flex justify-between">
-                                    <span>Phone</span>
-                                    <span className="font-semibold">
-                                        {phone || "--"}
+                                    <span className="text-gray-500">Phone</span>
+                                    <span className="font-bold">
+                                        {phone || "----------"}
                                     </span>
                                 </div>
 
-                                <div className="flex justify-between">
-                                    <span>Plan</span>
-                                    <span className="font-semibold text-right">
-                                        {selectedPlan?.plan_name || "--"}
-                                    </span>
+                                <div className="border-t pt-4">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                                        Selected Plan
+                                    </p>
+
+                                    <p className="mt-2 text-sm font-bold text-gray-800">
+                                        {selectedPlan?.plan_name ||
+                                            "No plan selected"}
+                                    </p>
                                 </div>
 
-                                <div className="border-t pt-3">
-                                    <div className="flex justify-between">
-                                        <span>Amount</span>
+                                <div className="rounded-2xl bg-blue-50 p-4">
+                                    <p className="text-sm font-medium text-blue-700">
+                                        Amount
+                                    </p>
 
-                                        <span className="text-xl font-bold text-blue-700">
-                                            ₦
-                                            {Number(
-                                                selectedPlan?.amount || 0
-                                            ).toLocaleString()}
-                                        </span>
+                                    <h2 className="mt-1 text-3xl font-extrabold text-blue-700">
+                                        ₦
+                                        {selectedPlan
+                                            ? Number(
+                                                selectedPlan.amount
+                                            ).toLocaleString()
+                                            : "0"}
+                                    </h2>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Why QuickTxn */}
+                        <div className="rounded-3xl bg-white p-6 shadow-sm">
+                            <h3 className="text-lg font-bold text-gray-800">
+                                Why QuickTxn?
+                            </h3>
+
+                            <div className="mt-5 space-y-4">
+                                <div className="flex items-start gap-3">
+                                    <div className="rounded-full bg-green-100 p-2">
+                                        <CheckCircle2
+                                            size={18}
+                                            className="text-green-600"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <p className="font-semibold">
+                                            Instant Delivery
+                                        </p>
+                                        <p className="text-sm text-gray-500">
+                                            Your data is delivered immediately
+                                            after payment.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-start gap-3">
+                                    <div className="rounded-full bg-green-100 p-2">
+                                        <CheckCircle2
+                                            size={18}
+                                            className="text-green-600"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <p className="font-semibold">
+                                            Secure Wallet
+                                        </p>
+                                        <p className="text-sm text-gray-500">
+                                            Every purchase is protected with
+                                            your 4-digit transaction PIN.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-start gap-3">
+                                    <div className="rounded-full bg-green-100 p-2">
+                                        <CheckCircle2
+                                            size={18}
+                                            className="text-green-600"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <p className="font-semibold">
+                                            Cashback Rewards
+                                        </p>
+                                        <p className="text-sm text-gray-500">
+                                            Eligible data purchases earn
+                                            automatic cashback into your
+                                            wallet.
+                                        </p>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="rounded-3xl bg-gradient-to-br from-blue-600 to-cyan-500 p-5 text-white">
+                        {/* Support Card */}
+                        <div className="rounded-3xl bg-gradient-to-br from-blue-600 to-cyan-500 p-6 text-white shadow-lg">
                             <h3 className="text-lg font-bold">
-                                Why QuickTxn?
+                                Need Help?
                             </h3>
 
-                            <div className="mt-4 space-y-3 text-sm">
-                                <div>⚡ Instant activation</div>
-                                <div>📶 Affordable data plans</div>
-                                <div>🔒 Secure payment</div>
-                                <div>🌍 All Nigerian networks</div>
-                            </div>
+                            <p className="mt-2 text-sm leading-6 text-blue-100">
+                                Having issues purchasing data? Our
+                                support team is available 24/7 to help
+                                you resolve any transaction quickly.
+                            </p>
+
+                            <button className="mt-5 w-full rounded-xl bg-white py-3 font-semibold text-blue-700 transition hover:bg-blue-50">
+                                Contact Support
+                            </button>
                         </div>
                     </div>
                 </div>
