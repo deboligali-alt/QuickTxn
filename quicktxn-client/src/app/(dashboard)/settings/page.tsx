@@ -8,7 +8,6 @@ import {
     User,
     Shield,
     BadgeCheck,
-    Fingerprint,
     ChevronRight,
     LogOut,
 } from "lucide-react";
@@ -30,8 +29,6 @@ export default function SettingsPage() {
         phone: "",
     });
 
-    const [biometric, setBiometric] = useState(false);
-
     useEffect(() => {
         const loadProfile = async () => {
             try {
@@ -43,80 +40,11 @@ export default function SettingsPage() {
         };
 
         loadProfile();
-
-        const enabled =
-            localStorage.getItem("biometric") === "true";
-
-        setBiometric(enabled);
     }, []);
-
-    // REAL Fingerprint / Face ID
-    const toggleBiometric = async () => {
-        if (!window.PublicKeyCredential) {
-            toast.error("Fingerprint or Face ID is not supported");
-            return;
-        }
-
-        // Disable biometric
-        if (biometric) {
-            setBiometric(false);
-            localStorage.removeItem("biometric");
-            toast.success("Biometric login disabled");
-            return;
-        }
-
-        try {
-            const credential = (await navigator.credentials.create({
-                publicKey: {
-                    challenge: crypto.getRandomValues(new Uint8Array(32)),
-                    rp: {
-                        name: "QuickTxn",
-                    },
-                    user: {
-                        id: crypto.getRandomValues(new Uint8Array(16)),
-                        name: user.email,
-                        displayName: user.full_name,
-                    },
-                    pubKeyCredParams: [
-                        {
-                            type: "public-key",
-                            alg: -7,
-                        },
-                    ],
-                    authenticatorSelection: {
-                        authenticatorAttachment: "platform",
-                        userVerification: "required",
-                    },
-                    timeout: 60000,
-                },
-            })) as PublicKeyCredential;
-
-            // Send credential to backend
-            await api.post("/biometric/register", {
-                credentialId: btoa(
-                    String.fromCharCode(
-                        ...new Uint8Array(credential.rawId)
-                    )
-                ),
-                publicKey: "platform-authenticator",
-            });
-
-            setBiometric(true);
-            localStorage.setItem("biometric", "true");
-
-            toast.success("Fingerprint / Face ID enabled");
-        } catch (err: any) {
-            toast.error(
-                err.response?.data?.message ||
-                "Biometric setup cancelled"
-            );
-        }
-    };
 
     const logout = () => {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
-        localStorage.removeItem("biometric");
         sessionStorage.clear();
 
         toast.success("Logged out successfully");
@@ -128,13 +56,11 @@ export default function SettingsPage() {
         title,
         subtitle,
         onClick,
-        right,
     }: {
         icon: React.ReactNode;
         title: string;
         subtitle: string;
         onClick?: () => void;
-        right?: React.ReactNode;
     }) => (
         <button
             onClick={onClick}
@@ -145,20 +71,11 @@ export default function SettingsPage() {
             </div>
 
             <div className="flex-1">
-                <h3 className="font-semibold text-gray-900">
-                    {title}
-                </h3>
-                <p className="text-xs text-gray-500">
-                    {subtitle}
-                </p>
+                <h3 className="font-semibold text-gray-900">{title}</h3>
+                <p className="text-xs text-gray-500">{subtitle}</p>
             </div>
 
-            {right || (
-                <ChevronRight
-                    size={18}
-                    color="#9CA3AF"
-                />
-            )}
+            <ChevronRight size={18} className="text-gray-400" />
         </button>
     );
 
@@ -183,21 +100,16 @@ export default function SettingsPage() {
                     <div className="flex items-center gap-4">
                         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/20 text-2xl font-bold">
                             {user.full_name
-                                ? user.full_name
-                                    .charAt(0)
-                                    .toUpperCase()
+                                ? user.full_name.charAt(0).toUpperCase()
                                 : "Q"}
                         </div>
 
                         <div>
                             <h2 className="text-xl font-bold">
-                                {user.full_name ||
-                                    "QuickTxn User"}
+                                {user.full_name || "QuickTxn User"}
                             </h2>
 
-                            <p className="text-sm text-green-100">
-                                {user.email}
-                            </p>
+                            <p className="text-sm text-green-100">{user.email}</p>
                         </div>
                     </div>
                 </motion.div>
@@ -207,42 +119,15 @@ export default function SettingsPage() {
                     <Item
                         icon={<User size={22} />}
                         title="My Profile"
-                        subtitle="Edit your personal information"
+                        subtitle="View and edit your personal information"
                         onClick={() => router.push("/profile")}
                     />
 
                     <Item
                         icon={<Shield size={22} />}
                         title="Security"
-                        subtitle="Password & Transaction PIN"
-                        onClick={() =>
-                            router.push("/settings/security")
-                        }
-                    />
-
-                    <Item
-                        icon={<Fingerprint size={22} />}
-                        title="Biometric Login"
-                        subtitle="Use Fingerprint or Face ID"
-                        right={
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleBiometric();
-                                }}
-                                className={`relative h-7 w-12 rounded-full transition ${biometric
-                                    ? "bg-green-600"
-                                    : "bg-gray-300"
-                                    }`}
-                            >
-                                <span
-                                    className={`absolute top-1 h-5 w-5 rounded-full bg-white transition ${biometric
-                                        ? "left-6"
-                                        : "left-1"
-                                        }`}
-                                />
-                            </button>
-                        }
+                        subtitle="Create & Change Transaction PIN"
+                        onClick={() => router.push("/settings/security")}
                     />
 
                     <Item
@@ -255,7 +140,7 @@ export default function SettingsPage() {
                     {/* Logout */}
                     <button
                         onClick={logout}
-                        className="flex w-full items-center gap-4 rounded-2xl bg-white p-4 text-left shadow-sm"
+                        className="flex w-full items-center gap-4 rounded-2xl bg-white p-4 text-left shadow-sm transition hover:shadow-md"
                     >
                         <div className="rounded-xl bg-red-50 p-3 text-red-600">
                             <LogOut size={22} />
