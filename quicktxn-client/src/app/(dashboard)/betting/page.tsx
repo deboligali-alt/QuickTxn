@@ -58,6 +58,11 @@ export default function BettingPage() {
         loadProviders();
     }, []);
 
+
+
+    // ========================================
+    // Verify Betting Customer
+    // ========================================
     const verifyCustomer = async () => {
         setStatus("");
         setMessage("");
@@ -76,12 +81,13 @@ export default function BettingPage() {
 
             setCustomerName(res.data.data.name);
             setStatus("SUCCESS");
-            setMessage("Customer verified successfully.");
+            setMessage(res.data.message || "Customer verified successfully.");
         } catch (error: any) {
             setCustomerName("");
             setStatus("FAILED");
             setMessage(
-                error.response?.data?.message || "Customer not found."
+                error.response?.data?.message ||
+                "Unable to verify betting customer."
             );
         }
     };
@@ -219,8 +225,8 @@ export default function BettingPage() {
                                     setStatus("");
                                 }}
                                 className={`rounded-2xl border-2 p-3 transition ${providerCode === provider.provider_code
-                                        ? "border-green-600 bg-green-50"
-                                        : "border-gray-200 bg-white"
+                                    ? "border-green-600 bg-green-50"
+                                    : "border-gray-200 bg-white"
                                     }`}
                             >
                                 <div className="flex flex-col items-center gap-2">
