@@ -1,172 +1,292 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import api from "@/lib/api";
-import { ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowLeftRight, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
-interface TransferData {
-    accountName?: string;
-    accountNumber?: string;
-    bankName?: string;
-    amount?: number;
-    recipientCode?: string;
+interface Bank {
+    name: string;
+    code: string;
 }
 
-export default function BankTransferPinPage() {
+interface Beneficiary {
+    account_name: string;
+    account_number: string;
+    bank_code: string;
+}
+
+export default function BankTransferPage() {
     const router = useRouter();
 
+    const [banks, setBanks] = useState<Bank[]>([]);
+    const [search, setSearch] = useState("");
+    const [showBanks, setShowBanks] = useState(false);
+
+    const [bankCode, setBankCode] = useState("");
+    const [bankName, setBankName] = useState("");
+    const [accountNumber, setAccountNumber] = useState("");
+    const [accountName, setAccountName] = useState("");
+    const [amount, setAmount] = useState("");
     const [pin, setPin] = useState("");
+
     const [loading, setLoading] = useState(false);
-    const [transferData, setTransferData] = useState<TransferData | null>(null);
 
-    // ✅ Read sessionStorage only in the browser
+    const [status, setStatus] = useState<"SUCCESS" | "FAILED" | null>(null);
+    const [message, setMessage] = useState("");
+
     useEffect(() => {
-        const saved = sessionStorage.getItem("transferData");
+        const loadBanks = async () => {
+            try {
+                const res = await api.get("/wallet/banks");
+                setBanks(res.data.data || []);
+            } catch { }
+        };
 
-        if (!saved) {
-            router.replace("/transfer");
-            return;
+        loadBanks();
+
+        const saved = sessionStorage.getItem("beneficiary");
+
+        if (saved) {
+            const b: Beneficiary = JSON.parse(saved);
+
+            setAccountName(b.account_name);
+            setAccountNumber(b.account_number);
+            setBankCode(b.bank_code);
+
+            const bank = banks.find((x) => x.code === b.bank_code);
+
+            if (bank) setBankName(bank.name);
+
+            sessionStorage.removeItem("beneficiary");
         }
+    }, []);
 
-        setTransferData(JSON.parse(saved));
-    }, [router]);
+    useEffect(() => {
+        const verify = async () => {
+            if (accountNumber.length !== 10 || !bankCode) return;
 
-    const pressNumber = (num: string) => {
-        if (pin.length < 4) {
-            setPin((prev) => prev + num);
-        }
-    };
+            try {
+                const res = await api.post("/wallet/resolve-account", {
+                    accountNumber,
+                    bankCode,
+                });
 
-    const removeDigit = () => {
-        setPin((prev) => prev.slice(0, -1));
-    };
+                setAccountName(res.data.data.account_name);
+            } catch {
+                setAccountName("");
+            }
+        };
 
-    const submitTransfer = async () => {
-        if (!transferData) return;
+        verify();
+    }, [accountNumber, bankCode]);
 
-        if (pin.length !== 4) {
-            alert("Enter your 4-digit PIN");
+    const filteredBanks = banks.filter((bank) =>
+        bank.name.toLowerCase().includes(search.toLowerCase())
+    );
+
+    const transferMoney = async () => {
+        setStatus(null);
+        setMessage("");
+
+        if (
+            !bankCode ||
+            !accountNumber ||
+            !accountName ||
+            !amount ||
+            !pin
+        ) {
+            setStatus("FAILED");
+            setMessage("Please complete all fields.");
             return;
         }
 
         try {
             setLoading(true);
 
-            await api.post("/wallet/bank-transfer", {
-                ...transferData,
+            const res = await api.post("/wallet/bank-transfer", {
+                bankCode,
+                accountNumber,
+                accountName,
+                amount: Number(amount),
                 pin,
             });
 
-            sessionStorage.setItem("payment_success", "true");
-            sessionStorage.removeItem("transferData");
+            setStatus("SUCCESS");
+            setMessage(res.data.message);
 
-            router.replace("/dashboard");
-        } catch (error: any) {
-            alert(
-                error.response?.data?.message || "Transfer failed"
+            sessionStorage.setItem("payment_success", "true");
+            sessionStorage.setItem(
+                "last_transfer",
+                JSON.stringify({
+                    accountName,
+                    accountNumber,
+                    bankName,
+                    amount,
+                    reference: res.data.data.reference,
+                })
             );
+
+            setTimeout(() => {
+                router.replace("/transfer-success");
+            }, 1800);
+        } catch (err: any) {
+            setStatus("FAILED");
+            setMessage(err.response?.data?.message || "Transfer failed.");
         } finally {
             setLoading(false);
         }
     };
 
-    const numbers = [
-        "1", "2", "3",
-        "4", "5", "6",
-        "7", "8", "9",
-        "", "0", "⌫",
-    ];
-
-    // Prevent prerender error
-    if (!transferData) {
-        return (
-            <main className="flex min-h-screen items-center justify-center bg-gray-50">
-                <div className="text-center">
-                    <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-green-600 border-t-transparent" />
-                    <p className="mt-4 text-gray-500">Loading transfer...</p>
-                </div>
-            </main>
-        );
-    }
-
     return (
-        <main className="mx-auto min-h-screen max-w-md bg-gray-50 p-4 pb-12">
-            <div className="mb-8 text-center">
-                <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
-                    <ShieldCheck className="text-green-600" size={38} />
-                </div>
+        <main className="mx-auto min-h-screen max-w-md bg-gray-50 px-4 py-5 pb-24">
+            <button
+                onClick={() => router.back()}
+                className="mb-4 flex items-center gap-2 text-sm text-gray-600"
+            >
+                <ArrowLeft size={18} />
+                Back
+            </button>
 
-                <h1 className="text-2xl font-bold">
-                    Confirm Transfer
-                </h1>
-
-                <p className="mt-2 text-gray-500">
-                    Enter your transaction PIN
-                </p>
-            </div>
-
-            <div className="rounded-3xl bg-white p-5 shadow-sm">
-                <div className="border-b pb-4">
-                    <p className="text-sm text-gray-500">
-                        Recipient
-                    </p>
-
-                    <h2 className="font-semibold">
-                        {transferData.accountName}
-                    </h2>
-
-                    <p className="text-xs text-gray-400">
-                        {transferData.accountNumber}
-                    </p>
-                </div>
-
-                <div className="pt-4 text-center">
-                    <p className="text-sm text-gray-500">
-                        Amount
-                    </p>
-
-                    <h3 className="mt-1 text-3xl font-bold text-green-600">
-                        ₦{Number(transferData.amount || 0).toLocaleString()}
-                    </h3>
+            <div className="rounded-3xl bg-gradient-to-r from-green-600 to-emerald-500 p-5 text-white">
+                <div className="flex items-center gap-3">
+                    <ArrowLeftRight size={26} />
+                    <div>
+                        <p className="text-xs text-green-100">QuickTxn</p>
+                        <h1 className="text-xl font-bold">Bank Transfer</h1>
+                    </div>
                 </div>
             </div>
 
-            <div className="my-8 flex justify-center gap-3">
-                {[0, 1, 2, 3].map((i) => (
-                    <div
-                        key={i}
-                        className={`h-4 w-4 rounded-full ${i < pin.length
-                                ? "bg-green-600"
-                                : "bg-gray-300"
-                            }`}
-                    />
-                ))}
-            </div>
+            {status === "SUCCESS" && (
+                <div className="mt-4 flex items-center gap-3 rounded-2xl border border-green-200 bg-green-50 p-4 text-green-700">
+                    <CheckCircle2 size={22} />
+                    <div>
+                        <p className="font-semibold">Transfer Successful</p>
+                        <p className="text-sm">{message}</p>
+                    </div>
+                </div>
+            )}
 
-            <div className="grid grid-cols-3 gap-3">
-                {numbers.map((item, index) => (
-                    <button
-                        key={index}
-                        onClick={() => {
-                            if (item === "⌫") return removeDigit();
-                            if (item !== "") pressNumber(item);
+            {status === "FAILED" && (
+                <div className="mt-4 flex items-center gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700">
+                    <XCircle size={22} />
+                    <div>
+                        <p className="font-semibold">Transfer Failed</p>
+                        <p className="text-sm">{message}</p>
+                    </div>
+                </div>
+            )}
+
+            <div className="mt-5 rounded-2xl bg-white p-4 shadow-sm space-y-4">
+                <div>
+                    <label className="mb-2 block text-sm font-semibold">
+                        Select Bank
+                    </label>
+
+                    <input
+                        value={search}
+                        onFocus={() => setShowBanks(true)}
+                        onChange={(e) => {
+                            setSearch(e.target.value);
+                            setShowBanks(true);
                         }}
-                        className="flex h-16 items-center justify-center rounded-2xl bg-white text-2xl font-semibold shadow-sm active:scale-95"
-                    >
-                        {item}
-                    </button>
-                ))}
+                        placeholder="Search bank..."
+                        className="h-12 w-full rounded-xl border px-4 outline-none focus:border-green-600"
+                    />
+
+                    {showBanks && (
+                        <div className="mt-2 max-h-56 overflow-y-auto rounded-xl border bg-white">
+                            {filteredBanks.map((bank) => (
+                                <button
+                                    key={bank.code}
+                                    onClick={() => {
+                                        setBankCode(bank.code);
+                                        setBankName(bank.name);
+                                        setSearch(bank.name);
+                                        setShowBanks(false);
+                                    }}
+                                    className="block w-full border-b px-4 py-3 text-left text-sm hover:bg-green-50 last:border-0"
+                                >
+                                    {bank.name}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                <div>
+                    <label className="mb-2 block text-sm font-semibold">
+                        Account Number
+                    </label>
+
+                    <input
+                        maxLength={10}
+                        value={accountNumber}
+                        onChange={(e) =>
+                            setAccountNumber(e.target.value.replace(/\D/g, ""))
+                        }
+                        className="h-12 w-full rounded-xl border px-4 outline-none focus:border-green-600"
+                        placeholder="0123456789"
+                    />
+                </div>
+
+                <div>
+                    <label className="mb-2 block text-sm font-semibold">
+                        Account Name
+                    </label>
+
+                    <input
+                        readOnly
+                        value={accountName}
+                        className="h-12 w-full rounded-xl border border-green-200 bg-green-50 px-4 font-semibold text-green-700"
+                        placeholder="Verified account name"
+                    />
+                </div>
+
+                <div>
+                    <label className="mb-2 block text-sm font-semibold">
+                        Amount
+                    </label>
+
+                    <input
+                        type="number"
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                        className="h-12 w-full rounded-xl border px-4 text-lg font-bold outline-none focus:border-green-600"
+                        placeholder="₦0"
+                    />
+                </div>
+
+                <div>
+                    <label className="mb-2 block text-sm font-semibold">
+                        Transaction PIN
+                    </label>
+
+                    <input
+                        type="password"
+                        maxLength={4}
+                        value={pin}
+                        onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+                        className="h-12 w-full rounded-xl border px-4 text-center tracking-[8px] outline-none focus:border-green-600"
+                        placeholder="••••"
+                    />
+                </div>
             </div>
 
             <button
-                onClick={submitTransfer}
+                onClick={transferMoney}
                 disabled={loading}
-                className="mt-6 w-full rounded-2xl bg-green-600 py-4 text-lg font-semibold text-white disabled:opacity-60"
+                className="mt-5 flex h-12 w-full items-center justify-center rounded-xl bg-green-600 font-semibold text-white disabled:opacity-60"
             >
-                {loading
-                    ? "Processing..."
-                    : "Complete Transfer"}
+                {loading ? (
+                    <>
+                        <Loader2 size={18} className="mr-2 animate-spin" />
+                        Processing...
+                    </>
+                ) : (
+                    "Transfer Money"
+                )}
             </button>
         </main>
     );

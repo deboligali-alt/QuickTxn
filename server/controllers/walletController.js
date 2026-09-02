@@ -538,6 +538,7 @@ const bankTransfer = async (req, res) => {
         return res.status(400).json({
             success: false,
             message: "All fields are required.",
+            status: "FAILED",
         });
     }
 
@@ -546,17 +547,15 @@ const bankTransfer = async (req, res) => {
     try {
         await client.query("BEGIN");
 
-        await pinService.verifyPin(
-            req.user.id,
-            pin,
-            client
-        );
+        // Verify Transaction PIN
+        await pinService.verifyPin(req.user.id, pin, client);
 
+        // Lock wallet
         const wallet = await client.query(
             `SELECT balance
-       FROM wallets
-       WHERE user_id=$1
-       FOR UPDATE`,
+             FROM wallets
+             WHERE user_id = $1
+             FOR UPDATE`,
             [req.user.id]
         );
 
@@ -567,11 +566,12 @@ const bankTransfer = async (req, res) => {
 
             return res.status(400).json({
                 success: false,
-                message: "Insufficient balance.",
+                message: "Insufficient wallet balance.",
+                status: "FAILED",
             });
         }
 
-        // Create recipient
+        // Create Paystack recipient
         const recipient = await axios.post(
             "https://api.paystack.co/transferrecipient",
             {
@@ -584,6 +584,7 @@ const bankTransfer = async (req, res) => {
             {
                 headers: {
                     Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+                    "Content-Type": "application/json",
                 },
             }
         );
@@ -594,92 +595,115 @@ const bankTransfer = async (req, res) => {
             {
                 source: "balance",
                 amount: Number(amount) * 100,
-                recipient:
-                    recipient.data.data.recipient_code,
-                reason: "QuickTxn Withdrawal",
+                recipient: recipient.data.data.recipient_code,
+                reason: "QuickTxn Bank Transfer",
             },
             {
                 headers: {
                     Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+                    "Content-Type": "application/json",
                 },
             }
         );
 
+        const providerReference = transfer.data.data.reference;
+        const reference = `TRF-${Date.now()}`;
+
         // Debit wallet
+        await walletService.debitWallet(
+            req.user.id,
+            amount,
+            client
+        );
+
+        // Save bank transfer history
         await client.query(
-            `UPDATE wallets
-       SET balance=$1,
-           updated_at=NOW()
-       WHERE user_id=$2`,
+            `INSERT INTO bank_transfers
+            (
+                user_id,
+                account_name,
+                account_number,
+                bank_code,
+                amount,
+                reference,
+                provider_reference,
+                status
+            )
+            VALUES
+            ($1,$2,$3,$4,$5,$6,$7,$8)`,
             [
-                balance - Number(amount),
                 req.user.id,
+                accountName,
+                accountNumber,
+                bankCode,
+                amount,
+                reference,
+                providerReference,
+                "SUCCESS",
             ]
         );
 
         // Save transaction
-        await client.query(
-            `INSERT INTO transactions
-      (
-        sender_id,
-        type,
-        amount,
-        status,
-        reference,
-        description,
-        payment_provider,
-        payment_reference
-      )
-      VALUES($1,$2,$3,$4,$5,$6,$7,$8)`,
-            [
-                req.user.id,
-                "BANK_TRANSFER",
+        await transactionService.createTransaction(
+            {
+                senderId: req.user.id,
+                type: "BANK_TRANSFER",
                 amount,
-                "pending",
-                `TXN-${Date.now()}`,
-                "Wallet to Bank",
-                "Paystack",
-                transfer.data.data.reference,
-            ]
+                status: "SUCCESS",
+                description: `Transfer to ${accountName}`,
+                reference,
+            },
+            client
         );
 
         // Notification
-        await client.query(
-            `INSERT INTO notifications
-      (user_id,title,message)
-      VALUES($1,$2,$3)`,
-            [
-                req.user.id,
-                "Bank Transfer",
-                `₦${Number(amount).toLocaleString()} transfer initiated.`,
-            ]
+        await notificationService.createNotification(
+            {
+                userId: req.user.id,
+                title: "Bank Transfer Successful",
+                message: `₦${Number(amount).toLocaleString()} sent to ${accountName}.`,
+            },
+            client
         );
 
         await client.query("COMMIT");
 
-        // REALTIME UPDATE
+        // Socket update
         const io = req.app.get("io");
-
         io.to(req.user.id).emit("wallet_updated");
         io.to(req.user.id).emit("new_transaction");
 
         return res.status(200).json({
             success: true,
-            message: "Transfer initiated successfully.",
-            data: transfer.data.data,
+            status: "SUCCESS",
+            message: "Bank transfer successful.",
+            data: {
+                reference,
+                providerReference,
+                accountName,
+                accountNumber,
+                bankCode,
+                amount: Number(amount),
+                status: "SUCCESS",
+                createdAt: new Date(),
+            },
         });
 
     } catch (error) {
-
         await client.query("ROLLBACK");
+
+        console.error(error.response?.data || error.message);
 
         return res.status(500).json({
             success: false,
-            message: "Bank transfer failed.",
+            status: "FAILED",
+            message:
+                error.response?.data?.message ||
+                error.message ||
+                "Bank transfer failed.",
         });
 
     } finally {
-
         client.release();
     }
 };
