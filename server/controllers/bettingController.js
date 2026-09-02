@@ -1,5 +1,5 @@
 const { pool } = require("../config/db");
-
+const axios = require("axios");
 const walletService = require("../services/walletService");
 const transactionService = require("../services/transactionService");
 const notificationService = require("../services/notificationService");
@@ -37,6 +37,13 @@ const getProviders = async (req, res) => {
     }
 };
 
+
+
+// ========================================
+// Verify Betting Customer
+// ========================================
+const axios = require("axios");
+
 // ========================================
 // Verify Betting Customer
 // ========================================
@@ -51,25 +58,53 @@ const verifyCustomer = async (req, res) => {
     }
 
     try {
-        // Demo response (replace with real provider API later)
+        const response = await axios.post(
+            "https://sandbox.vtpass.com/api/merchant-verify",
+            {
+                billersCode: customerId,
+                serviceID: company,
+            },
+            {
+                headers: {
+                    "api-key": process.env.VTPASS_API_KEY,
+                    "secret-key": process.env.VTPASS_SECRET_KEY,
+                    "Content-Type": "application/json",
+                },
+            }
+        );
+
+        const customerName =
+            response.data?.content?.Customer_Name ||
+            response.data?.content?.customer_name ||
+            response.data?.content?.name;
+
+        if (!customerName) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid Betting User ID.",
+            });
+        }
+
         return res.status(200).json({
             success: true,
+            message: "Customer verified successfully.",
             data: {
-                name: "Adebowale Ibrahim",
+                name: customerName,
                 customerId,
                 company,
             },
         });
     } catch (error) {
-        console.error(error);
+        console.error(error.response?.data || error);
 
-        return res.status(500).json({
+        return res.status(400).json({
             success: false,
-            message: "Server Error",
+            message:
+                error.response?.data?.response_description ||
+                "Unable to verify betting customer.",
         });
     }
 };
-
 // ========================================
 // Fund Betting Wallet
 // ========================================
