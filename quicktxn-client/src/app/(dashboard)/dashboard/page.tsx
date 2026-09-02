@@ -31,7 +31,7 @@ export default function DashboardPage() {
 
             // Load unread notifications
             const unread = await api.get("/notifications/unread-count");
-            setUnreadCount(unread.data.count);
+            setUnreadCount(unread.data.count || 0);
         } catch (err) {
             console.error(err);
         }
@@ -47,6 +47,20 @@ export default function DashboardPage() {
             sessionStorage.removeItem("refresh_dashboard");
         }
     }, [loadDashboard]);
+
+    // Auto refresh notification badge every 5 seconds
+    useEffect(() => {
+        const interval = setInterval(async () => {
+            try {
+                const res = await api.get("/notifications/unread-count");
+                setUnreadCount(res.data.count || 0);
+            } catch (err) {
+                console.error(err);
+            }
+        }, 5000);
+
+        return () => clearInterval(interval);
+    }, []);
 
     // Payment + Cashback Toast
     useEffect(() => {

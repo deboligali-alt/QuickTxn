@@ -38,27 +38,37 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     const initialize = async () => {
-      await loadNotifications();
-
       try {
-        // Mark every notification as read
-        await api.patch("/notifications/read-all");
+        const res = await api.get("/notifications");
+        const data = res.data.data || [];
 
-        // Refresh dashboard badge
-        sessionStorage.setItem(
-          "refresh_dashboard",
-          "true"
+        setNotifications(data);
+        setLoading(false);
+
+        const hasUnread = data.some(
+          (item: Notification) => !item.is_read
         );
 
-        // Update local state
-        setNotifications((prev) =>
-          prev.map((item) => ({
-            ...item,
-            is_read: true,
-          }))
-        );
-      } catch (err) {
-        console.error(err);
+        if (hasUnread) {
+          await api.patch("/notifications/read-all");
+
+          // Update UI instantly
+          setNotifications((prev) =>
+            prev.map((item) => ({
+              ...item,
+              is_read: true,
+            }))
+          );
+
+          // Refresh dashboard & badges
+          sessionStorage.setItem("refresh_dashboard", "true");
+          window.dispatchEvent(
+            new Event("notifications-updated")
+          );
+        }
+      } catch {
+        setLoading(false);
+        toast.error("Unable to load notifications");
       }
     };
 
@@ -71,6 +81,10 @@ export default function NotificationsPage() {
 
       setNotifications((prev) =>
         prev.filter((item) => item.id !== id)
+      );
+
+      window.dispatchEvent(
+        new Event("notifications-updated")
       );
 
       toast.success("Notification deleted");
@@ -116,9 +130,11 @@ export default function NotificationsPage() {
         ) : notifications.length === 0 ? (
           <div className="rounded-3xl bg-white p-12 text-center shadow-sm">
             <Bell size={42} className="mx-auto text-gray-300" />
+
             <p className="mt-4 font-medium text-gray-700">
               No notifications yet
             </p>
+
             <p className="mt-1 text-sm text-gray-500">
               You'll receive wallet and transaction updates here.
             </p>
