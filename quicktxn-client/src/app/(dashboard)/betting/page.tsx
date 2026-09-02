@@ -1,11 +1,16 @@
-
 "use client";
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
-import { ArrowLeft, Trophy } from "lucide-react";
+import {
+    ArrowLeft,
+    Trophy,
+    CheckCircle2,
+    AlertCircle,
+    Clock3,
+} from "lucide-react";
 
 interface Provider {
     provider_name: string;
@@ -31,6 +36,11 @@ export default function BettingPage() {
     const [pin, setPin] = useState("");
     const [loading, setLoading] = useState(false);
 
+    const [status, setStatus] = useState<
+        "" | "SUCCESS" | "FAILED" | "PENDING"
+    >("");
+    const [message, setMessage] = useState("");
+
     useEffect(() => {
         const loadProviders = async () => {
             try {
@@ -49,8 +59,13 @@ export default function BettingPage() {
     }, []);
 
     const verifyCustomer = async () => {
+        setStatus("");
+        setMessage("");
+
         if (!bettingUserId) {
-            return alert("Enter Betting User ID");
+            setStatus("FAILED");
+            setMessage("Enter Betting User ID.");
+            return;
         }
 
         try {
@@ -60,35 +75,68 @@ export default function BettingPage() {
             });
 
             setCustomerName(res.data.data.name);
+            setStatus("SUCCESS");
+            setMessage("Customer verified successfully.");
         } catch (error: any) {
             setCustomerName("");
-            alert(error.response?.data?.message || "Customer not found");
+            setStatus("FAILED");
+            setMessage(
+                error.response?.data?.message || "Customer not found."
+            );
         }
     };
 
     const fundWallet = async () => {
+        setStatus("");
+        setMessage("");
+
         if (!customerName) {
-            return alert("Verify customer first");
+            setStatus("FAILED");
+            setMessage("Verify customer first.");
+            return;
         }
 
         if (!amount || !pin) {
-            return alert("Enter amount and PIN");
+            setStatus("FAILED");
+            setMessage("Enter amount and transaction PIN.");
+            return;
         }
 
         try {
             setLoading(true);
 
-            await api.post("/betting/fund", {
+            const res = await api.post("/betting/fund", {
                 providerCode,
                 bettingUserId,
                 amount: Number(amount),
                 pin,
             });
 
+            setStatus(res.data.status || "SUCCESS");
+            setMessage(res.data.message);
+
             sessionStorage.setItem("payment_success", "true");
-            router.push("/dashboard");
+
+            if (res.data.data?.cashback) {
+                sessionStorage.setItem(
+                    "cashback_amount",
+                    String(res.data.data.cashback)
+                );
+            }
+
+            sessionStorage.setItem(
+                "betting_receipt",
+                JSON.stringify(res.data.data)
+            );
+
+            setTimeout(() => {
+                router.replace("/dashboard");
+            }, 1800);
         } catch (error: any) {
-            alert(error.response?.data?.message || "Payment failed");
+            setStatus(error.response?.data?.status || "FAILED");
+            setMessage(
+                error.response?.data?.message || "Payment failed."
+            );
         } finally {
             setLoading(false);
         }
@@ -121,6 +169,39 @@ export default function BettingPage() {
                     </div>
                 </div>
 
+                {/* SUCCESS */}
+                {status === "SUCCESS" && (
+                    <div className="mt-4 flex items-start gap-3 rounded-2xl border border-green-200 bg-green-50 p-4 text-green-700">
+                        <CheckCircle2 size={20} />
+                        <div>
+                            <p className="font-semibold">Success</p>
+                            <p className="text-sm">{message}</p>
+                        </div>
+                    </div>
+                )}
+
+                {/* FAILED */}
+                {status === "FAILED" && (
+                    <div className="mt-4 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700">
+                        <AlertCircle size={20} />
+                        <div>
+                            <p className="font-semibold">Failed</p>
+                            <p className="text-sm">{message}</p>
+                        </div>
+                    </div>
+                )}
+
+                {/* PENDING */}
+                {status === "PENDING" && (
+                    <div className="mt-4 flex items-start gap-3 rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-yellow-700">
+                        <Clock3 size={20} />
+                        <div>
+                            <p className="font-semibold">Pending</p>
+                            <p className="text-sm">{message}</p>
+                        </div>
+                    </div>
+                )}
+
                 {/* Form */}
                 <div className="mt-5 rounded-3xl bg-white p-5 shadow-sm">
                     <h2 className="mb-4 text-lg font-bold">
@@ -135,6 +216,7 @@ export default function BettingPage() {
                                 onClick={() => {
                                     setProviderCode(provider.provider_code);
                                     setCustomerName("");
+                                    setStatus("");
                                 }}
                                 className={`rounded-2xl border-2 p-3 transition ${providerCode === provider.provider_code
                                         ? "border-green-600 bg-green-50"
@@ -152,7 +234,7 @@ export default function BettingPage() {
                                         height={40}
                                         className="rounded-lg object-contain"
                                     />
-                                    <span className="text-[11px] font-semibold text-center">
+                                    <span className="text-center text-[11px] font-semibold">
                                         {provider.provider_name}
                                     </span>
                                 </div>
@@ -214,7 +296,9 @@ export default function BettingPage() {
                         type="password"
                         maxLength={4}
                         value={pin}
-                        onChange={(e) => setPin(e.target.value)}
+                        onChange={(e) =>
+                            setPin(e.target.value.replace(/\D/g, ""))
+                        }
                         placeholder="****"
                         className="w-full rounded-xl border p-3 text-center text-lg tracking-[0.5em] outline-none focus:border-green-500"
                     />
