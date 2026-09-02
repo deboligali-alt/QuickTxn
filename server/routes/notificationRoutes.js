@@ -5,9 +5,10 @@ const verifyToken = require("../middleware/authMiddleware");
 
 const {
     getNotifications,
+    getUnreadCount,
     markAsRead,
     markAllAsRead,
-    deleteNotification
+    deleteNotification,
 } = require("../controllers/notificationController");
 
 /**
@@ -30,14 +31,18 @@ router.get("/", verifyToken, getNotifications);
 
 /**
  * @swagger
- * /api/notifications/{id}/read:
- *   patch:
- *     summary: Mark one notification as read
+ * /api/notifications/unread-count:
+ *   get:
+ *     summary: Get unread notification count
  *     tags: [Notifications]
  *     security:
  *       - bearerAuth: []
  */
-router.patch("/:id/read", verifyToken, markAsRead);
+router.get(
+    "/unread-count",
+    verifyToken,
+    getUnreadCount
+);
 
 /**
  * @swagger
@@ -48,7 +53,26 @@ router.patch("/:id/read", verifyToken, markAsRead);
  *     security:
  *       - bearerAuth: []
  */
-router.patch("/read-all", verifyToken, markAllAsRead);
+router.patch(
+    "/read-all",
+    verifyToken,
+    markAllAsRead
+);
+
+/**
+ * @swagger
+ * /api/notifications/{id}/read:
+ *   patch:
+ *     summary: Mark one notification as read
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.patch(
+    "/:id/read",
+    verifyToken,
+    markAsRead
+);
 
 /**
  * @swagger
@@ -59,6 +83,10 @@ router.patch("/read-all", verifyToken, markAllAsRead);
  *     security:
  *       - bearerAuth: []
  */
-router.delete("/:id", verifyToken, deleteNotification);
+router.delete(
+    "/:id",
+    verifyToken,
+    deleteNotification
+);
 
 module.exports = router;

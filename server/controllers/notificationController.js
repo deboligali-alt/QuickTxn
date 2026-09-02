@@ -59,10 +59,7 @@ const markAsRead = async (req, res) => {
 
     try {
         const notification =
-            await notificationService.markAsRead(
-                id,
-                req.user.id
-            );
+            await notificationService.markAsRead(id, req.user.id);
 
         if (!notification) {
             return res.status(404).json({
@@ -120,10 +117,7 @@ const deleteNotification = async (req, res) => {
 
     try {
         const notification =
-            await notificationService.deleteNotification(
-                id,
-                req.user.id
-            );
+            await notificationService.deleteNotification(id, req.user.id);
 
         if (!notification) {
             return res.status(404).json({
