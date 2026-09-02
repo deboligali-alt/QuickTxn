@@ -1,26 +1,23 @@
-const { pool } = require("../config/db");
 const pinService = require("../services/pinService");
 
 // ================================
 // Create PIN
 // ================================
 const createPin = async (req, res) => {
-
     try {
-
         const { pin } = req.body;
 
         if (!pin) {
             return res.status(400).json({
                 success: false,
-                message: "PIN is required."
+                message: "PIN is required.",
             });
         }
 
         if (!/^\d{4}$/.test(pin)) {
             return res.status(400).json({
                 success: false,
-                message: "PIN must be exactly 4 digits."
+                message: "PIN must be exactly 4 digits.",
             });
         }
 
@@ -28,101 +25,89 @@ const createPin = async (req, res) => {
 
         return res.status(201).json({
             success: true,
-            message: "Transaction PIN created successfully."
+            message: "Transaction PIN created successfully.",
         });
-
     } catch (error) {
-
         console.error(error);
 
         return res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
-
     }
-
 };
 
 // ================================
 // Change PIN
 // ================================
 const changePin = async (req, res) => {
-
     try {
+        const { currentPin, newPin } = req.body;
 
-        const { oldPin, newPin } = req.body;
-
-        if (!oldPin || !newPin) {
+        if (!currentPin || !newPin) {
             return res.status(400).json({
                 success: false,
-                message: "Old PIN and new PIN are required."
+                message: "Current PIN and new PIN are required.",
             });
         }
 
         if (!/^\d{4}$/.test(newPin)) {
             return res.status(400).json({
                 success: false,
-                message: "New PIN must be exactly 4 digits."
+                message: "New PIN must be exactly 4 digits.",
             });
         }
 
         await pinService.changePin(
             req.user.id,
-            oldPin,
+            currentPin,
             newPin
         );
 
-        return res.json({
+        return res.status(200).json({
             success: true,
-            message: "Transaction PIN changed successfully."
+            message: "Transaction PIN changed successfully.",
         });
-
     } catch (error) {
-
         console.error(error);
 
         return res.status(400).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
-
     }
-
 };
 
 // ================================
 // Verify PIN
 // ================================
 const verifyPin = async (req, res) => {
-
     try {
-
         const { pin } = req.body;
 
-        await pinService.verifyPin(
-            req.user.id,
-            pin
-        );
+        if (!pin) {
+            return res.status(400).json({
+                success: false,
+                message: "PIN is required.",
+            });
+        }
 
-        return res.json({
+        await pinService.verifyPin(req.user.id, pin);
+
+        return res.status(200).json({
             success: true,
-            message: "PIN verified successfully."
+            message: "PIN verified successfully.",
         });
-
     } catch (error) {
-
         return res.status(400).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
-
     }
-
 };
 
 module.exports = {
     createPin,
     changePin,
-    verifyPin
+    verifyPin,
 };

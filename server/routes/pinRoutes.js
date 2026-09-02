@@ -6,7 +6,7 @@ const verifyToken = require("../middleware/authMiddleware");
 const {
     createPin,
     changePin,
-    verifyPin
+    verifyPin,
 } = require("../controllers/pinController");
 
 /**
@@ -24,61 +24,19 @@ const {
  *     tags: [Transaction PIN]
  *     security:
  *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - pin
- *             properties:
- *               pin:
- *                 type: string
- *                 example: "1234"
- *     responses:
- *       201:
- *         description: Transaction PIN created successfully
- *       400:
- *         description: Invalid PIN
- *       401:
- *         description: Unauthorized
  */
 router.post("/create", verifyToken, createPin);
 
 /**
  * @swagger
  * /api/pin/change:
- *   post:
+ *   patch:
  *     summary: Change transaction PIN
  *     tags: [Transaction PIN]
  *     security:
  *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - oldPin
- *               - newPin
- *             properties:
- *               oldPin:
- *                 type: string
- *                 example: "1234"
- *               newPin:
- *                 type: string
- *                 example: "5678"
- *     responses:
- *       200:
- *         description: Transaction PIN changed successfully
- *       400:
- *         description: Invalid PIN
- *       401:
- *         description: Unauthorized
  */
-router.post("/change", verifyToken, changePin);
+router.patch("/change", verifyToken, changePin);
 
 /**
  * @swagger
@@ -88,25 +46,6 @@ router.post("/change", verifyToken, changePin);
  *     tags: [Transaction PIN]
  *     security:
  *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - pin
- *             properties:
- *               pin:
- *                 type: string
- *                 example: "1234"
- *     responses:
- *       200:
- *         description: PIN verified successfully
- *       400:
- *         description: Invalid PIN
- *       401:
- *         description: Unauthorized
  */
 router.post("/verify", verifyToken, verifyPin);
 
