@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import useDashboardRealtime from "@/hooks/useDashboardRealtime";
 
 interface Notification {
   id: string;
@@ -24,6 +25,7 @@ export default function NotificationsPage() {
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<string>();
 
   const loadNotifications = async () => {
     try {
@@ -39,6 +41,13 @@ export default function NotificationsPage() {
   useEffect(() => {
     const initialize = async () => {
       try {
+        const token = localStorage.getItem("token");
+
+        if (token) {
+          const payload = JSON.parse(atob(token.split(".")[1]));
+          setUserId(payload.id);
+        }
+
         const res = await api.get("/notifications");
         const data = res.data.data || [];
 
@@ -52,7 +61,6 @@ export default function NotificationsPage() {
         if (hasUnread) {
           await api.patch("/notifications/read-all");
 
-          // Update UI instantly
           setNotifications((prev) =>
             prev.map((item) => ({
               ...item,
@@ -60,7 +68,6 @@ export default function NotificationsPage() {
             }))
           );
 
-          // Refresh dashboard & badges
           sessionStorage.setItem("refresh_dashboard", "true");
           window.dispatchEvent(
             new Event("notifications-updated")
@@ -75,6 +82,18 @@ export default function NotificationsPage() {
     initialize();
   }, []);
 
+  // REALTIME SOCKET.IO
+  useDashboardRealtime(userId, loadNotifications, async () => {
+    await loadNotifications();
+
+    sessionStorage.setItem("refresh_dashboard", "true");
+    window.dispatchEvent(
+      new Event("notifications-updated")
+    );
+
+    toast.success("New notification received");
+  });
+
   const deleteNotification = async (id: string) => {
     try {
       await api.delete(`/notifications/${id}`);
@@ -83,6 +102,7 @@ export default function NotificationsPage() {
         prev.filter((item) => item.id !== id)
       );
 
+      sessionStorage.setItem("refresh_dashboard", "true");
       window.dispatchEvent(
         new Event("notifications-updated")
       );
@@ -129,7 +149,10 @@ export default function NotificationsPage() {
           </div>
         ) : notifications.length === 0 ? (
           <div className="rounded-3xl bg-white p-12 text-center shadow-sm">
-            <Bell size={42} className="mx-auto text-gray-300" />
+            <Bell
+              size={42}
+              className="mx-auto text-gray-300"
+            />
 
             <p className="mt-4 font-medium text-gray-700">
               No notifications yet
