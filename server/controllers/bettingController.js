@@ -42,11 +42,6 @@ const getProviders = async (req, res) => {
 // ========================================
 // Verify Betting Customer
 // ========================================
-const axios = require("axios");
-
-// ========================================
-// Verify Betting Customer
-// ========================================
 const verifyCustomer = async (req, res) => {
     const { company, customerId } = req.body;
 
