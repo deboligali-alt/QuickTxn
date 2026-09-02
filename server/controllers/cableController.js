@@ -1,12 +1,30 @@
 const axios = require("axios");
 const { pool } = require("../config/db");
+const walletService = require("../services/walletService");
+const transactionService = require("../services/transactionService");
+const notificationService = require("../services/notificationService");
+const pinService = require("../services/pinService");
+const { giveCashback } = require("../services/cashbackService");
 
 const purchaseCable = async (req, res) => {
-    const { provider, smartCard, bouquet, amount } = req.body;
+    const {
+        provider,
+        smartCard,
+        bouquet,
+        amount,
+        pin,
+    } = req.body;
 
-    if (!provider || !smartCard || !bouquet || !amount) {
+    if (
+        !provider ||
+        !smartCard ||
+        !bouquet ||
+        !amount ||
+        !pin
+    ) {
         return res.status(400).json({
             success: false,
+            status: "FAILED",
             message: "All fields are required.",
         });
     }
@@ -16,11 +34,14 @@ const purchaseCable = async (req, res) => {
     try {
         await client.query("BEGIN");
 
-        // Check wallet balance
+        // Verify PIN
+        await pinService.verifyPin(req.user.id, pin, client);
+
+        // Wallet
         const wallet = await client.query(
             `SELECT balance
              FROM wallets
-             WHERE user_id = $1
+             WHERE user_id=$1
              FOR UPDATE`,
             [req.user.id]
         );
@@ -32,15 +53,16 @@ const purchaseCable = async (req, res) => {
 
             return res.status(400).json({
                 success: false,
+                status: "FAILED",
                 message: "Insufficient wallet balance.",
             });
         }
 
-        // VTpass purchase
+        // VTpass
         const vtpass = await axios.post(
             "https://sandbox.vtpass.com/api/pay",
             {
-                request_id: `QTX-${Date.now()}`,
+                request_id: `CBL-${Date.now()}`,
                 serviceID: provider,
                 billersCode: smartCard,
                 variation_code: bouquet,
@@ -51,75 +73,92 @@ const purchaseCable = async (req, res) => {
                 headers: {
                     "api-key": process.env.VTPASS_API_KEY,
                     "secret-key": process.env.VTPASS_SECRET_KEY,
-                    "Content-Type": "application/json",
                 },
             }
         );
 
-        // Deduct wallet
-        await client.query(
-            `UPDATE wallets
-             SET balance = balance - $1
-             WHERE user_id = $2`,
-            [amount, req.user.id]
+        const reference = `CBL-${Date.now()}`;
+
+        await walletService.debitWallet(
+            req.user.id,
+            amount,
+            client
         );
 
-        // Save transaction
-        await client.query(
-            `INSERT INTO transactions
-            (
-                sender_id,
-                type,
+        await transactionService.createTransaction(
+            {
+                senderId: req.user.id,
+                type: "CABLE",
                 amount,
-                description,
-                status,
+                status: "SUCCESS",
+                description: `${provider.toUpperCase()} Subscription`,
                 reference,
-                payment_provider
-            )
-            VALUES
-            ($1,'DEBIT',$2,$3,'SUCCESS',$4,'VTPASS')`,
-            [
-                req.user.id,
-                amount,
-                `Cable TV - ${provider.toUpperCase()}`,
-                `CBL-${Date.now()}`,
-            ]
+            },
+            client
         );
 
-        // Notification
-        await client.query(
-            `INSERT INTO notifications
-            (user_id,title,message)
-            VALUES ($1,$2,$3)`,
-            [
-                req.user.id,
-                "Cable Subscription",
-                `₦${Number(amount).toLocaleString()} ${provider.toUpperCase()} subscription successful.`,
-            ]
+        await notificationService.createNotification(
+            {
+                userId: req.user.id,
+                title: "Cable Subscription",
+                message: `₦${Number(amount).toLocaleString()} ${provider.toUpperCase()} subscription successful.`,
+            },
+            client
         );
+
+        const cashback = await giveCashback(
+            req.user.id,
+            "CABLE",
+            amount,
+            client
+        );
+
+        if (cashback > 0) {
+            await walletService.creditWallet(
+                req.user.id,
+                cashback,
+                client
+            );
+
+            await transactionService.createTransaction(
+                {
+                    senderId: req.user.id,
+                    type: "CASHBACK",
+                    amount: cashback,
+                    status: "SUCCESS",
+                    description: "Cable Cashback",
+                    reference: `CB-${Date.now()}`,
+                },
+                client
+            );
+        }
 
         await client.query("COMMIT");
 
         return res.status(200).json({
             success: true,
+            status: "SUCCESS",
             message: "Subscription successful.",
             data: {
                 provider,
                 smartCard,
                 bouquet,
                 amount,
-                reference: vtpass.data?.requestId || `CBL-${Date.now()}`,
+                cashback,
+                reference,
             },
         });
 
     } catch (error) {
         await client.query("ROLLBACK");
 
-        console.error(error.response?.data || error);
-
         return res.status(500).json({
             success: false,
-            message: "Cable subscription failed.",
+            status: "FAILED",
+            message:
+                error.response?.data?.message ||
+                error.message ||
+                "Cable subscription failed.",
         });
 
     } finally {
@@ -127,6 +166,4 @@ const purchaseCable = async (req, res) => {
     }
 };
 
-module.exports = {
-    purchaseCable,
-};
+module.exports = { purchaseCable };

@@ -2,15 +2,18 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import api from "@/lib/api";
 import {
     ArrowLeft,
     Tv,
     CheckCircle2,
     CreditCard,
     Wallet,
+    AlertCircle,
+    Loader2,
+    ShieldCheck,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { toast } from "sonner";
 
 const providers = [
     { id: "dstv", name: "DSTV", color: "bg-blue-600" },
@@ -40,28 +43,76 @@ export default function CablePage() {
     const [smartCard, setSmartCard] = useState("");
     const [bouquet, setBouquet] = useState("");
     const [amount, setAmount] = useState("");
+    const [pin, setPin] = useState("");
+
+    const [loading, setLoading] = useState(false);
+
+    const [status, setStatus] = useState<
+        "SUCCESS" | "FAILED" | "PENDING" | ""
+    >("");
+    const [message, setMessage] = useState("");
 
     const selectedProvider = providers.find(
         (p) => p.id === provider
     );
 
-    const continuePayment = () => {
-        if (!provider || !smartCard || !bouquet || !amount) {
-            toast.error("Complete all fields");
+    const payCable = async () => {
+        setStatus("");
+        setMessage("");
+
+        if (
+            !provider ||
+            !smartCard ||
+            !bouquet ||
+            !amount ||
+            !pin
+        ) {
+            setStatus("FAILED");
+            setMessage("Complete all fields.");
             return;
         }
 
-        sessionStorage.setItem(
-            "cable",
-            JSON.stringify({
+        try {
+            setLoading(true);
+
+            const res = await api.post("/cable/purchase", {
                 provider,
                 smartCard,
                 bouquet,
-                amount,
-            })
-        );
+                amount: Number(amount),
+                pin,
+            });
 
-        router.push("/cable/confirm");
+            setStatus(res.data.status || "SUCCESS");
+            setMessage(res.data.message);
+
+            sessionStorage.setItem("payment_success", "true");
+
+            if (res.data.data?.cashback) {
+                sessionStorage.setItem(
+                    "cashback_amount",
+                    String(res.data.data.cashback)
+                );
+            }
+
+            sessionStorage.setItem(
+                "cable_receipt",
+                JSON.stringify(res.data.data)
+            );
+
+            setTimeout(() => {
+                router.replace("/dashboard");
+            }, 1800);
+
+        } catch (err: any) {
+            setStatus("FAILED");
+            setMessage(
+                err.response?.data?.message ||
+                "Subscription failed."
+            );
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -75,7 +126,6 @@ export default function CablePage() {
                     Back
                 </button>
 
-                {/* Hero */}
                 <motion.div
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -97,8 +147,46 @@ export default function CablePage() {
                     </div>
                 </motion.div>
 
+                {status === "SUCCESS" && (
+                    <div className="mt-5 flex items-start gap-3 rounded-2xl border border-green-200 bg-green-50 p-4 text-green-700">
+                        <CheckCircle2 size={22} />
+                        <div>
+                            <p className="font-bold">
+                                Payment Successful
+                            </p>
+                            <p className="text-sm">{message}</p>
+                        </div>
+                    </div>
+                )}
+
+                {status === "FAILED" && (
+                    <div className="mt-5 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700">
+                        <AlertCircle size={22} />
+                        <div>
+                            <p className="font-bold">
+                                Payment Failed
+                            </p>
+                            <p className="text-sm">{message}</p>
+                        </div>
+                    </div>
+                )}
+
+                {status === "PENDING" && (
+                    <div className="mt-5 flex items-start gap-3 rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-yellow-700">
+                        <Loader2
+                            size={22}
+                            className="animate-spin"
+                        />
+                        <div>
+                            <p className="font-bold">
+                                Payment Pending
+                            </p>
+                            <p className="text-sm">{message}</p>
+                        </div>
+                    </div>
+                )}
+
                 <div className="mt-6 grid gap-6 lg:grid-cols-3">
-                    {/* Left */}
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -109,9 +197,8 @@ export default function CablePage() {
                                 Subscription Details
                             </h2>
 
-                            {/* Provider */}
                             <div className="mt-6">
-                                <label className="mb-3 block text-sm font-semibold text-gray-700">
+                                <label className="mb-3 block text-sm font-semibold">
                                     Select Provider
                                 </label>
 
@@ -126,7 +213,7 @@ export default function CablePage() {
                                             }}
                                             className={`rounded-2xl border-2 p-3 transition ${provider === item.id
                                                     ? "border-indigo-600 bg-indigo-50"
-                                                    : "border-gray-200 hover:border-indigo-300"
+                                                    : "border-gray-200"
                                                 }`}
                                         >
                                             <div
@@ -153,9 +240,8 @@ export default function CablePage() {
                                 </div>
                             </div>
 
-                            {/* Smart Card */}
                             <div className="mt-6">
-                                <label className="mb-2 block text-sm font-semibold text-gray-700">
+                                <label className="mb-2 block text-sm font-semibold">
                                     Smart Card / IUC Number
                                 </label>
 
@@ -167,20 +253,22 @@ export default function CablePage() {
 
                                     <input
                                         value={smartCard}
-                                        placeholder="Enter Smart Card Number"
                                         onChange={(e) =>
                                             setSmartCard(
-                                                e.target.value.replace(/\D/g, "")
+                                                e.target.value.replace(
+                                                    /\D/g,
+                                                    ""
+                                                )
                                             )
                                         }
-                                        className="h-12 w-full rounded-xl border border-gray-200 pl-11 pr-4 outline-none focus:border-indigo-600"
+                                        placeholder="Enter Smart Card Number"
+                                        className="h-12 w-full rounded-xl border pl-11 pr-4 outline-none focus:border-indigo-600"
                                     />
                                 </div>
                             </div>
 
-                            {/* Bouquet */}
                             <div className="mt-6">
-                                <label className="mb-3 block text-sm font-semibold text-gray-700">
+                                <label className="mb-3 block text-sm font-semibold">
                                     Select Bouquet
                                 </label>
 
@@ -193,11 +281,15 @@ export default function CablePage() {
                                                 key={item.name}
                                                 onClick={() => {
                                                     setBouquet(item.name);
-                                                    setAmount(String(item.price));
+                                                    setAmount(
+                                                        String(
+                                                            item.price
+                                                        )
+                                                    );
                                                 }}
                                                 className={`rounded-xl border-2 p-4 text-left transition ${bouquet === item.name
                                                         ? "border-indigo-600 bg-indigo-600 text-white"
-                                                        : "border-gray-200 hover:border-indigo-400"
+                                                        : "border-gray-200"
                                                     }`}
                                             >
                                                 <div className="flex items-center justify-between">
@@ -220,16 +312,55 @@ export default function CablePage() {
                                 </div>
                             </div>
 
+                            <div className="mt-6">
+                                <label className="mb-2 block text-sm font-semibold">
+                                    Transaction PIN
+                                </label>
+
+                                <div className="relative">
+                                    <ShieldCheck
+                                        size={18}
+                                        className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+                                    />
+
+                                    <input
+                                        type="password"
+                                        maxLength={4}
+                                        value={pin}
+                                        onChange={(e) =>
+                                            setPin(
+                                                e.target.value.replace(
+                                                    /\D/g,
+                                                    ""
+                                                )
+                                            )
+                                        }
+                                        placeholder="••••"
+                                        className="h-12 w-full rounded-xl border pl-11 pr-4 text-center tracking-[8px] outline-none focus:border-indigo-600"
+                                    />
+                                </div>
+                            </div>
+
                             <button
-                                onClick={continuePayment}
-                                className="mt-7 flex h-14 w-full items-center justify-center rounded-2xl bg-indigo-600 font-semibold text-white transition hover:bg-indigo-700"
+                                onClick={payCable}
+                                disabled={loading}
+                                className="mt-7 flex h-14 w-full items-center justify-center rounded-2xl bg-indigo-600 font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-60"
                             >
-                                Continue Payment
+                                {loading ? (
+                                    <>
+                                        <Loader2
+                                            size={18}
+                                            className="mr-2 animate-spin"
+                                        />
+                                        Processing...
+                                    </>
+                                ) : (
+                                    "Pay Subscription"
+                                )}
                             </button>
                         </div>
                     </motion.div>
 
-                    {/* Right */}
                     <motion.div
                         initial={{ opacity: 0, x: 15 }}
                         animate={{ opacity: 1, x: 0 }}
@@ -299,19 +430,6 @@ export default function CablePage() {
                                 <div>🔒 Secure payment</div>
                                 <div>🌍 DSTV, GOtv & Startimes</div>
                             </div>
-                        </div>
-
-                        <div className="rounded-3xl bg-white p-5 shadow-sm">
-                            <h3 className="mb-3 font-bold">
-                                Quick Tips
-                            </h3>
-
-                            <ul className="space-y-2 text-sm text-gray-600">
-                                <li>• Enter the correct IUC number.</li>
-                                <li>• Select the desired bouquet.</li>
-                                <li>• Subscription activates instantly.</li>
-                                <li>• A receipt will be generated.</li>
-                            </ul>
                         </div>
                     </motion.div>
                 </div>
