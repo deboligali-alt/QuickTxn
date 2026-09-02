@@ -64,13 +64,8 @@ export default function BettingPage() {
     // Verify Betting Customer
     // ========================================
     const verifyCustomer = async () => {
-        setStatus("");
-        setMessage("");
-
         if (!bettingUserId) {
-            setStatus("FAILED");
-            setMessage("Enter Betting User ID.");
-            return;
+            return alert("Enter Betting User ID");
         }
 
         try {
@@ -79,15 +74,16 @@ export default function BettingPage() {
                 customerId: bettingUserId,
             });
 
+            console.log("VERIFY RESPONSE:", res.data);
+
             setCustomerName(res.data.data.name);
-            setStatus("SUCCESS");
-            setMessage(res.data.message || "Customer verified successfully.");
         } catch (error: any) {
+            console.log("VERIFY ERROR:", error.response?.data);
+
             setCustomerName("");
-            setStatus("FAILED");
-            setMessage(
+            alert(
                 error.response?.data?.message ||
-                "Unable to verify betting customer."
+                "Customer not found"
             );
         }
     };
