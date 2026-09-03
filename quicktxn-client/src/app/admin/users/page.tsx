@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, type ReactNode } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
     Search,
@@ -34,8 +34,6 @@ interface User {
     is_verified: boolean;
     is_active: boolean;
     created_at: string;
-
-    // Dashboard totals (optional)
     total_transactions?: number;
     total_airtime_swaps?: number;
     total_data_purchases?: number;
@@ -54,7 +52,14 @@ export default function AdminUsersPage() {
     const [selectedUser, setSelectedUser] =
         useState<UserDetails | null>(null);
 
+    // NEW RESPONSE STATE
+    const [status, setStatus] = useState<
+        "SUCCESS" | "FAILED" | "PENDING" | ""
+    >("");
 
+    const [message, setMessage] = useState("");
+
+    const router = useRouter();
 
     const loadUsers = useCallback(async () => {
         try {
@@ -73,48 +78,86 @@ export default function AdminUsersPage() {
     useEffect(() => {
         loadUsers();
     }, [loadUsers]);
-    const router = useRouter();
+
     const handleView = async (id: string) => {
-
         try {
-
             const token = localStorage.getItem("token");
             if (!token) return;
 
             const response = await getUser(token, id);
             setSelectedUser(response.data);
-
-
-
-        } catch (error) {
-
-            console.error(error);
-
+        } catch (error: any) {
+            setStatus("FAILED");
+            setMessage(
+                error.response?.data?.message ||
+                "Unable to load user."
+            );
         }
-
     };
+
     const handleStatus = async (id: string) => {
         const token = localStorage.getItem("token");
         if (!token) return;
 
-        await toggleUserStatus(token, id);
-        loadUsers();
+        try {
+            setStatus("PENDING");
+            setMessage("Updating user status...");
+
+            const res = await toggleUserStatus(token, id);
+
+            setStatus("SUCCESS");
+            setMessage(res.message);
+
+            loadUsers();
+        } catch (error: any) {
+            setStatus("FAILED");
+            setMessage(
+                error.response?.data?.message ||
+                "Unable to update user status."
+            );
+        }
     };
 
     const handleResetPin = async (id: string) => {
         const token = localStorage.getItem("token");
         if (!token) return;
 
-        await resetUserPin(token, id);
-        alert("Transaction PIN reset successfully.");
+        try {
+            setStatus("PENDING");
+            setMessage("Resetting transaction PIN...");
+
+            const res = await resetUserPin(token, id);
+
+            setStatus("SUCCESS");
+            setMessage(res.message);
+        } catch (error: any) {
+            setStatus("FAILED");
+            setMessage(
+                error.response?.data?.message ||
+                "Unable to reset PIN."
+            );
+        }
     };
 
     const handleResetPassword = async (id: string) => {
         const token = localStorage.getItem("token");
         if (!token) return;
 
-        await resetPassword(token, id);
-        alert("Password reset token generated.");
+        try {
+            setStatus("PENDING");
+            setMessage("Generating password reset token...");
+
+            const res = await resetPassword(token, id);
+
+            setStatus("SUCCESS");
+            setMessage(res.message);
+        } catch (error: any) {
+            setStatus("FAILED");
+            setMessage(
+                error.response?.data?.message ||
+                "Unable to reset password."
+            );
+        }
     };
 
     const handleDelete = async (id: string) => {
@@ -123,9 +166,26 @@ export default function AdminUsersPage() {
         const token = localStorage.getItem("token");
         if (!token) return;
 
-        await deleteUser(token, id);
-        loadUsers();
+        try {
+            setStatus("PENDING");
+            setMessage("Deactivating user...");
+
+            const res = await deleteUser(token, id);
+
+            setStatus("SUCCESS");
+            setMessage(res.message);
+
+            loadUsers();
+            setSelectedUser(null);
+        } catch (error: any) {
+            setStatus("FAILED");
+            setMessage(
+                error.response?.data?.message ||
+                "Unable to deactivate user."
+            );
+        }
     };
+
     const filteredUsers = users.filter(
         (user) =>
             user.full_name
@@ -142,421 +202,240 @@ export default function AdminUsersPage() {
                 Loading users...
             </div>
         );
+
     }
 
     return (
-        <main className="mx-auto max-w-7xl p-8">
+        <main className="min-h-screen bg-gray-50 p-6">
+            <div className="mx-auto max-w-7xl">
+                {/* Header */}
+                <div className="mb-6 flex items-center gap-3">
+                    <button
+                        onClick={() => router.back()}
+                        className="rounded-lg bg-white p-2 shadow hover:bg-gray-100"
+                    >
+                        <ArrowLeftRight size={20} />
+                    </button>
 
-            <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-
-                <div>
-                    <h1 className="text-3xl font-bold">
-                        User Management
-                    </h1>
-
-                    <p className="mt-2 text-slate-500">
-                        Manage all registered QuickTxn users.
-                    </p>
-                </div>
-
-                <input
-                    type="text"
-                    placeholder="Search by name or email..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="w-full rounded-lg border px-4 py-3 outline-none focus:border-green-600 md:w-80"
-                />
-
-            </div>
-
-            {/* Top Statistics */}
-
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-
-                <div className="rounded-2xl bg-white p-5 shadow">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-slate-500 text-sm">Total Users</p>
-                            <h2 className="mt-2 text-3xl font-bold">
-                                {users.length}
-                            </h2>
-                        </div>
-
-                        <div className="rounded-xl bg-green-100 p-3 text-green-700">
-                            <Users size={24} />
-                        </div>
+                    <div>
+                        <h1 className="text-3xl font-bold text-gray-900">
+                            User Management
+                        </h1>
+                        <p className="text-gray-500">
+                            Manage all registered QuickTxn users
+                        </p>
                     </div>
                 </div>
 
-                <div className="rounded-2xl bg-white p-5 shadow">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-slate-500 text-sm">Wallet Balance</p>
-                            <h2 className="mt-2 text-2xl font-bold">
-                                ₦{users
-                                    .reduce((sum, user) => sum + Number(user.balance), 0)
-                                    .toLocaleString("en-NG")}
-                            </h2>
-                        </div>
+                {/* Backend Response Message */}
+                {message && (
+                    <div
+                        className={`mb-5 rounded-xl border px-4 py-3 text-sm font-medium ${status === "SUCCESS"
+                                ? "border-green-200 bg-green-50 text-green-700"
+                                : status === "FAILED"
+                                    ? "border-red-200 bg-red-50 text-red-700"
+                                    : "border-yellow-200 bg-yellow-50 text-yellow-700"
+                            }`}
+                    >
+                        {message}
+                    </div>
+                )}
 
-                        <div className="rounded-xl bg-blue-100 p-3 text-blue-700">
-                            <Wallet size={24} />
-                        </div>
+                {/* Search */}
+                <div className="mb-6 rounded-2xl bg-white p-4 shadow-sm">
+                    <div className="relative">
+                        <Search
+                            className="absolute left-3 top-3.5 text-gray-400"
+                            size={18}
+                        />
+
+                        <input
+                            type="text"
+                            placeholder="Search by name or email..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="w-full rounded-xl border border-gray-200 py-3 pl-10 pr-4 outline-none focus:border-green-500"
+                        />
                     </div>
                 </div>
 
-                <div className="rounded-2xl bg-white p-5 shadow">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-slate-500 text-sm">Transactions</p>
-                            <h2 className="mt-2 text-3xl font-bold">
-                                {users.reduce(
-                                    (sum, user) => sum + (user.total_transactions ?? 0)
-                                    , 0
-                                )}
-                            </h2>
-                        </div>
-
-                        <div className="rounded-xl bg-purple-100 p-3 text-purple-700">
-                            <ArrowLeftRight size={24} />
-                        </div>
-                    </div>
-                </div>
-
-                <div className="rounded-2xl bg-white p-5 shadow">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-slate-500 text-sm">Airtime Swaps</p>
-                            <h2 className="mt-2 text-3xl font-bold">
-                                {users.reduce(
-                                    (sum, user) => sum + (user.total_airtime_swaps ?? 0)
-                                    , 0
-                                )}
-                            </h2>
-                        </div>
-
-                        <div className="rounded-xl bg-yellow-100 p-3 text-yellow-700">
-                            <Smartphone size={24} />
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-
-            <div className="overflow-hidden rounded-xl bg-white shadow">
-
-                <div className="overflow-x-auto">
-
-                    <table className="min-w-full">
-
-                        <thead className="bg-slate-100">
-
-                            <tr>
-                                <th className="px-6 py-4 text-left">
-                                    Name
-                                </th>
-
-                                <th className="px-6 py-4 text-left">
-                                    Email
-                                </th>
-
-                                <th className="px-6 py-4 text-left">
-                                    Phone
-                                </th>
-
-                                <th className="px-6 py-4 text-left">
-                                    Role
-                                </th>
-
-                                <th className="px-6 py-4 text-left">
-                                    Balance
-                                </th>
-
-                                <th className="px-6 py-4 text-left">
-                                    Verified
-                                </th>
-
-                                <th className="px-6 py-4 text-left">
-                                    Status
-                                </th>
-
-                                <th className="px-6 py-4 text-left">
-                                    Joined
-                                </th>
-
-                                <th className="px-6 py-4 text-center">
-                                    Actions
-                                </th>
-
-                            </tr>
-
-                        </thead>
-                        <tbody>
-                            {filteredUsers.length === 0 ? (
+                {/* Users Table */}
+                <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full">
+                            <thead className="bg-gray-100 text-left text-sm font-semibold text-gray-600">
                                 <tr>
-                                    <td colSpan={9} className="py-10 text-center text-slate-500">
-                                        No users found.
-                                    </td>
+                                    <th className="px-5 py-4">User</th>
+                                    <th className="px-5 py-4">Balance</th>
+                                    <th className="px-5 py-4">Status</th>
+                                    <th className="px-5 py-4">Role</th>
+                                    <th className="px-5 py-4">Action</th>
                                 </tr>
-                            ) : (
-                                filteredUsers.map((user) => (
+                            </thead>
+
+                            <tbody>
+                                {filteredUsers.map((user) => (
                                     <tr
                                         key={user.id}
-                                        className="border-b hover:bg-slate-50 transition"
+                                        className="border-t border-gray-100 hover:bg-gray-50"
                                     >
-                                        <td className="px-6 py-5">
-                                            <div className="flex items-center gap-3">
-                                                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-lg font-bold text-green-700">
-                                                    {user.full_name.charAt(0).toUpperCase()}
-                                                </div>
-
-                                                <div>
-                                                    <p className="font-semibold">{user.full_name}</p>
-                                                    <p className="text-sm text-slate-500">{user.email}</p>
-                                                </div>
+                                        <td className="px-5 py-4">
+                                            <div>
+                                                <p className="font-semibold">
+                                                    {user.full_name}
+                                                </p>
+                                                <p className="text-sm text-gray-500">
+                                                    {user.email}
+                                                </p>
                                             </div>
                                         </td>
 
-                                        <td className="px-6 py-5 text-slate-600">
-                                            {user.email}
+                                        <td className="px-5 py-4 font-semibold text-green-600">
+                                            ₦{Number(user.balance).toLocaleString()}
                                         </td>
 
-                                        <td className="px-6 py-5">
-                                            {user.phone}
+                                        <td className="px-5 py-4">
+                                            <span
+                                                className={`rounded-full px-3 py-1 text-xs font-semibold ${user.is_active
+                                                        ? "bg-green-100 text-green-700"
+                                                        : "bg-red-100 text-red-700"
+                                                    }`}
+                                            >
+                                                {user.is_active ? "Active" : "Blocked"}
+                                            </span>
                                         </td>
 
-                                        <td className="px-6 py-5">
+                                        <td className="px-5 py-4">
                                             <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
                                                 {user.role}
                                             </span>
                                         </td>
 
-                                        <td className="px-6 py-5 font-semibold text-green-600">
-                                            ₦{Number(user.balance).toLocaleString("en-NG")}
-                                        </td>
-
-                                        <td className="px-6 py-5">
-                                            <span
-                                                className={`rounded-full px-3 py-1 text-xs font-semibold ${user.is_verified
-                                                    ? "bg-green-100 text-green-700"
-                                                    : "bg-red-100 text-red-700"
-                                                    }`}
+                                        <td className="px-5 py-4">
+                                            <button
+                                                onClick={() => handleView(user.id)}
+                                                className="rounded-lg bg-green-50 p-2 text-green-700 hover:bg-green-100"
                                             >
-                                                {user.is_verified ? "Verified" : "Pending"}
-                                            </span>
-                                        </td>
-
-                                        <td className="px-6 py-5">
-                                            <span
-                                                className={`rounded-full px-3 py-1 text-xs font-semibold ${user.is_active
-                                                    ? "bg-emerald-100 text-emerald-700"
-                                                    : "bg-red-100 text-red-700"
-                                                    }`}
-                                            >
-                                                {user.is_active ? "Active" : "Suspended"}
-                                            </span>
-                                        </td>
-
-                                        <td className="px-6 py-5 text-slate-500">
-                                            {new Date(user.created_at).toLocaleDateString("en-NG")}
-                                        </td>
-                                        <td className="px-6 py-5">
-                                            <div className="flex justify-center gap-2">
-                                                <button
-                                                    onClick={() => handleView(user.id)}
-                                                    className="rounded-lg bg-blue-600 p-2 text-white hover:bg-blue-700"
-                                                >
-                                                    <Eye size={16} />
-                                                </button>
-
-                                                <button
-                                                    onClick={() => router.push(`/admin/users/${user.id}/fund`)}
-                                                    className="rounded-lg bg-green-600 p-2 text-white hover:bg-green-700"
-                                                    title="Fund Wallet"
-                                                >
-                                                    <Wallet size={16} />
-                                                </button>
-
-                                                <button
-                                                    onClick={() => handleStatus(user.id)}
-                                                    className={`rounded-lg p-2 text-white ${user.is_active
-                                                        ? "bg-yellow-500 hover:bg-yellow-600"
-                                                        : "bg-green-600 hover:bg-green-700"
-                                                        }`}
-                                                >
-                                                    <Shield size={16} />
-                                                </button>
-
-                                                <button
-                                                    onClick={() => handleResetPin(user.id)}
-                                                    className="rounded-lg bg-purple-600 p-2 text-white hover:bg-purple-700"
-                                                >
-                                                    <KeyRound size={16} />
-                                                </button>
-
-                                                <button
-                                                    onClick={() => handleDelete(user.id)}
-                                                    className="rounded-lg bg-red-600 p-2 text-white hover:bg-red-700"
-                                                >
-                                                    <Trash2 size={16} />
-                                                </button>
-                                            </div>
+                                                <Eye size={18} />
+                                            </button>
                                         </td>
                                     </tr>
-                                ))
-                            )}
-                        </tbody>
-
-                    </table>
-
-                </div>
-
-            </div>
-            {selectedUser && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                    <div className="w-full max-w-3xl overflow-hidden rounded-3xl bg-white shadow-2xl">
-
-                        {/* Header */}
-                        <div className="bg-gradient-to-r from-green-600 to-emerald-500 p-8 text-white">
-                            <div className="flex items-center gap-4">
-                                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white/20 text-3xl font-bold">
-                                    {selectedUser.full_name.charAt(0).toUpperCase()}
-                                </div>
-
-                                <div>
-                                    <h2 className="text-3xl font-bold">
-                                        {selectedUser.full_name}
-                                    </h2>
-
-                                    <p className="text-green-100">
-                                        {selectedUser.email}
-                                    </p>
-
-                                    <div className="mt-3 flex gap-2">
-                                        <span className="rounded-full bg-white/20 px-3 py-1 text-sm">
-                                            {selectedUser.role}
-                                        </span>
-
-                                        <span
-                                            className={`rounded-full px-3 py-1 text-sm ${selectedUser.is_active
-                                                ? "bg-green-200 text-green-900"
-                                                : "bg-red-200 text-red-900"
-                                                }`}
-                                        >
-                                            {selectedUser.is_active ? "Active" : "Suspended"}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Body */}
-                        <div className="space-y-6 p-6">
-
-                            <div className="grid gap-4 md:grid-cols-2">
-
-                                <Info
-                                    label="Phone Number"
-                                    value={selectedUser.phone}
-                                />
-
-                                <Info
-                                    label="Wallet Balance"
-                                    value={`₦${Number(selectedUser.balance).toLocaleString("en-NG")}`}
-                                />
-
-                                <Info
-                                    label="Transactions"
-                                    value={selectedUser.total_transactions ?? 0}
-                                />
-
-                                <Info
-                                    label="Airtime Swaps"
-                                    value={selectedUser.total_airtime_swaps ?? 0}
-                                />
-
-                                <Info
-                                    label="Data Purchases"
-                                    value={selectedUser.total_data_purchases ?? 0}
-                                />
-
-                                <Info
-                                    label="Joined"
-                                    value={new Date(
-                                        selectedUser.created_at
-                                    ).toLocaleDateString("en-NG")}
-                                />
-
-                            </div>
-
-                            {/* Quick Actions */}
-                            <div className="grid gap-3 md:grid-cols-2">
-
-                                <button
-                                    onClick={() => handleResetPin(selectedUser.id)}
-                                    className="rounded-xl bg-purple-600 py-3 font-semibold text-white hover:bg-purple-700"
-                                >
-                                    Reset PIN
-                                </button>
-
-                                <button
-                                    onClick={() => handleResetPassword(selectedUser.id)}
-                                    className="rounded-xl bg-blue-600 py-3 font-semibold text-white hover:bg-blue-700"
-                                >
-                                    Reset Password
-                                </button>
-
-                                <button
-                                    onClick={() => handleStatus(selectedUser.id)}
-                                    className="rounded-xl bg-yellow-500 py-3 font-semibold text-white hover:bg-yellow-600"
-                                >
-                                    {selectedUser.is_active
-                                        ? "Suspend User"
-                                        : "Activate User"}
-                                </button>
-
-                                <button
-                                    onClick={() => handleDelete(selectedUser.id)}
-                                    className="rounded-xl bg-red-600 py-3 font-semibold text-white hover:bg-red-700"
-                                >
-                                    Deactivate User
-                                </button>
-
-                            </div>
-
-                            <button
-                                onClick={() => setSelectedUser(null)}
-                                className="w-full rounded-xl border py-3 font-semibold hover:bg-slate-50"
-                            >
-                                Close
-                            </button>
-
-                        </div>
-
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-            )}
 
+                {/* User Details Modal */}
+                {selectedUser && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                        <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-white p-6">
+                            <div className="mb-6 flex items-center justify-between">
+                                <h2 className="text-xl font-bold">User Details</h2>
+
+                                <button
+                                    onClick={() => setSelectedUser(null)}
+                                    className="text-2xl text-gray-400"
+                                >
+                                    ×
+                                </button>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div className="rounded-xl bg-gray-50 p-4">
+                                    <p className="font-bold">
+                                        {selectedUser.full_name}
+                                    </p>
+                                    <p className="text-sm text-gray-500">
+                                        {selectedUser.email}
+                                    </p>
+                                    <p className="text-sm text-gray-500">
+                                        {selectedUser.phone}
+                                    </p>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="rounded-xl bg-green-50 p-4">
+                                        <Wallet className="mb-2 text-green-600" />
+                                        <p className="text-xs text-gray-500">Balance</p>
+                                        <p className="font-bold text-green-700">
+                                            ₦{Number(selectedUser.balance).toLocaleString()}
+                                        </p>
+                                    </div>
+
+                                    <div className="rounded-xl bg-blue-50 p-4">
+                                        <Users className="mb-2 text-blue-600" />
+                                        <p className="text-xs text-gray-500">
+                                            Transactions
+                                        </p>
+                                        <p className="font-bold">
+                                            {selectedUser.total_transactions}
+                                        </p>
+                                    </div>
+
+                                    <div className="rounded-xl bg-purple-50 p-4">
+                                        <Smartphone className="mb-2 text-purple-600" />
+                                        <p className="text-xs text-gray-500">
+                                            Data Purchases
+                                        </p>
+                                        <p className="font-bold">
+                                            {selectedUser.total_data_purchases}
+                                        </p>
+                                    </div>
+
+                                    <div className="rounded-xl bg-orange-50 p-4">
+                                        <ArrowLeftRight className="mb-2 text-orange-600" />
+                                        <p className="text-xs text-gray-500">
+                                            Airtime Swaps
+                                        </p>
+                                        <p className="font-bold">
+                                            {selectedUser.total_airtime_swaps}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3 pt-2">
+                                    <button
+                                        onClick={() => handleStatus(selectedUser.id)}
+                                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 font-semibold text-white hover:bg-blue-700"
+                                    >
+                                        <Shield size={18} />
+                                        {selectedUser.is_active
+                                            ? "Block User"
+                                            : "Activate User"}
+                                    </button>
+
+                                    <button
+                                        onClick={() => handleResetPin(selectedUser.id)}
+                                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 py-3 font-semibold text-white hover:bg-amber-600"
+                                    >
+                                        <KeyRound size={18} />
+                                        Reset Transaction PIN
+                                    </button>
+
+                                    <button
+                                        onClick={() =>
+                                            handleResetPassword(selectedUser.id)
+                                        }
+                                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-purple-600 py-3 font-semibold text-white hover:bg-purple-700"
+                                    >
+                                        <Lock size={18} />
+                                        Reset Password
+                                    </button>
+
+                                    <button
+                                        onClick={() => handleDelete(selectedUser.id)}
+                                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 py-3 font-semibold text-white hover:bg-red-700"
+                                    >
+                                        <Trash2 size={18} />
+                                        Deactivate User
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
         </main>
-    );
-}
-
-function Info({
-    label,
-    value,
-}: {
-    label: string;
-    value: string | number;
-}) {
-    return (
-        <div className="rounded-2xl bg-slate-50 p-4">
-            <p className="mb-1 text-sm text-slate-500">
-                {label}
-            </p>
-
-            <h3 className="text-xl font-bold text-slate-800">
-                {value}
-            </h3>
-        </div>
     );
 }
