@@ -1,78 +1,51 @@
 const axios = require("axios");
 
 // ========================================
-// Purchase Data via VTpass
+// CLUBKONNECT LIVE DATA PURCHASE
 // ========================================
+
+const BASE_URL =
+    "https://www.nellobytesystems.com/APIDatabundleV1.asp";
+
 const purchaseData = async ({
     network,
     planCode,
     phoneNumber,
-    amount
 }) => {
+    const requestId = `DATA-${Date.now()}`;
 
-    const serviceIDMap = {
-        MTN: "mtn-data",
-        AIRTEL: "airtel-data",
-        GLO: "glo-data",
-        "9MOBILE": "etisalat-data"
-    };
+    const url =
+        `${BASE_URL}?UserID=${process.env.CLUBKONNECT_USERID}` +
+        `&APIKey=${process.env.CLUBKONNECT_API_KEY}` +
+        `&MobileNetwork=${network}` +
+        `&DataPlan=${planCode}` +
+        `&MobileNumber=${phoneNumber}` +
+        `&RequestID=${requestId}`;
 
-    const serviceID = serviceIDMap[network.toUpperCase()];
+    const { data } = await axios.get(url, {
+        timeout: 30000,
+    });
 
-    if (!serviceID) {
-        throw new Error("Unsupported network.");
-    }
+    console.log("====== CLUBKONNECT DATA ======");
+    console.log(data);
+    console.log("==============================");
 
-    const requestId = `QTXN-DATA-${Date.now()}`;
-
-    const response = await axios.post(
-        `${process.env.VTPASS_BASE_URL}/pay`,
-        {
-            request_id: requestId,
-            serviceID,
-            billersCode: phoneNumber,
-            variation_code: planCode,
-            amount: Number(amount),
-            phone: phoneNumber
-        },
-        {
-            headers: {
-                "api-key": process.env.VTPASS_API_KEY,
-                "secret-key": process.env.VTPASS_SECRET_KEY,
-                "public-key": process.env.VTPASS_PUBLIC_KEY,
-                "Content-Type": "application/json"
-            },
-            timeout: 30000
-        }
-    );
-
-    const data = response.data;
-
-    if (data.code !== "000" && data.code !== "0o0") {
+    if (data.statuscode !== "100") {
         throw new Error(
-            data.response_description || "Data purchase failed."
+            data.status || "Data purchase failed."
         );
-    }
-
-    const transaction = data.content?.transactions;
-
-    if (
-        transaction &&
-        transaction.status &&
-        transaction.status !== "delivered"
-    ) {
-        throw new Error(transaction.status);
     }
 
     return {
         success: true,
-        provider: "VTPASS",
-        providerReference:
-            transaction?.transactionId || requestId,
-        requestId
+        provider: "CLUBKONNECT",
+        providerReference: data.orderid || requestId,
+        requestId,
+        responseCode: data.statuscode,
+        message: data.status,
     };
 };
 
 module.exports = {
-    purchaseData
+    purchaseData,
 };

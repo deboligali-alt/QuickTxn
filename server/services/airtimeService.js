@@ -1,9 +1,10 @@
 const axios = require("axios");
 
 // ========================================
-// VTpass Configuration
+// ClubKonnect Configuration
 // ========================================
-const VTPASS_URL = "https://sandbox.vtpass.com/api/pay";
+const BASE_URL =
+    "https://www.nellobytesystems.com/APIAirtimeV1.asp";
 
 // ========================================
 // Purchase Airtime
@@ -11,127 +12,55 @@ const VTPASS_URL = "https://sandbox.vtpass.com/api/pay";
 const purchaseAirtime = async ({
     network,
     phoneNumber,
-    amount
+    amount,
 }) => {
-
-    // ========================================
-    // Map QuickTxn network names to VTpass
-    // ========================================
-    const serviceIDMap = {
-        MTN: "mtn",
-        AIRTEL: "airtel",
-        GLO: "glo",
-        "9MOBILE": "etisalat"
+    const networkMap = {
+        MTN: "01",
+        GLO: "02",
+        "9MOBILE": "03",
+        AIRTEL: "04",
     };
 
-    const serviceID =
-        serviceIDMap[
-        network.toUpperCase()
-        ];
+    const mobileNetwork = networkMap[network.toUpperCase()];
 
-    if (!serviceID) {
+    if (!mobileNetwork) {
+        throw new Error("Unsupported network.");
+    }
+
+    const requestId = `QTXN-${Date.now()}`;
+
+    const url =
+        `${BASE_URL}?UserID=${process.env.CLUBKONNECT_USERID}` +
+        `&APIKey=${process.env.CLUBKONNECT_API_KEY}` +
+        `&MobileNetwork=${mobileNetwork}` +
+        `&Amount=${Number(amount)}` +
+        `&MobileNumber=${phoneNumber}` +
+        `&RequestID=${requestId}`;
+
+    const { data } = await axios.get(url, {
+        timeout: 30000,
+    });
+
+    console.log("======= ClubKonnect Airtime =======");
+    console.log(data);
+    console.log("==================================");
+
+    if (data.statuscode !== "100") {
         throw new Error(
-            "Unsupported network."
+            data.status || "Airtime purchase failed."
         );
     }
 
-    // ========================================
-    // Generate unique VTpass request ID
-    // ========================================
-    const requestId =
-        `QTXN-${Date.now()}-${Math.floor(
-            Math.random() * 100000
-        )}`;
-
-    // ========================================
-    // VTpass request
-    // ========================================
-
-    const response = await axios.post(
-
-        VTPASS_URL,
-        {
-            request_id: requestId,
-            serviceID,
-            amount: Number(amount),
-            phone: phoneNumber
-        },
-        {
-            headers: {
-                "api-key":
-                    process.env.VTPASS_API_KEY,
-
-                "secret-key":
-                    process.env.VTPASS_SECRET_KEY,
-
-                "Content-Type":
-                    "application/json"
-            },
-
-            timeout: 30000
-        }
-    );
-
-    const data = response.data;
-
-    console.log(
-    "========== VTpass Airtime Response =========="
-);
-
-console.log(
-    JSON.stringify(
-        data,
-        null,
-        2
-    )
-);
-
-console.log(
-    "=============================================="
-);
-
-    // ========================================
-    // Check VTpass response
-    // ========================================
-    if (
-        data.code !== "000" &&
-        data.code !== "0"
-    ) {
-
-        throw new Error(
-            data.response_description ||
-            "Airtime purchase failed."
-        );
-    }
-
-    // ========================================
-    // Return successful purchase
-    // ========================================
     return {
         success: true,
-
-        provider: "VTPASS",
-
-        providerReference:
-            data.content?.transactions
-                ?.transactionId ||
-            requestId,
-
+        provider: "CLUBKONNECT",
+        providerReference: data.orderid || requestId,
         requestId,
-
-        responseCode:
-            data.code,
-
-        message:
-            data.response_description ||
-            "Airtime purchased successfully."
+        responseCode: data.statuscode,
+        message: data.status,
     };
 };
 
-
-// ========================================
-// Export
-// ========================================
 module.exports = {
-    purchaseAirtime
+    purchaseAirtime,
 };

@@ -1,56 +1,43 @@
 const { pool } = require("../config/db");
 const { buyAirtime } = require("../services/clubkonnect");
 const { giveCashback } = require("../services/cashbackService");
+
+// ====================================
+// CREATE AIRTIME SWAP REQUEST
+// ====================================
 const createSwapRequest = async (req, res) => {
     try {
         const { network, phoneNumber, airtimeAmount } = req.body;
 
-        // Validate input
         if (!network || !phoneNumber || !airtimeAmount) {
             return res.status(400).json({
                 success: false,
-                message: "All fields are required."
+                message: "All fields are required.",
             });
         }
 
-        if (Number(airtimeAmount) <= 0) {
-            return res.status(400).json({
-                success: false,
-                message: "Airtime amount must be greater than zero."
-            });
-        }
-
-        // Get current rate
         const rateResult = await pool.query(
             `SELECT rate
-             FROM airtime_rates
-             WHERE network = $1
-             AND is_active = TRUE`,
+       FROM airtime_rates
+       WHERE network=$1
+       AND is_active=TRUE`,
             [network.toUpperCase()]
         );
 
         if (rateResult.rows.length === 0) {
             return res.status(404).json({
                 success: false,
-                message: "Network not supported."
+                message: "Network not supported.",
             });
         }
 
         const rate = Number(rateResult.rows[0].rate);
+        const receivableAmount = (Number(airtimeAmount) * rate) / 100;
+        const reference = `ATS-${Date.now()}`;
 
-        // Calculate receivable amount
-        const receivableAmount = (
-            Number(airtimeAmount) * rate
-        ) / 100;
-
-        // Generate transaction reference
-        const reference = "ATS-" + Date.now();
-
-        // Save request
-        // Save request
         await pool.query(
             `INSERT INTO airtime_swaps
-    (
+      (
         user_id,
         network,
         phone_number,
@@ -58,8 +45,8 @@ const createSwapRequest = async (req, res) => {
         rate,
         receivable_amount,
         transaction_reference
-    )
-    VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7)`,
             [
                 req.user.id,
                 network.toUpperCase(),
@@ -67,133 +54,94 @@ const createSwapRequest = async (req, res) => {
                 airtimeAmount,
                 rate,
                 receivableAmount,
-                reference
+                reference,
             ]
         );
 
-        // Create Notification
         await pool.query(
             `INSERT INTO notifications
-    (
-        user_id,
-        title,
-        message
-    )
-    VALUES ($1,$2,$3)`,
+      (user_id,title,message)
+      VALUES($1,$2,$3)`,
             [
                 req.user.id,
                 "Airtime Swap Submitted",
-                `Your ${network.toUpperCase()} airtime swap request of ₦${Number(airtimeAmount).toLocaleString()} has been received and is awaiting admin approval.`
+                `Your ${network.toUpperCase()} airtime swap request of ₦${Number(
+                    airtimeAmount
+                ).toLocaleString()} has been received.`,
             ]
         );
-        // ========================================
-        // Give Cashback
-        // ========================================
-        const cashback = await giveCashback(
-            req.user.id,
-            "AIRTIME",
-            amount,
-            client
-        );
 
-        return res.status(201).json({
+        res.status(201).json({
             success: true,
-            message: "Airtime swap request submitted successfully.",
+            message: "Swap request submitted successfully.",
             data: {
-                network: network.toUpperCase(),
-                airtimeAmount,
+                reference,
                 rate,
                 receivableAmount,
                 status: "PENDING",
-                reference
-            }
+            },
         });
-
     } catch (error) {
-        console.error(error);
-
-        return res.status(500).json({
+        console.log(error);
+        res.status(500).json({
             success: false,
-            message: "Server Error"
+            message: "Server Error",
         });
     }
 };
 
 // ====================================
-// Get Airtime Rates
+// GET AIRTIME RATES
 // ====================================
 const getRates = async (req, res) => {
     try {
-
         const result = await pool.query(
-            `SELECT
-                network,
-                rate
-             FROM airtime_rates
-             WHERE is_active = TRUE
-             ORDER BY network`
+            `SELECT network, rate
+       FROM airtime_rates
+       WHERE is_active=TRUE
+       ORDER BY network`
         );
 
-        return res.status(200).json({
+        res.json({
             success: true,
-            data: result.rows
+            data: result.rows,
         });
-
     } catch (error) {
-
-        console.error(error);
-
-        return res.status(500).json({
+        res.status(500).json({
             success: false,
-            message: "Server Error"
+            message: "Server Error",
         });
-
     }
 };
 
 // ====================================
-// Get User Airtime Swap History
+// GET SWAP HISTORY
 // ====================================
 const getSwapHistory = async (req, res) => {
     try {
-
         const result = await pool.query(
-            `SELECT
-                id,
-                network,
-                phone_number,
-                airtime_amount,
-                rate,
-                receivable_amount,
-                status,
-                transaction_reference,
-                created_at
-             FROM airtime_swaps
-             WHERE user_id = $1
-             ORDER BY created_at DESC`,
+            `SELECT *
+       FROM airtime_swaps
+       WHERE user_id=$1
+       ORDER BY created_at DESC`,
             [req.user.id]
         );
 
-        return res.status(200).json({
+        res.json({
             success: true,
             count: result.rows.length,
-            data: result.rows
+            data: result.rows,
         });
-
     } catch (error) {
-
-        console.error(error);
-
-        return res.status(500).json({
+        res.status(500).json({
             success: false,
-            message: "Server Error"
+            message: "Server Error",
         });
-
     }
 };
 
 // ====================================
-// BUY AIRTIME
+// BUY AIRTIME (CLUBKONNECT LIVE)
 // ====================================
 const purchaseAirtime = async (req, res) => {
     const client = await pool.connect();
@@ -204,17 +152,18 @@ const purchaseAirtime = async (req, res) => {
         if (!network || !phone || !amount) {
             return res.status(400).json({
                 success: false,
-                message: "All fields are required.",
+                message: "Network, phone and amount are required.",
             });
         }
 
         await client.query("BEGIN");
 
+        // Lock wallet
         const wallet = await client.query(
             `SELECT balance
-             FROM wallets
-             WHERE user_id=$1
-             FOR UPDATE`,
+       FROM wallets
+       WHERE user_id=$1
+       FOR UPDATE`,
             [req.user.id]
         );
 
@@ -222,12 +171,14 @@ const purchaseAirtime = async (req, res) => {
 
         if (balance < Number(amount)) {
             await client.query("ROLLBACK");
+
             return res.status(400).json({
                 success: false,
                 message: "Insufficient wallet balance.",
             });
         }
 
+        // ClubKonnect Network IDs
         const networkMap = {
             mtn: "01",
             glo: "02",
@@ -235,7 +186,7 @@ const purchaseAirtime = async (req, res) => {
             airtel: "04",
         };
 
-        const requestId = `QTXN-${Date.now()}`;
+        const requestId = `AIR-${Date.now()}`;
 
         const ck = await buyAirtime({
             network: networkMap[network.toLowerCase()],
@@ -248,40 +199,104 @@ const purchaseAirtime = async (req, res) => {
             ck.status !== "ORDER_RECEIVED" &&
             ck.statuscode !== "100"
         ) {
-            throw new Error(ck.status);
+            throw new Error(ck.status || "ClubKonnect failed.");
         }
 
+        // Debit wallet
         const newBalance = balance - Number(amount);
 
         await client.query(
             `UPDATE wallets
-             SET balance=$1, updated_at=NOW()
-             WHERE user_id=$2`,
+       SET balance=$1,
+           updated_at=NOW()
+       WHERE user_id=$2`,
             [newBalance, req.user.id]
         );
 
+        // Save transaction
         await client.query(
             `INSERT INTO transactions
-            (receiver_id,type,amount,status,reference,description)
-            VALUES($1,$2,$3,$4,$5,$6)`,
+      (
+        receiver_id,
+        type,
+        amount,
+        status,
+        reference,
+        description
+      )
+      VALUES($1,$2,$3,$4,$5,$6)`,
             [
                 req.user.id,
                 "AIRTIME",
                 amount,
-                "pending",
+                "success",
                 requestId,
-                `${network} Airtime Purchase`,
+                `${network.toUpperCase()} Airtime Purchase`,
             ]
         );
 
+        // Notification
+        await client.query(
+            `INSERT INTO notifications
+      (user_id,title,message)
+      VALUES($1,$2,$3)`,
+            [
+                req.user.id,
+                "Airtime Purchase",
+                `₦${Number(amount).toLocaleString()} ${network.toUpperCase()} airtime purchased successfully.`,
+            ]
+        );
+
+        // Cashback
+        const cashback = await giveCashback(
+            req.user.id,
+            "AIRTIME",
+            Number(amount),
+            client
+        );
+
+        if (cashback > 0) {
+            await client.query(
+                `UPDATE wallets
+         SET balance = balance + $1
+         WHERE user_id = $2`,
+                [cashback, req.user.id]
+            );
+
+            await client.query(
+                `INSERT INTO transactions
+        (
+          receiver_id,
+          type,
+          amount,
+          status,
+          reference,
+          description
+        )
+        VALUES($1,$2,$3,$4,$5,$6)`,
+                [
+                    req.user.id,
+                    "CASHBACK",
+                    cashback,
+                    "success",
+                    `CB-${Date.now()}`,
+                    "Airtime Cashback Reward",
+                ]
+            );
+        }
+
         await client.query("COMMIT");
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
-            message: "Airtime order submitted.",
-            data: ck,
+            message: "Airtime purchased successfully.",
+            data: {
+                provider: "CLUBKONNECT",
+                requestId,
+                cashback,
+                balance: newBalance + cashback,
+            },
         });
-
     } catch (error) {
         await client.query("ROLLBACK");
 
@@ -289,13 +304,13 @@ const purchaseAirtime = async (req, res) => {
 
         res.status(500).json({
             success: false,
-            message: error.message || "Purchase failed",
+            message: error.message || "Purchase failed.",
         });
-
     } finally {
         client.release();
     }
 };
+
 module.exports = {
     createSwapRequest,
     getRates,

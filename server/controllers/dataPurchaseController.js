@@ -4,10 +4,11 @@ const transactionService = require("../services/transactionService");
 const notificationService = require("../services/notificationService");
 const pinService = require("../services/pinService");
 const { buyData } = require("../services/clubkonnectData");
+const { getDataPlans: fetchPlans } = require("../services/clubkonnectPlans");
 const { giveCashback } = require("../services/cashbackService");
 
 // ========================================
-// Purchase Data
+// PURCHASE DATA (CLUBKONNECT LIVE)
 // ========================================
 const purchaseData = async (req, res) => {
     const { network, planCode, phoneNumber, pin } = req.body;
@@ -25,16 +26,14 @@ const purchaseData = async (req, res) => {
     try {
         await client.query("BEGIN");
 
-        // Verify PIN
         await pinService.verifyPin(req.user.id, pin, client);
 
-        // Get selected plan
         const planResult = await client.query(
             `SELECT *
        FROM data_plans
-       WHERE plan_code = $1
-       AND network = $2
-       AND is_active = TRUE`,
+       WHERE plan_code=$1
+       AND network=$2
+       AND is_active=TRUE`,
             [planCode, network.toUpperCase()]
         );
 
@@ -48,22 +47,13 @@ const purchaseData = async (req, res) => {
 
         const plan = planResult.rows[0];
 
-        // Check wallet
         const walletResult = await client.query(
             `SELECT balance
        FROM wallets
-       WHERE user_id = $1
+       WHERE user_id=$1
        FOR UPDATE`,
             [req.user.id]
         );
-
-        if (walletResult.rows.length === 0) {
-            await client.query("ROLLBACK");
-            return res.status(400).json({
-                success: false,
-                message: "Wallet not found.",
-            });
-        }
 
         const balance = Number(walletResult.rows[0].balance);
 
@@ -75,7 +65,6 @@ const purchaseData = async (req, res) => {
             });
         }
 
-        // Purchase from ClubKonnect
         const networkMap = {
             MTN: "01",
             GLO: "02",
@@ -103,8 +92,6 @@ const purchaseData = async (req, res) => {
 
         // Debit wallet
         await walletService.debitWallet(req.user.id, plan.amount, client);
-
-        const reference = `DATA-${Date.now()}`;
 
         const duration = plan.duration_days || 30;
 
@@ -138,13 +125,13 @@ const purchaseData = async (req, res) => {
                 plan.amount,
                 duration,
                 expiresAt,
-                "PENDING",
+                "SUCCESS",
                 "CLUBKONNECT",
                 requestId,
             ]
         );
 
-        // Save transaction
+        // Transaction
         await transactionService.createTransaction(
             {
                 senderId: req.user.id,
@@ -152,7 +139,7 @@ const purchaseData = async (req, res) => {
                 amount: plan.amount,
                 status: "SUCCESS",
                 description: `${plan.plan_name} ${network.toUpperCase()} Data Purchase`,
-                reference,
+                reference: requestId,
             },
             client
         );
@@ -194,46 +181,27 @@ const purchaseData = async (req, res) => {
                 },
                 client
             );
-
-            await notificationService.createNotification(
-                {
-                    userId: req.user.id,
-                    title: "Cashback Reward",
-                    message: `₦${cashback} cashback has been added to your wallet.`,
-                },
-                client
-            );
         }
 
         await client.query("COMMIT");
 
-        return res.status(201).json({
+        return res.status(200).json({
             success: true,
-            message: "Data order submitted successfully.",
+            message: "Data purchased successfully.",
             data: {
                 network: network.toUpperCase(),
                 plan: plan.plan_name,
                 amount: plan.amount,
                 cashback,
                 reference: requestId,
-                status: "PENDING",
+                status: "SUCCESS",
+                balance: balance - Number(plan.amount) + cashback,
             },
         });
     } catch (error) {
         await client.query("ROLLBACK");
 
         console.error("Data Purchase Error:", error.message);
-
-        if (
-            error.message === "Invalid transaction PIN." ||
-            error.message === "Transaction PIN has not been set." ||
-            error.message === "Insufficient wallet balance."
-        ) {
-            return res.status(400).json({
-                success: false,
-                message: error.message,
-            });
-        }
 
         return res.status(500).json({
             success: false,
@@ -245,11 +213,8 @@ const purchaseData = async (req, res) => {
 };
 
 // ========================================
-// Get Data Plans
-// GET /api/data/plans?network=MTN
+// GET LIVE DATA PLANS
 // ========================================
-const { getDataPlans: fetchPlans } = require("../services/clubkonnectPlans");
-
 const getDataPlans = async (req, res) => {
     try {
         const { network } = req.query;
@@ -276,38 +241,35 @@ const getDataPlans = async (req, res) => {
             success: true,
             data: plans,
         });
-
     } catch (error) {
         console.error(error);
 
         return res.status(500).json({
             success: false,
-            message: "Unable to fetch plans",
+            message: "Unable to fetch plans.",
         });
     }
 };
 
 // ========================================
-// Get Purchase History
+// PURCHASE HISTORY
 // ========================================
 const getDataHistory = async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT *
        FROM data_purchases
-       WHERE user_id = $1
+       WHERE user_id=$1
        ORDER BY created_at DESC`,
             [req.user.id]
         );
 
-        return res.status(200).json({
+        return res.json({
             success: true,
             count: result.rows.length,
             data: result.rows,
         });
     } catch (error) {
-        console.error(error);
-
         return res.status(500).json({
             success: false,
             message: "Server Error",
