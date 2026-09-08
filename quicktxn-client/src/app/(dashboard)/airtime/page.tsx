@@ -53,18 +53,18 @@ export default function AirtimePage() {
 
             const res = await api.post("/airtime/purchase", {
                 network: network.toUpperCase(),
-                phoneNumber: phone,
+                phone,
                 amount: Number(amount),
                 pin,
             });
 
-            const status =
-                (res.data.data?.status || "SUCCESS").toUpperCase();
-
+            const status = (
+                res.data.data?.status || "PENDING"
+            ).toUpperCase();
             setResponseType(status);
             setResponseMessage(res.data.message);
 
-            if (status === "SUCCESS") {
+            if (status === "SUCCESS" || status === "PENDING") {
                 sessionStorage.setItem("payment_success", "true");
 
                 sessionStorage.setItem(
@@ -130,10 +130,10 @@ export default function AirtimePage() {
                         {responseMessage && (
                             <div
                                 className={`mt-4 flex items-center gap-2 rounded-xl border p-3 ${responseType === "SUCCESS"
-                                        ? "border-green-200 bg-green-50 text-green-700"
-                                        : responseType === "PENDING"
-                                            ? "border-yellow-200 bg-yellow-50 text-yellow-700"
-                                            : "border-red-200 bg-red-50 text-red-700"
+                                    ? "border-green-200 bg-green-50 text-green-700"
+                                    : responseType === "PENDING"
+                                        ? "border-yellow-200 bg-yellow-50 text-yellow-700"
+                                        : "border-red-200 bg-red-50 text-red-700"
                                     }`}
                             >
                                 <CheckCircle2 size={18} />

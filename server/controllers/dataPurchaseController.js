@@ -3,7 +3,7 @@ const walletService = require("../services/walletService");
 const transactionService = require("../services/transactionService");
 const notificationService = require("../services/notificationService");
 const pinService = require("../services/pinService");
-const dataService = require("../services/dataService");
+const { buyData } = require("../services/clubkonnectData");
 const { giveCashback } = require("../services/cashbackService");
 
 // ========================================
@@ -75,16 +75,30 @@ const purchaseData = async (req, res) => {
             });
         }
 
-        // Purchase from VTpass
-        const providerResult = await dataService.purchaseData({
-            network: network.toUpperCase(),
-            planCode: plan.plan_code,
-            phoneNumber,
-            amount: plan.amount,
+        // Purchase from ClubKonnect
+        const networkMap = {
+            MTN: "01",
+            GLO: "02",
+            "9MOBILE": "03",
+            AIRTEL: "04",
+        };
+
+        const requestId = `DATA-${Date.now()}`;
+
+        const providerResult = await buyData({
+            network: networkMap[network.toUpperCase()],
+            dataPlan: plan.plan_code,
+            phone: phoneNumber,
+            requestId,
         });
 
-        if (!providerResult.success || providerResult.provider !== "VTPASS") {
-            throw new Error("Data purchase was not confirmed by VTpass.");
+        if (
+            providerResult.status !== "ORDER_RECEIVED" &&
+            providerResult.statuscode !== "100"
+        ) {
+            throw new Error(
+                providerResult.status || "ClubKonnect rejected the request."
+            );
         }
 
         // Debit wallet
@@ -124,9 +138,9 @@ const purchaseData = async (req, res) => {
                 plan.amount,
                 duration,
                 expiresAt,
-                "SUCCESS",
-                "VTPASS",
-                reference,
+                "PENDING",
+                "CLUBKONNECT",
+                requestId,
             ]
         );
 
@@ -195,14 +209,14 @@ const purchaseData = async (req, res) => {
 
         return res.status(201).json({
             success: true,
-            message: "Data purchased successfully.",
+            message: "Data order submitted successfully.",
             data: {
                 network: network.toUpperCase(),
                 plan: plan.plan_name,
                 amount: plan.amount,
                 cashback,
-                reference,
-                status: "SUCCESS",
+                reference: requestId,
+                status: "PENDING",
             },
         });
     } catch (error) {
@@ -234,6 +248,8 @@ const purchaseData = async (req, res) => {
 // Get Data Plans
 // GET /api/data/plans?network=MTN
 // ========================================
+const { getDataPlans: fetchPlans } = require("../services/clubkonnectPlans");
+
 const getDataPlans = async (req, res) => {
     try {
         const { network } = req.query;
@@ -245,43 +261,28 @@ const getDataPlans = async (req, res) => {
             });
         }
 
-        const result = await pool.query(
-            `SELECT
-          id,
-          network,
-          plan_name,
-          plan_code,
-          amount,
-          category
-       FROM data_plans
-       WHERE is_active = TRUE
-       AND UPPER(network) = UPPER($1)
-       ORDER BY
-         CASE category
-           WHEN 'DAILY' THEN 1
-           WHEN 'NIGHT' THEN 2
-           WHEN 'WEEKLY' THEN 3
-           WHEN 'MONTHLY' THEN 4
-           WHEN 'SPECIAL' THEN 5
-           WHEN 'SME' THEN 6
-           WHEN 'VOICE' THEN 7
-           ELSE 8
-         END,
-         amount ASC`,
-            [network]
+        const networkMap = {
+            MTN: "01",
+            GLO: "02",
+            "9MOBILE": "03",
+            AIRTEL: "04",
+        };
+
+        const plans = await fetchPlans(
+            networkMap[network.toUpperCase()]
         );
 
-        return res.status(200).json({
+        return res.json({
             success: true,
-            count: result.rows.length,
-            data: result.rows,
+            data: plans,
         });
+
     } catch (error) {
         console.error(error);
 
         return res.status(500).json({
             success: false,
-            message: "Server Error",
+            message: "Unable to fetch plans",
         });
     }
 };

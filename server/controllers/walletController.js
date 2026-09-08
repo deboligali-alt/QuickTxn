@@ -5,6 +5,7 @@ const paystackTransfer = require("../services/paystackTransferService");
 const walletService = require("../services/walletService");
 const transactionService = require("../services/transactionService");
 const notificationService = require("../services/notificationService");
+const { verifyPayment: verifyPaystackPayment } = require("../services/paystackService");
 // ======================================
 // GET WALLET BALANCE
 // ======================================
@@ -111,7 +112,7 @@ const fundWallet = async (req, res) => {
 // ======================================
 // VERIFY PAYSTACK PAYMENT
 // ======================================
-const verifyPayment = async (req, res) => {
+const verifyWalletFunding = async (req, res) => {
     const { reference } = req.params;
 
     const client = await pool.connect();
@@ -798,13 +799,14 @@ const getTransferHistory = async (req, res) => {
         });
     }
 };
+
 // ======================================
 // EXPORTS
 // ======================================
 module.exports = {
     getBalance,
     fundWallet,
-    verifyPayment,
+    verifyWalletFunding,
     transferMoney,
 
     // Bank Transfer

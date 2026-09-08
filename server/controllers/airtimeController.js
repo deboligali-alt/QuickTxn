@@ -1,5 +1,5 @@
 const { pool } = require("../config/db");
-const axios = require("axios");
+const { buyAirtime } = require("../services/clubkonnect");
 const { giveCashback } = require("../services/cashbackService");
 const createSwapRequest = async (req, res) => {
     try {
@@ -228,36 +228,27 @@ const purchaseAirtime = async (req, res) => {
             });
         }
 
-        // VTU Provider
-        const serviceMap = {
-            mtn: "mtn",
-            airtel: "airtel",
-            glo: "glo",
-            "9mobile": "etisalat",
+        const networkMap = {
+            mtn: "01",
+            glo: "02",
+            "9mobile": "03",
+            airtel: "04",
         };
 
-        const requestId = `QTXN${Date.now()}`;
+        const requestId = `QTXN-${Date.now()}`;
 
-        const vtpass = await axios.post(
-            `${process.env.VTPASS_BASE_URL}/pay`,
-            {
-                request_id: requestId,
-                serviceID: serviceMap[network.toLowerCase()],
-                amount: Number(amount),
-                phone,
-            },
-            {
-                headers: {
-                    "api-key": process.env.VTPASS_API_KEY,
-                    "secret-key": process.env.VTPASS_SECRET_KEY,
-                    "public-key": process.env.VTPASS_PUBLIC_KEY,
-                    "Content-Type": "application/json",
-                },
-            }
-        );
+        const ck = await buyAirtime({
+            network: networkMap[network.toLowerCase()],
+            amount,
+            phone,
+            requestId,
+        });
 
-        if (vtpass.data.code !== "000") {
-            throw new Error(vtpass.data.response_description);
+        if (
+            ck.status !== "ORDER_RECEIVED" &&
+            ck.statuscode !== "100"
+        ) {
+            throw new Error(ck.status);
         }
 
         const newBalance = balance - Number(amount);
@@ -269,8 +260,6 @@ const purchaseAirtime = async (req, res) => {
             [newBalance, req.user.id]
         );
 
-        const reference = `AIR-${Date.now()}`;
-
         await client.query(
             `INSERT INTO transactions
             (receiver_id,type,amount,status,reference,description)
@@ -279,43 +268,28 @@ const purchaseAirtime = async (req, res) => {
                 req.user.id,
                 "AIRTIME",
                 amount,
-                "success",
-                reference,
+                "pending",
+                requestId,
                 `${network} Airtime Purchase`,
-            ]
-        );
-
-        await client.query(
-            `INSERT INTO notifications
-            (user_id,title,message)
-            VALUES($1,$2,$3)`,
-            [
-                req.user.id,
-                "Airtime Purchase",
-                `₦${Number(amount).toLocaleString()} ${network} airtime purchased successfully.`,
             ]
         );
 
         await client.query("COMMIT");
 
-        const io = req.app.get("io");
-        io.to(req.user.id).emit("wallet_updated");
-        io.to(req.user.id).emit("new_transaction");
-
         res.status(200).json({
             success: true,
-            message: "Airtime purchased successfully.",
-            data: {
-                cashback,
-            },
+            message: "Airtime order submitted.",
+            data: ck,
         });
+
     } catch (error) {
         await client.query("ROLLBACK");
-        console.error(error.response?.data || error.message);
+
+        console.log(error);
 
         res.status(500).json({
             success: false,
-            message: "Airtime purchase failed.",
+            message: error.message || "Purchase failed",
         });
 
     } finally {

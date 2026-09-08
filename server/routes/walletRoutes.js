@@ -3,7 +3,7 @@ const router = express.Router();
 const {
     getBalance,
     fundWallet,
-    verifyPayment,
+    verifyWalletFunding,
     transferMoney,
     bankTransfer,
     resolveAccount,
@@ -99,7 +99,7 @@ router.post(
 router.get(
     "/verify-payment/:reference",
     verifyToken,
-    verifyPayment
+    verifyWalletFunding
 );
 
 /**

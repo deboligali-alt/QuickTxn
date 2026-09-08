@@ -461,11 +461,14 @@ const initializePayment = async (req, res) => {
             });
         }
 
+        const reference = `FUND-${Date.now()}`;
+
         const response = await axios.post(
             "https://api.paystack.co/transaction/initialize",
             {
                 email: req.user.email,
-                amount: Number(amount) * 100, // Kobo
+                amount: Number(amount) * 100,
+                reference,
                 callback_url: process.env.PAYSTACK_CALLBACK_URL,
                 metadata: {
                     userId: req.user.id,
@@ -483,7 +486,7 @@ const initializePayment = async (req, res) => {
         return res.status(200).json({
             success: true,
             authorization_url: response.data.data.authorization_url,
-            reference: response.data.data.reference,
+            reference,
         });
     } catch (error) {
         console.error(error.response?.data || error.message);
