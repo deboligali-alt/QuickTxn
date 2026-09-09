@@ -23,7 +23,6 @@ import { toast } from "sonner";
 const menu = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "Wallet", href: "/wallet", icon: Wallet },
-    { name: "Transfer", href: "/transfer", icon: ArrowLeftRight },
     { name: "Transactions", href: "/transactions", icon: History },
     { name: "Airtime", href: "/airtime", icon: Smartphone },
     { name: "Data", href: "/data", icon: Wifi },

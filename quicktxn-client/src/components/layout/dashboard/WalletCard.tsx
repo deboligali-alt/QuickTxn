@@ -79,9 +79,7 @@ export default function WalletCard({ balance }: WalletCardProps) {
                     {loading ? "Opening..." : "Fund Wallet"}
                 </button>
 
-                <button className="rounded-xl bg-green-700 px-6 py-3 transition hover:bg-green-800">
-                    Transfer
-                </button>
+                
             </div>
         </motion.div>
     );
