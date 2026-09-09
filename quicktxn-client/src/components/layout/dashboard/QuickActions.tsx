@@ -19,12 +19,12 @@ const actions = [
         href: "/wallet/fund",
         color: "bg-green-500",
     },
-    {
-        title: "Transfer",
-        icon: ArrowRightLeft,
-        href: "/transfer",
-        color: "bg-blue-500",
-    },
+    // {
+    //     title: "Transfer",
+    //     icon: ArrowRightLeft,
+    //     href: "/transfer",
+    //     color: "bg-blue-500",
+    // },
     {
         title: "Airtime",
         icon: Smartphone,
@@ -37,12 +37,12 @@ const actions = [
         href: "/data",
         color: "bg-purple-500",
     },
-    {
-        title: "Bank",
-        icon: Landmark,
-        href: "/bank-transfer",
-        color: "bg-pink-500",
-    },
+    // {
+    //     title: "Bank",
+    //     icon: Landmark,
+    //     href: "/bank-transfer",
+    //     color: "bg-pink-500",
+    // },
     {
         title: "Betting",
         icon: Gamepad2,

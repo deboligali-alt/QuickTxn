@@ -55,12 +55,12 @@ const services = [
         color: "bg-pink-100 text-pink-600",
         path: "/airtime-swap",
     },
-    {
-        title: "Transfer",
-        icon: Landmark,
-        color: "bg-green-100 text-green-600",
-        path: "/transfer",
-    },
+    // {
+    //     title: "Transfer",
+    //     icon: Landmark,
+    //     color: "bg-green-100 text-green-600",
+    //     path: "/transfer",
+    // },
 ];
 
 export default function ServicesGrid() {

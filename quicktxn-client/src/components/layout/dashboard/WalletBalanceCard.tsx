@@ -75,13 +75,13 @@ export default function WalletBalanceCard({ wallet }: WalletProps) {
                         Fund
                     </button>
 
-                    <button
+                    {/* <button
                         onClick={() => router.push("/transfer")}
                         className="flex items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 py-3 text-sm font-semibold text-white transition active:scale-95"
                     >
                         <ArrowUpRight size={18} />
                         Transfer
-                    </button>
+                    </button> */}
                 </div>
             </div>
         </section>
