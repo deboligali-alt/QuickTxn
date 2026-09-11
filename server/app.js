@@ -189,7 +189,7 @@ app.use("/api/biometric", biometricRoutes);
 app.use("/api/webhook", webhookRoutes);
 
 // ==========================
-// 404
+// 404 Handler
 // ==========================
 
 app.use((req, res) => {
