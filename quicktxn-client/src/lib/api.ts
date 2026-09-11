@@ -10,6 +10,7 @@ const api = axios.create({
     "Content-Type": "application/json",
   },
   timeout: 10000,
+  withCredentials: false,
 });
 
 // Attach JWT automatically
@@ -25,7 +26,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Only handle unauthorized requests
+// Handle unauthorized responses
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -42,7 +43,6 @@ api.interceptors.response.use(
       }
     }
 
-    // IMPORTANT: Return the original error (409, 400, 500, etc.)
     return Promise.reject(error);
   }
 );
