@@ -3,7 +3,9 @@ const { pool } = require("../config/db");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const sendEmail = require("../utils/sendEmail");
-
+const {
+    createReservedAccount,
+} = require("../services/monnifyReservedAccount");
 const registerUser = async (req, res) => {
     try {
         const { full_name, email, phone, password } = req.body;
@@ -84,6 +86,50 @@ const registerUser = async (req, res) => {
              VALUES ($1,$2)`,
             [newUser.rows[0].id, 0]
         );
+
+        // ========================================
+        // Create Permanent Monnify Virtual Account
+        // ========================================
+
+        const reservationReference = `VA-${user.id}`;
+
+        try {
+            const reserved = await createReservedAccount({
+                email: user.email,
+                name: user.full_name,
+                reference: reservationReference,
+            });
+
+            const account = reserved.accounts[0];
+
+            await client.query(
+                `INSERT INTO virtual_accounts
+    (
+      user_id,
+      account_name,
+      account_number,
+      bank_name,
+      bank_code,
+      reservation_reference,
+      status
+    )
+    VALUES($1,$2,$3,$4,$5,$6,$7)`,
+                [
+                    user.id,
+                    account.accountName,
+                    account.accountNumber,
+                    account.bankName,
+                    account.bankCode,
+                    reservationReference,
+                    "ACTIVE",
+                ]
+            );
+        } catch (error) {
+            console.error(
+                "Monnify Virtual Account Error:",
+                error.response?.data || error.message
+            );
+        }
 
         // Send OTP email
         await sendEmail(

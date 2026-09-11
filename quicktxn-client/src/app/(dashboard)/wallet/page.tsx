@@ -14,6 +14,8 @@ import {
     CreditCard,
     Eye,
     EyeOff,
+    Copy,
+    Landmark,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -24,479 +26,299 @@ interface WalletData {
     balance: number;
 }
 
+interface VirtualAccount {
+    account_name: string;
+    account_number: string;
+    bank_name: string;
+    bank_code: string;
+    status: string;
+}
+
 export default function WalletPage() {
-    const [wallet, setWallet] = useState<WalletData | null>(
-        null
-    );
+    const [wallet, setWallet] = useState<WalletData | null>(null);
+    const [account, setAccount] = useState<VirtualAccount | null>(null);
 
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [showBalance, setShowBalance] = useState(true);
 
-    const loadWallet = useCallback(
-        async (refresh = false) => {
-            try {
-                if (refresh) {
-                    setRefreshing(true);
-                } else {
-                    setLoading(true);
-                }
+    const token =
+        typeof window !== "undefined"
+            ? localStorage.getItem("token")
+            : null;
 
-                const token =
-                    localStorage.getItem("token");
+    // ----------------------------
+    // Load Wallet
+    // ----------------------------
+    const loadWallet = useCallback(async (refresh = false) => {
+        try {
+            if (refresh) setRefreshing(true);
+            else setLoading(true);
 
-                if (!token) {
-                    toast.error("Please login first.");
-                    return;
-                }
+            const token = localStorage.getItem("token");
 
-                const response = await getWallet(token);
-
-                setWallet(
-                    response.data || response.wallet || null
-                );
-            } catch (error) {
-                console.error(error);
-
-                if (axios.isAxiosError(error)) {
-                    toast.error(
-                        error.response?.data?.message ||
-                        "Unable to load wallet."
-                    );
-                } else {
-                    toast.error(
-                        "Unable to load wallet."
-                    );
-                }
-            } finally {
-                setLoading(false);
-                setRefreshing(false);
+            if (!token) {
+                toast.error("Please login first.");
+                return;
             }
-        },
-        []
-    );
+
+            const response = await getWallet(token);
+
+            setWallet(response.data || response.wallet || null);
+        } catch (error) {
+            console.error(error);
+            toast.error("Unable to load wallet.");
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    }, []);
+
+    // ----------------------------
+    // Load/Create Virtual Account
+    // ----------------------------
+    const loadVirtualAccount = useCallback(async () => {
+        try {
+            if (!token) return;
+
+            const res = await axios.get(
+                `${process.env.NEXT_PUBLIC_API_URL}/api/monnify/account`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }
+            );
+
+            setAccount(res.data.data);
+        } catch (err: any) {
+            if (err.response?.status === 404) {
+                const created = await axios.post(
+                    `${process.env.NEXT_PUBLIC_API_URL}/api/monnify/create-account`,
+                    {},
+                    {
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                        },
+                    }
+                );
+
+                setAccount(created.data.data);
+            }
+        }
+    }, [token]);
 
     useEffect(() => {
         loadWallet();
-    }, [loadWallet]);
+        loadVirtualAccount();
+    }, [loadWallet, loadVirtualAccount]);
 
-    const balance = Number(
-        wallet?.balance || 0
-    );
+    const copyNumber = async () => {
+        if (!account) return;
 
-    const formattedBalance =
-        balance.toLocaleString("en-NG", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-        });
+        await navigator.clipboard.writeText(account.account_number);
+        toast.success("Account number copied!");
+    };
+
+    const balance = Number(wallet?.balance || 0);
 
     if (loading) {
         return (
-            <main className="min-h-screen bg-slate-50">
-                <div className="mx-auto w-full max-w-5xl animate-pulse px-4 py-6 sm:px-6 lg:px-8">
-                    <div className="space-y-6">
-                        <div className="h-10 w-48 rounded-xl bg-slate-200" />
-                        <div className="h-64 rounded-3xl bg-slate-200" />
-                        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-                            <div className="h-32 rounded-2xl bg-slate-200" />
-                            <div className="h-32 rounded-2xl bg-slate-200" />
-                            <div className="h-32 rounded-2xl bg-slate-200" />
-                        </div>
-                    </div>
-                </div>
+            <main className="min-h-screen flex items-center justify-center">
+                Loading wallet...
             </main>
         );
     }
 
     return (
         <main className="min-h-screen bg-slate-50">
-            <div className="mx-auto w-full max-w-5xl px-4 py-4 sm:px-6 lg:px-8 pb-24">
-
-                {/* HEADER */}
-
-                <motion.div
-                    initial={{
-                        opacity: 0,
-                        y: 20,
-                    }}
-                    animate={{
-                        opacity: 1,
-                        y: 0,
-                    }}
-                    className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
-                >
+            <div className="mx-auto max-w-5xl p-5 space-y-6">
+                {/* Header */}
+                <div className="flex items-center justify-between">
                     <div>
-                        <p className="text-sm font-bold uppercase tracking-wide text-green-600">
+                        <p className="text-green-600 font-semibold">
                             QuickTxn Wallet
                         </p>
-
-                        <h1 className="mt-1 text-3xl font-extrabold text-slate-900 sm:text-4xl">
+                        <h1 className="text-3xl font-bold">
                             My Wallet
                         </h1>
-
-                        <p className="mt-2 text-sm text-slate-500">
-                            Manage your balance and move money
-                            securely.
-                        </p>
                     </div>
 
                     <button
-                        type="button"
-                        onClick={() =>
-                            loadWallet(true)
-                        }
-                        disabled={refreshing}
-                        className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60"
+                        onClick={() => loadWallet(true)}
+                        className="border rounded-xl px-4 py-2 flex items-center gap-2"
                     >
                         <RefreshCcw
-                            size={17}
-                            className={
-                                refreshing
-                                    ? "animate-spin"
-                                    : ""
-                            }
+                            size={18}
+                            className={refreshing ? "animate-spin" : ""}
                         />
-
-                        Refresh Balance
+                        Refresh
                     </button>
+                </div>
+
+                {/* Balance */}
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="rounded-3xl bg-gradient-to-r from-green-600 to-emerald-500 p-6 text-white"
+                >
+                    <div className="flex justify-between">
+                        <div>
+                            <p>Available Balance</p>
+
+                            <h2 className="text-4xl font-bold mt-2">
+                                {showBalance
+                                    ? `₦${balance.toLocaleString("en-NG", {
+                                        minimumFractionDigits: 2,
+                                    })}`
+                                    : "₦••••••"}
+                            </h2>
+                        </div>
+
+                        <button
+                            onClick={() => setShowBalance(!showBalance)}
+                        >
+                            {showBalance ? (
+                                <Eye size={22} />
+                            ) : (
+                                <EyeOff size={22} />
+                            )}
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 mt-6">
+                        <Link
+                            href="/wallet/fund"
+                            className="bg-white text-green-700 rounded-xl py-3 flex justify-center items-center gap-2 font-semibold"
+                        >
+                            <Plus size={18} />
+                            Fund Wallet
+                        </Link>
+
+                        <Link
+                            href="/transfer"
+                            className="border border-white rounded-xl py-3 flex justify-center items-center gap-2"
+                        >
+                            <ArrowUpRight size={18} />
+                            Send
+                        </Link>
+                    </div>
                 </motion.div>
 
-                {/* BALANCE CARD */}
+                {/* Permanent Virtual Account */}
+                <div className="bg-white rounded-3xl p-6 shadow-sm border">
+                    <div className="flex items-center gap-3 mb-5">
+                        <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center">
+                            <Landmark className="text-green-600" />
+                        </div>
 
-                <motion.div
-                    initial={{
-                        opacity: 0,
-                        scale: 0.98,
-                    }}
-                    animate={{
-                        opacity: 1,
-                        scale: 1,
-                    }}
-                    className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-green-600 to-emerald-500 p-5 text-white shadow-lg sm:p-6"
-                >
-                    {/* Decorative shapes */}
+                        <div>
+                            <h2 className="text-xl font-bold">
+                                Permanent Funding Account
+                            </h2>
+                            <p className="text-sm text-gray-500">
+                                Powered by Monnify
+                            </p>
+                        </div>
+                    </div>
 
-                    <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white/10 blur-2xl" />
-
-                    <div className="absolute -bottom-32 -left-20 h-72 w-72 rounded-full bg-emerald-300/10 blur-3xl" />
-
-                    <div className="relative z-10">
-
-                        <div className="flex items-start justify-between">
-
-                            <div className="flex items-center gap-3">
-
-                                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/15 backdrop-blur">
-                                    <WalletIcon size={25} />
+                    {account ? (
+                        <>
+                            <div className="bg-green-50 rounded-2xl p-5 space-y-4">
+                                <div>
+                                    <p className="text-sm text-gray-500">
+                                        Bank
+                                    </p>
+                                    <h3 className="font-semibold text-lg">
+                                        {account.bank_name}
+                                    </h3>
                                 </div>
 
                                 <div>
-                                    <p className="text-sm text-green-100">
-                                        Available Balance
+                                    <p className="text-sm text-gray-500">
+                                        Account Number
                                     </p>
 
-                                    <p className="mt-1 text-sm font-medium text-white/80">
-                                        QuickTxn Wallet
-                                    </p>
+                                    <div className="flex justify-between items-center mt-1">
+                                        <h1 className="text-3xl font-bold tracking-widest">
+                                            {account.account_number}
+                                        </h1>
+
+                                        <button
+                                            onClick={copyNumber}
+                                            className="bg-green-600 text-white p-3 rounded-xl"
+                                        >
+                                            <Copy size={18} />
+                                        </button>
+                                    </div>
                                 </div>
 
+                                <div>
+                                    <p className="text-sm text-gray-500">
+                                        Account Name
+                                    </p>
+
+                                    <h3 className="font-semibold uppercase">
+                                        {account.account_name}
+                                    </h3>
+                                </div>
                             </div>
 
-                            <button
-                                type="button"
-                                onClick={() =>
-                                    setShowBalance(
-                                        !showBalance
-                                    )
-                                }
-                                className="rounded-xl bg-white/10 p-3 transition hover:bg-white/20"
-                                aria-label={
-                                    showBalance
-                                        ? "Hide balance"
-                                        : "Show balance"
-                                }
-                            >
-                                {showBalance ? (
-                                    <Eye size={20} />
-                                ) : (
-                                    <EyeOff size={20} />
-                                )}
-                            </button>
-
-                        </div>
-
-                        <div className="mt-10">
-
-                            <p className="text-sm text-green-100">
-                                Wallet Balance
+                            <p className="text-sm text-gray-500 mt-4">
+                                Any transfer to this account automatically
+                                credits your QuickTxn wallet.
                             </p>
-                            <h2 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
-                                {showBalance
-                                    ? `₦${formattedBalance}`
-                                    : "₦••••••"}
-                            </h2>
-
+                        </>
+                    ) : (
+                        <div className="text-center py-8">
+                            Creating your permanent account...
                         </div>
-
-                        <div className="mt-5 grid grid-cols-2 gap-3">
-
-                            <Link
-                                href="/wallet/fund"
-                                className="flex items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold text-green-700 transition hover:bg-green-50"
-                            >
-                                <Plus size={19} />
-                                Fund Wallet
-                            </Link>
-
-                            <Link
-                                href="/transfer"
-                                className="flex items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 py-3 text-sm font-semibold text-white transition hover:bg-white/20"
-                            >
-                                <ArrowUpRight size={19} />
-                                Send Money
-                            </Link>
-
-                        </div>
-
-                    </div>
-                </motion.div>
-
-                {/* ACTION CARDS */}
-
-                <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-3">
-
-                    {/* FUND */}
-
-                    <Link
-                        href="/wallet/fund"
-                        className="group rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow-md"
-                    >
-                        <div className="flex items-center justify-between">
-
-                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-green-100 text-green-600">
-                                <ArrowDownLeft size={23} />
-                            </div>
-
-                            <ArrowUpRight
-                                size={19}
-                                className="text-slate-300 transition group-hover:text-green-600"
-                            />
-
-                        </div>
-
-                        <h3 className="mt-5 text-lg font-bold text-slate-900">
-                            Fund Wallet
-                        </h3>
-
-                        <p className="mt-2 text-sm leading-6 text-slate-500">
-                            Add money to your QuickTxn wallet
-                            securely.
-                        </p>
-                    </Link>
-
-                    {/* QUICKTXN TRANSFER */}
-
-                    <Link
-                        href="/transfer"
-                        className="group rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow-md"
-                    >
-                        <div className="flex items-center justify-between">
-
-                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
-                                <ArrowUpRight size={23} />
-                            </div>
-
-                            <ArrowUpRight
-                                size={19}
-                                className="text-slate-300 transition group-hover:text-blue-600"
-                            />
-
-                        </div>
-
-                        <h3 className="mt-5 text-lg font-bold text-slate-900">
-                            Send Money
-                        </h3>
-
-                        <p className="mt-2 text-sm leading-6 text-slate-500">
-                            Transfer money to another QuickTxn
-                            user.
-                        </p>
-                    </Link>
-
-                    {/* BANK TRANSFER */}
-
-                    <Link
-                        href="/wallet/bank-transfer"
-                        className="group rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow-md"
-                    >
-                        <div className="flex items-center justify-between">
-
-                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-100 text-purple-600">
-                                <Building2 size={23} />
-                            </div>
-
-                            <ArrowUpRight
-                                size={19}
-                                className="text-slate-300 transition group-hover:text-purple-600"
-                            />
-
-                        </div>
-
-                        <h3 className="mt-5 text-lg font-bold text-slate-900">
-                            Bank Transfer
-                        </h3>
-
-                        <p className="mt-2 text-sm leading-6 text-slate-500">
-                            Transfer money directly to a bank
-                            account.
-                        </p>
-                    </Link>
-
+                    )}
                 </div>
 
-                {/* INFORMATION SECTION */}
+                {/* Quick Actions */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <Link
+                        href="/transactions"
+                        className="bg-white rounded-2xl p-5 border text-center"
+                    >
+                        <CreditCard className="mx-auto mb-3 text-blue-600" />
+                        <p className="font-semibold">
+                            Transactions
+                        </p>
+                    </Link>
 
-                <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+                    <Link
+                        href="/beneficiaries"
+                        className="bg-white rounded-2xl p-5 border text-center"
+                    >
+                        <Building2 className="mx-auto mb-3 text-purple-600" />
+                        <p className="font-semibold">
+                            Beneficiaries
+                        </p>
+                    </Link>
 
-                    {/* SECURITY */}
+                    <Link
+                        href="/settings/pin"
+                        className="bg-white rounded-2xl p-5 border text-center"
+                    >
+                        <ShieldCheck className="mx-auto mb-3 text-green-600" />
+                        <p className="font-semibold">
+                            Transaction PIN
+                        </p>
+                    </Link>
 
-                    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
-
-                        <div className="flex items-center gap-4">
-
-                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-green-100 text-green-600">
-                                <ShieldCheck size={24} />
-                            </div>
-
-                            <div>
-                                <h2 className="text-lg font-bold text-slate-900">
-                                    Wallet Security
-                                </h2>
-
-                                <p className="text-sm text-slate-500">
-                                    Keep your account protected.
-                                </p>
-                            </div>
-
-                        </div>
-
-                        <div className="mt-6 space-y-4">
-
-                            <div className="flex gap-3">
-                                <div className="mt-1 h-2 w-2 rounded-full bg-green-500" />
-
-                                <p className="text-sm leading-6 text-slate-600">
-                                    Never share your transaction
-                                    PIN with anyone.
-                                </p>
-                            </div>
-
-                            <div className="flex gap-3">
-                                <div className="mt-1 h-2 w-2 rounded-full bg-green-500" />
-
-                                <p className="text-sm leading-6 text-slate-600">
-                                    Always confirm recipient
-                                    details before sending money.
-                                </p>
-                            </div>
-
-                            <div className="flex gap-3">
-                                <div className="mt-1 h-2 w-2 rounded-full bg-green-500" />
-
-                                <p className="text-sm leading-6 text-slate-600">
-                                    Contact support if you notice
-                                    suspicious account activity.
-                                </p>
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                    {/* WALLET MANAGEMENT */}
-
-                    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
-
-                        <div className="flex items-center gap-4">
-
-                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
-                                <CreditCard size={24} />
-                            </div>
-
-                            <div>
-                                <h2 className="text-lg font-bold text-slate-900">
-                                    Wallet Management
-                                </h2>
-
-                                <p className="text-sm text-slate-500">
-                                    Manage your wallet activity.
-                                </p>
-                            </div>
-
-                        </div>
-
-                        <div className="mt-6 grid grid-cols-2 gap-3">
-
-                            <Link
-                                href="/transactions"
-                                className="rounded-xl border border-slate-200 p-4 transition hover:bg-slate-50"
-                            >
-                                <p className="text-sm font-bold text-slate-900">
-                                    Transactions
-                                </p>
-
-                                <p className="mt-1 text-xs text-slate-500">
-                                    View history
-                                </p>
-                            </Link>
-
-                            <Link
-                                href="/beneficiaries"
-                                className="rounded-xl border border-slate-200 p-4 transition hover:bg-slate-50"
-                            >
-                                <p className="text-sm font-bold text-slate-900">
-                                    Beneficiaries
-                                </p>
-
-                                <p className="mt-1 text-xs text-slate-500">
-                                    Manage accounts
-                                </p>
-                            </Link>
-
-                            <Link
-                                href="/settings/security"
-                                className="rounded-xl border border-slate-200 p-4 transition hover:bg-slate-50"
-                            >
-                                <p className="text-sm font-bold text-slate-900">
-                                    Transaction PIN
-                                </p>
-
-                                <p className="mt-1 text-xs text-slate-500">
-                                    Create & Manage your PIN
-                                </p>
-                            </Link>
-
-                            <Link
-                                href="/settings"
-                                className="rounded-xl border border-slate-200 p-4 transition hover:bg-slate-50"
-                            >
-                                <p className="text-sm font-bold text-slate-900">
-                                    Settings
-                                </p>
-
-                                <p className="mt-1 text-xs text-slate-500">
-                                    Account settings
-                                </p>
-                            </Link>
-
-                        </div>
-
-                    </div>
-
+                    <Link
+                        href="/settings"
+                        className="bg-white rounded-2xl p-5 border text-center"
+                    >
+                        <WalletIcon className="mx-auto mb-3 text-slate-700" />
+                        <p className="font-semibold">
+                            Settings
+                        </p>
+                    </Link>
                 </div>
-
             </div>
-
         </main>
     );
 }
