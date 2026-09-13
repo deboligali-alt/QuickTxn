@@ -74,6 +74,9 @@ export default function LoginPage() {
   ) => {
     e.preventDefault();
 
+
+    console.log("API URL:", process.env.NEXT_PUBLIC_API_URL);
+    console.log("Submitting login...");
     try {
       setLoading(true);
       setError("");
