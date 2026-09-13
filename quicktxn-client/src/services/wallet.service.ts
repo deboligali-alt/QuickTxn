@@ -80,3 +80,17 @@ export const bankTransfer = async (
 
     return response.data;
 };
+export const getVirtualAccount = async (
+    token: string
+) => {
+    const response = await api.get(
+        "/wallet/virtual-account",
+        {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        }
+    );
+
+    return response.data;
+};

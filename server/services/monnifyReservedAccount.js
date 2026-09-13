@@ -9,7 +9,7 @@ const createReservedAccount = async ({
     const token = await getAccessToken();
 
     const { data } = await axios.post(
-        `${process.env.MONNIFY_BASE_URL}/bank-transfer/reserved-accounts`,
+        `${process.env.MONNIFY_BASE_URL}/api/v2/bank-transfer/reserved-accounts`,
         {
             accountReference: reference,
             accountName: name,
@@ -20,8 +20,7 @@ const createReservedAccount = async ({
             customerEmail: email,
 
             getAllAvailableBanks: false,
-
-            preferredBanks: ["035"],
+            preferredBanks: ["035"], // Moniepoint
         },
         {
             headers: {
@@ -30,6 +29,10 @@ const createReservedAccount = async ({
             },
         }
     );
+
+    if (!data.requestSuccessful) {
+        throw new Error(data.responseMessage);
+    }
 
     return data.responseBody;
 };

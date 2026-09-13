@@ -91,31 +91,32 @@ const registerUser = async (req, res) => {
         // Create Permanent Monnify Virtual Account
         // ========================================
 
-        const reservationReference = `VA-${user.id}`;
+        const userId = newUser.rows[0].id;
+        const reservationReference = `VA-${userId}`;
 
         try {
             const reserved = await createReservedAccount({
-                email: user.email,
-                name: user.full_name,
+                email,
+                name: full_name,
                 reference: reservationReference,
             });
 
             const account = reserved.accounts[0];
 
-            await client.query(
+            await pool.query(
                 `INSERT INTO virtual_accounts
-    (
-      user_id,
-      account_name,
-      account_number,
-      bank_name,
-      bank_code,
-      reservation_reference,
-      status
-    )
-    VALUES($1,$2,$3,$4,$5,$6,$7)`,
+        (
+            user_id,
+            account_name,
+            account_number,
+            bank_name,
+            bank_code,
+            reservation_reference,
+            status
+        )
+        VALUES ($1,$2,$3,$4,$5,$6,$7)`,
                 [
-                    user.id,
+                    userId,
                     account.accountName,
                     account.accountNumber,
                     account.bankName,
@@ -124,6 +125,11 @@ const registerUser = async (req, res) => {
                     "ACTIVE",
                 ]
             );
+
+            console.log(
+                `Virtual account created: ${account.accountNumber}`
+            );
+
         } catch (error) {
             console.error(
                 "Monnify Virtual Account Error:",

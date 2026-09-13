@@ -20,8 +20,10 @@ import {
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
-import { getWallet } from "@/services/wallet.service";
-
+import {
+    getWallet,
+    getVirtualAccount,
+} from "@/services/wallet.service";
 interface WalletData {
     balance: number;
 }
@@ -79,35 +81,23 @@ export default function WalletPage() {
     // ----------------------------
     const loadVirtualAccount = useCallback(async () => {
         try {
+            const token = localStorage.getItem("token");
+
             if (!token) return;
 
-            const res = await axios.get(
-                `${process.env.NEXT_PUBLIC_API_URL}/api/monnify/account`,
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                }
-            );
+            const response = await getVirtualAccount(token);
 
-            setAccount(res.data.data);
-        } catch (err: any) {
-            if (err.response?.status === 404) {
-                const created = await axios.post(
-                    `${process.env.NEXT_PUBLIC_API_URL}/api/monnify/create-account`,
-                    {},
-                    {
-                        headers: {
-                            Authorization: `Bearer ${token}`,
-                        },
-                    }
-                );
+            setAccount(response.data);
+        } catch (error: any) {
+            console.error(error);
 
-                setAccount(created.data.data);
+            if (error.response?.status === 404) {
+                toast.error("Virtual account not found.");
+            } else {
+                toast.error("Unable to load virtual account.");
             }
         }
-    }, [token]);
-
+    }, []);
     useEffect(() => {
         loadWallet();
         loadVirtualAccount();
