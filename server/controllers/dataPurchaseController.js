@@ -3,7 +3,8 @@ const walletService = require("../services/walletService");
 const transactionService = require("../services/transactionService");
 const notificationService = require("../services/notificationService");
 const pinService = require("../services/pinService");
-const { purchaseDataVTU, getDataPlansVTU } = require("../services/vtuService");
+const { buyData } = require("../services/clubkonnectData");
+const { getDataPlans: fetchPlans } = require("../services/clubkonnectPlans");
 const { giveCashback } = require("../services/cashbackService");
 
 // ========================================
@@ -70,16 +71,25 @@ const purchaseData = async (req, res) => {
         const reference = `DATA-${Date.now()}`;
 
         // Live VTU Provider
-        const provider = await purchaseDataVTU({
-            network,
-            planCode,
+        const networkMap = {
+            MTN: "01",
+            GLO: "02",
+            "9MOBILE": "03",
+            AIRTEL: "04",
+        };
+
+        const provider = await buyData({
+            network: networkMap[network.toUpperCase()],
+            dataPlan: plan.plan_code,
             phone: phoneNumber,
-            amount: plan.amount,
-            reference,
+            requestId: reference,
         });
 
-        if (!provider.success) {
-            throw new Error(provider.message);
+        if (
+            provider.status !== "ORDER_RECEIVED" &&
+            provider.statuscode !== "100"
+        ) {
+            throw new Error(provider.status || "Purchase failed.");
         }
 
         // Debit wallet
@@ -219,7 +229,16 @@ const getDataPlans = async (req, res) => {
             });
         }
 
-        const plans = await getDataPlansVTU(network);
+        const networkMap = {
+            MTN: "01",
+            GLO: "02",
+            "9MOBILE": "03",
+            AIRTEL: "04",
+        };
+
+        const plans = await fetchPlans(
+            networkMap[network.toUpperCase()]
+        );
 
         return res.json({
             success: true,
@@ -228,7 +247,7 @@ const getDataPlans = async (req, res) => {
     } catch (error) {
         return res.status(500).json({
             success: false,
-            message: "Unable to fetch data plans.",
+            message: "Unable to fetch plans.",
         });
     }
 };

@@ -1,24 +1,23 @@
+const axios = require("axios");
 const { pool } = require("../config/db");
 const walletService = require("../services/walletService");
 const transactionService = require("../services/transactionService");
 const notificationService = require("../services/notificationService");
 const pinService = require("../services/pinService");
-const {
-    getProducts,
-    purchaseWaecPin,
-} = require("../services/waecService");
+const { giveCashback } = require("../services/cashbackService");
 
-const getWaecProducts = async (req, res) => {
-    const products = await getProducts();
-
-    res.json({
-        success: true,
-        data: products,
-    });
-};
-
+// WAEC Result Checker
 const purchaseWaec = async (req, res) => {
-    const { productCode, amount, pin } = req.body;
+    const { quantity, pin } = req.body;
+
+    if (!quantity || !pin) {
+        return res.status(400).json({
+            success: false,
+            message: "Quantity and transaction PIN are required.",
+        });
+    }
+
+    const amount = Number(quantity) * 4500; // Example price
 
     const client = await pool.connect();
 
@@ -27,40 +26,44 @@ const purchaseWaec = async (req, res) => {
 
         await pinService.verifyPin(req.user.id, pin, client);
 
-        await walletService.debitWallet(
-            req.user.id,
-            amount,
-            client
+        const wallet = await client.query(
+            `SELECT balance
+             FROM wallets
+             WHERE user_id=$1
+             FOR UPDATE`,
+            [req.user.id]
         );
 
-        const reference = `WAEC-${Date.now()}`;
+        const balance = Number(wallet.rows[0].balance);
 
-        const result = await purchaseWaecPin({
-            productCode,
-            amount,
-            reference,
-        });
+        if (balance < amount) {
+            await client.query("ROLLBACK");
+            return res.status(400).json({
+                success: false,
+                message: "Insufficient wallet balance.",
+            });
+        }
 
-        await client.query(
-            `INSERT INTO waec_purchases
-      (
-        user_id,
-        product_code,
-        pin,
-        serial,
-        amount,
-        reference
-      )
-      VALUES($1,$2,$3,$4,$5,$6)`,
-            [
-                req.user.id,
-                productCode,
-                result.pin,
-                result.serial,
-                amount,
-                reference,
-            ]
+        const requestId = `WAEC-${Date.now()}`;
+
+        const vtpass = await axios.post(
+            "https://sandbox.vtpass.com/api/pay",
+            {
+                request_id: requestId,
+                serviceID: "waec",
+                variation_code: "waecdirect",
+                quantity,
+                phone: req.user.phone || "08000000000",
+            },
+            {
+                headers: {
+                    "api-key": process.env.VTPASS_API_KEY,
+                    "secret-key": process.env.VTPASS_SECRET_KEY,
+                },
+            }
         );
+
+        await walletService.debitWallet(req.user.id, amount, client);
 
         await transactionService.createTransaction(
             {
@@ -68,8 +71,8 @@ const purchaseWaec = async (req, res) => {
                 type: "WAEC",
                 amount,
                 status: "SUCCESS",
-                description: "WAEC ePIN Purchase",
-                reference,
+                description: "WAEC Result Checker Purchase",
+                reference: requestId,
             },
             client
         );
@@ -77,48 +80,54 @@ const purchaseWaec = async (req, res) => {
         await notificationService.createNotification(
             {
                 userId: req.user.id,
-                title: "WAEC PIN",
-                message: "Your WAEC ePIN has been generated.",
+                title: "WAEC Purchased",
+                message: `${quantity} WAEC result checker PIN purchased successfully.`,
             },
             client
         );
+
+        const cashback = await giveCashback(
+            req.user.id,
+            "WAEC",
+            amount,
+            client
+        );
+
+        if (cashback > 0) {
+            await walletService.creditWallet(
+                req.user.id,
+                cashback,
+                client
+            );
+        }
 
         await client.query("COMMIT");
 
         return res.json({
             success: true,
             message: "WAEC PIN purchased successfully.",
-            data: result,
+            data: {
+                quantity,
+                amount,
+                reference: requestId,
+                provider: vtpass.data,
+            },
         });
+
     } catch (error) {
         await client.query("ROLLBACK");
 
         return res.status(500).json({
             success: false,
-            message: error.message,
+            message:
+                error.response?.data?.message ||
+                error.message ||
+                "WAEC purchase failed.",
         });
+
     } finally {
         client.release();
     }
 };
 
-const getHistory = async (req, res) => {
-    const result = await pool.query(
-        `SELECT *
-     FROM waec_purchases
-     WHERE user_id=$1
-     ORDER BY created_at DESC`,
-        [req.user.id]
-    );
-
-    res.json({
-        success: true,
-        data: result.rows,
-    });
-};
-
-module.exports = {
-    getWaecProducts,
-    purchaseWaec,
-    getHistory,
-};
+module.exports = { purchaseWaec };
