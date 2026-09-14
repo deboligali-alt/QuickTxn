@@ -15,12 +15,10 @@ const createReservedAccount = async ({
             accountName: name,
             currencyCode: "NGN",
             contractCode: process.env.MONNIFY_CONTRACT_CODE,
-
             customerName: name,
             customerEmail: email,
-
             getAllAvailableBanks: false,
-            preferredBanks: ["035"], // Moniepoint
+            preferredBanks: ["035"],
         },
         {
             headers: {
