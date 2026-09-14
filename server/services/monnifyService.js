@@ -2,18 +2,21 @@ const axios = require("axios");
 
 const BASE_URL = process.env.MONNIFY_BASE_URL;
 
-// Generate Monnify Access Token
+// ===============================
+// Generate Access Token
+// ===============================
 const getAccessToken = async () => {
     const credentials = Buffer.from(
         `${process.env.MONNIFY_API_KEY}:${process.env.MONNIFY_SECRET_KEY}`
     ).toString("base64");
 
     const { data } = await axios.post(
-        `${BASE_URL}/auth/login`,
+        `${BASE_URL}/api/v1/auth/login`,
         {},
         {
             headers: {
                 Authorization: `Basic ${credentials}`,
+                "Content-Type": "application/json",
             },
         }
     );
@@ -21,7 +24,9 @@ const getAccessToken = async () => {
     return data.responseBody.accessToken;
 };
 
-// Initialize Wallet Funding
+// ===============================
+// Initialize Checkout Payment
+// ===============================
 const initializePayment = async ({
     amount,
     email,
@@ -31,7 +36,7 @@ const initializePayment = async ({
     const token = await getAccessToken();
 
     const { data } = await axios.post(
-        `${BASE_URL}/merchant/transactions/init-transaction`,
+        `${BASE_URL}/api/v1/merchant/transactions/init-transaction`,
         {
             amount: Number(amount),
             customerName: name,
@@ -50,6 +55,7 @@ const initializePayment = async ({
         {
             headers: {
                 Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
             },
         }
     );
@@ -57,12 +63,14 @@ const initializePayment = async ({
     return data.responseBody;
 };
 
+// ===============================
 // Verify Payment
+// ===============================
 const verifyPayment = async (reference) => {
     const token = await getAccessToken();
 
     const { data } = await axios.get(
-        `${BASE_URL}/merchant/transactions/query`,
+        `${BASE_URL}/api/v1/merchant/transactions/query`,
         {
             params: {
                 paymentReference: reference,
