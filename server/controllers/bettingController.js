@@ -1,189 +1,122 @@
 const { pool } = require("../config/db");
-const axios = require("axios");
 const walletService = require("../services/walletService");
 const transactionService = require("../services/transactionService");
 const notificationService = require("../services/notificationService");
 const pinService = require("../services/pinService");
+const {
+    verifyCustomer,
+    fundBettingWallet,
+} = require("../services/bettingService");
+const { giveCashback } = require("../services/cashbackService");
+
 // ========================================
-// Get Betting Providers
+// GET BETTING PROVIDERS
 // ========================================
 const getProviders = async (req, res) => {
     try {
+        const result = await pool.query(`
+      SELECT provider_name, provider_code
+      FROM betting_providers
+      WHERE is_active = TRUE
+      ORDER BY provider_name
+    `);
 
-        const result = await pool.query(
-            `SELECT
-                provider_name,
-                provider_code
-             FROM betting_providers
-             WHERE is_active = TRUE
-             ORDER BY provider_name`
-        );
-
-        return res.status(200).json({
+        return res.json({
             success: true,
             count: result.rows.length,
-            data: result.rows
+            data: result.rows,
         });
-
     } catch (error) {
-
-        console.error(error);
-
         return res.status(500).json({
             success: false,
-            message: "Server Error"
+            message: "Server Error",
         });
-
     }
 };
 
-
-
 // ========================================
-// Verify Betting Customer
+// VERIFY CUSTOMER
 // ========================================
-const verifyCustomer = async (req, res) => {
-    const { company, customerId } = req.body;
-
-    if (!company || !customerId) {
-        return res.status(400).json({
-            success: false,
-            message: "Company and Customer ID are required.",
-        });
-    }
-
+const verifyBettingCustomer = async (req, res) => {
     try {
-        const response = await axios.post(
-            "https://sandbox.vtpass.com/api/merchant-verify",
-            {
-                billersCode: customerId,
-                serviceID: company,
-            },
-            {
-                headers: {
-                    "api-key": process.env.VTPASS_API_KEY,
-                    "secret-key": process.env.VTPASS_SECRET_KEY,
-                    "Content-Type": "application/json",
-                },
-            }
-        );
+        const { provider, customerId } = req.body;
 
-        const customerName =
-            response.data?.content?.Customer_Name ||
-            response.data?.content?.customer_name ||
-            response.data?.content?.name;
-
-        if (!customerName) {
+        if (!provider || !customerId) {
             return res.status(400).json({
                 success: false,
-                message: "Invalid Betting User ID.",
+                message: "Provider and customer ID are required.",
             });
         }
 
-        return res.status(200).json({
-            success: true,
-            message: "Customer verified successfully.",
-            data: {
-                name: customerName,
-                customerId,
-                company,
-            },
+        const result = await verifyCustomer({
+            provider,
+            customerId,
         });
-    } catch (error) {
-        console.error(error.response?.data || error);
 
-        return res.status(400).json({
+        return res.json(result);
+    } catch (error) {
+        return res.status(500).json({
             success: false,
-            message:
-                error.response?.data?.response_description ||
-                "Unable to verify betting customer.",
+            message: error.message,
         });
     }
 };
-// ========================================
-// Fund Betting Wallet
-// ========================================
-const fundBettingWallet = async (req, res) => {
 
-    const {
-        providerCode,
-        bettingUserId,
-        amount,
-        pin
-    } = req.body;
-    if (!providerCode || !bettingUserId || !amount || !pin) {
-        return res.status(400).json({
-            success: false,
-            message: "Provider, betting ID, amount and transaction PIN are required."
-        });
-    }
-
-    if (Number(amount) <= 0) {
-        return res.status(400).json({
-            success: false,
-            message: "Amount must be greater than zero."
-        });
-    }
+// ========================================
+// FUND BETTING WALLET
+// ========================================
+const fundWallet = async (req, res) => {
+    const { providerCode, bettingUserId, amount, pin } = req.body;
 
     const client = await pool.connect();
 
     try {
-
         await client.query("BEGIN");
 
-        // Verify Transaction PIN
-        await pinService.verifyPin(
-            req.user.id,
-            pin,
-            client
-        );
+        await pinService.verifyPin(req.user.id, pin, client);
 
-        // Get Provider
         const providerResult = await client.query(
             `SELECT *
-             FROM betting_providers
-             WHERE provider_code = $1
-             AND is_active = TRUE`,
+       FROM betting_providers
+       WHERE provider_code=$1
+       AND is_active=TRUE`,
             [providerCode]
         );
 
         if (providerResult.rows.length === 0) {
-
-            await client.query("ROLLBACK");
-
-            return res.status(404).json({
-                success: false,
-                message: "Betting provider not found."
-            });
-
+            throw new Error("Betting provider not found.");
         }
 
         const provider = providerResult.rows[0];
 
-        // Debit Wallet
+        const reference = `BET-${Date.now()}`;
+
+        await fundBettingWallet({
+            provider: provider.provider_code,
+            customerId: bettingUserId,
+            amount,
+            reference,
+        });
+
         await walletService.debitWallet(
             req.user.id,
             amount,
             client
         );
 
-        const reference = `BET-${Date.now()}`;
-
-        // Save Betting Transaction
         await client.query(
             `INSERT INTO betting_transactions
-            (
-                user_id,
-                provider_name,
-                provider_code,
-                betting_user_id,
-                amount,
-                status,
-                provider,
-                reference
-            )
-            VALUES
-            ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      (
+        user_id,
+        provider_name,
+        provider_code,
+        betting_user_id,
+        amount,
+        status,
+        provider,
+        reference
+      )
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8)`,
             [
                 req.user.id,
                 provider.provider_name,
@@ -191,119 +124,105 @@ const fundBettingWallet = async (req, res) => {
                 bettingUserId,
                 amount,
                 "SUCCESS",
-                "SIMULATION",
-                reference
+                "QuickTxn Sandbox",
+                reference,
             ]
         );
 
-        // Save Financial Transaction
-        await transactionService.createTransaction({
-            senderId: req.user.id,
-            type: "BETTING_FUNDING",
-            amount,
-            status: "SUCCESS",
-            description: `Funded ${provider.provider_name} wallet`,
-            reference
-        }, client);
+        await transactionService.createTransaction(
+            {
+                senderId: req.user.id,
+                type: "BETTING",
+                amount,
+                status: "SUCCESS",
+                description: `Funded ${provider.provider_name}`,
+                reference,
+            },
+            client
+        );
 
-        // Create Notification
-        await notificationService.createNotification({
-            userId: req.user.id,
-            title: "Betting Wallet Funded",
-            message: `₦${Number(amount).toLocaleString()} has been used to fund your ${provider.provider_name} wallet.`
-        }, client);
+        await notificationService.createNotification(
+            {
+                userId: req.user.id,
+                title: "Betting Wallet Funded",
+                message: `₦${Number(amount).toLocaleString()} sent to ${provider.provider_name}.`,
+            },
+            client
+        );
+
+        const cashback = await giveCashback(
+            req.user.id,
+            "BETTING",
+            amount,
+            client
+        );
+
+        if (cashback > 0) {
+            await walletService.creditWallet(
+                req.user.id,
+                cashback,
+                client
+            );
+        }
 
         await client.query("COMMIT");
-        // ======================================
-        // REALTIME SOCKET.IO
-        // ======================================
-        const io = req.app.get("io");
 
+        const io = req.app.get("io");
         io.to(req.user.id).emit("wallet_updated");
         io.to(req.user.id).emit("new_transaction");
 
-        return res.status(200).json({
+        return res.json({
             success: true,
             message: "Betting wallet funded successfully.",
             data: {
                 provider: provider.provider_name,
                 bettingUserId,
                 amount,
-                reference
-            }
+                cashback,
+                reference,
+            },
         });
-
     } catch (error) {
-
         await client.query("ROLLBACK");
-
-        console.error(error);
-
-        if (
-            error.message === "Invalid transaction PIN." ||
-            error.message === "Transaction PIN has not been set." ||
-            error.message === "Insufficient wallet balance."
-        ) {
-            return res.status(400).json({
-                success: false,
-                message: error.message
-            });
-        }
 
         return res.status(500).json({
             success: false,
-            message: "Internal Server Error"
+            message: error.message,
         });
     } finally {
-
         client.release();
-
     }
-
 };
 
 // ========================================
-// Funding History
+// HISTORY
 // ========================================
 const getFundingHistory = async (req, res) => {
-
     try {
-
         const result = await pool.query(
-            `SELECT
-                provider_name,
-                betting_user_id,
-                amount,
-                status,
-                reference,
-                created_at
-             FROM betting_transactions
-             WHERE user_id = $1
-             ORDER BY created_at DESC`,
+            `SELECT *
+       FROM betting_transactions
+       WHERE user_id=$1
+       ORDER BY created_at DESC`,
             [req.user.id]
         );
 
-        return res.status(200).json({
+        return res.json({
             success: true,
             count: result.rows.length,
-            data: result.rows
+            data: result.rows,
         });
-
     } catch (error) {
-
-        console.error(error);
-
         return res.status(500).json({
             success: false,
-            message: "Server Error"
+            message: "Server Error",
         });
-
     }
-
 };
+
 module.exports = {
-    verifyCustomer,
     getProviders,
-    fundBettingWallet,
+    verifyBettingCustomer,
+    fundWallet,
     getFundingHistory,
 };

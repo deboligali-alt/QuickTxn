@@ -1,13 +1,16 @@
-const router = require("express").Router();
-const verifyToken = require("../middleware/authMiddleware");
+const express = require("express");
+const router = express.Router();
+
+const auth = require("../middleware/authMiddleware");
+
 const {
-    purchaseWaecPin,
+    getWaecProducts,
+    purchaseWaec,
+    getHistory,
 } = require("../controllers/waecController");
 
-router.post(
-    "/purchase",
-    verifyToken,
-    purchaseWaecPin
-);
+router.get("/products", auth, getWaecProducts);
+router.post("/purchase", auth, purchaseWaec);
+router.get("/history", auth, getHistory);
 
 module.exports = router;

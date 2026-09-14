@@ -1,19 +1,32 @@
-const fundWallet = async ({
-    providerCode,
-    bettingUserId,
-    amount
-}) => {
+// services/bettingService.js
 
-    // Temporary provider integration
-    // This will be replaced with the real VTU/betting provider API.
-
+const verifyCustomer = async ({ provider, customerId }) => {
+    // Sandbox verification
     return {
         success: true,
-        provider: "SIMULATION",
-        providerReference: `BET-${Date.now()}`
+        customerName: "ADEBOWALE IBRAHIM",
+        customerId,
+        provider,
+    };
+};
+
+const fundBettingWallet = async ({
+    provider,
+    customerId,
+    amount,
+    reference,
+}) => {
+    // Sandbox funding
+    return {
+        success: true,
+        provider: "QuickTxn Sandbox",
+        reference,
+        customerId,
+        amount,
     };
 };
 
 module.exports = {
-    fundWallet
+    verifyCustomer,
+    fundBettingWallet,
 };

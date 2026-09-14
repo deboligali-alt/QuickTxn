@@ -37,10 +37,29 @@ router.get("/", verifyToken, isAdmin, getAllAirtimeRates);
  * @swagger
  * /api/admin/airtime-rates:
  *   post:
- *     summary: Create airtime rate
+ *     summary: Create a new airtime rate
  *     tags: [Admin Airtime Rates]
  *     security:
  *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - network
+ *               - rate
+ *             properties:
+ *               network:
+ *                 type: string
+ *                 example: MTN
+ *               rate:
+ *                 type: number
+ *                 example: 80
+ *     responses:
+ *       201:
+ *         description: Airtime rate created successfully
  */
 router.post("/", verifyToken, isAdmin, createAirtimeRate);
 
@@ -48,10 +67,35 @@ router.post("/", verifyToken, isAdmin, createAirtimeRate);
  * @swagger
  * /api/admin/airtime-rates/{id}:
  *   put:
- *     summary: Update airtime rate
+ *     summary: Update an airtime rate
  *     tags: [Admin Airtime Rates]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               network:
+ *                 type: string
+ *                 example: MTN
+ *               rate:
+ *                 type: number
+ *                 example: 82
+ *               is_active:
+ *                 type: boolean
+ *                 example: true
+ *     responses:
+ *       200:
+ *         description: Airtime rate updated successfully
  */
 router.put("/:id", verifyToken, isAdmin, updateAirtimeRate);
 
@@ -59,10 +103,19 @@ router.put("/:id", verifyToken, isAdmin, updateAirtimeRate);
  * @swagger
  * /api/admin/airtime-rates/{id}:
  *   delete:
- *     summary: Delete airtime rate
+ *     summary: Delete an airtime rate
  *     tags: [Admin Airtime Rates]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Airtime rate deleted successfully
  */
 router.delete("/:id", verifyToken, isAdmin, deleteAirtimeRate);
 
@@ -74,6 +127,15 @@ router.delete("/:id", verifyToken, isAdmin, deleteAirtimeRate);
  *     tags: [Admin Airtime Rates]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Airtime rate status updated successfully
  */
 router.patch("/:id/status", verifyToken, isAdmin, toggleAirtimeRateStatus);
 

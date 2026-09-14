@@ -4,9 +4,9 @@ const router = express.Router();
 const verifyToken = require("../middleware/authMiddleware");
 
 const {
-    verifyCustomer,
     getProviders,
-    fundBettingWallet,
+    verifyBettingCustomer,
+    fundWallet,
     getFundingHistory,
 } = require("../controllers/bettingController");
 
@@ -16,6 +16,20 @@ const {
  *   - name: Betting
  *     description: Betting wallet funding services
  */
+
+/**
+ * @swagger
+ * /api/betting/providers:
+ *   get:
+ *     summary: Get all supported betting providers
+ *     tags: [Betting]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Providers retrieved successfully
+ */
+router.get("/providers", verifyToken, getProviders);
 
 /**
  * @swagger
@@ -32,40 +46,20 @@ const {
  *           schema:
  *             type: object
  *             required:
- *               - company
+ *               - provider
  *               - customerId
  *             properties:
- *               company:
+ *               provider:
  *                 type: string
- *                 example: sporty
+ *                 example: SPORTYBET
  *               customerId:
  *                 type: string
  *                 example: "987654321"
  *     responses:
  *       200:
  *         description: Customer verified successfully
- *       400:
- *         description: Invalid request
- *       401:
- *         description: Unauthorized
  */
-router.post("/verify", verifyToken, verifyCustomer);
-
-/**
- * @swagger
- * /api/betting/providers:
- *   get:
- *     summary: Get all betting providers
- *     tags: [Betting]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Providers retrieved successfully
- *       401:
- *         description: Unauthorized
- */
-router.get("/providers", verifyToken, getProviders);
+router.post("/verify", verifyToken, verifyBettingCustomer);
 
 /**
  * @swagger
@@ -98,16 +92,12 @@ router.get("/providers", verifyToken, getProviders);
  *                 example: 5000
  *               pin:
  *                 type: string
- *                 example: "1234"
+ *                 example: "2580"
  *     responses:
  *       200:
  *         description: Betting wallet funded successfully
- *       400:
- *         description: Invalid request, invalid PIN or insufficient wallet balance
- *       401:
- *         description: Unauthorized
  */
-router.post("/fund", verifyToken, fundBettingWallet);
+router.post("/fund", verifyToken, fundWallet);
 
 /**
  * @swagger
@@ -119,9 +109,7 @@ router.post("/fund", verifyToken, fundBettingWallet);
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Betting funding history retrieved successfully
- *       401:
- *         description: Unauthorized
+ *         description: Funding history retrieved successfully
  */
 router.get("/history", verifyToken, getFundingHistory);
 

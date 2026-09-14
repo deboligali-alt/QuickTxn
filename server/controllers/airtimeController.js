@@ -1,5 +1,6 @@
 const { pool } = require("../config/db");
-const { buyAirtime } = require("../services/clubkonnect");
+const { purchaseAirtimeVTU } = require("../services/vtuService");
+const bcrypt = require("bcryptjs");
 const { giveCashback } = require("../services/cashbackService");
 
 // ====================================
@@ -147,16 +148,38 @@ const purchaseAirtime = async (req, res) => {
     const client = await pool.connect();
 
     try {
-        const { network, phone, amount } = req.body;
+        const { network, phone, amount, pin } = req.body;
 
-        if (!network || !phone || !amount) {
+        if (!network || !phone || !amount || !pin) {
             return res.status(400).json({
                 success: false,
-                message: "Network, phone and amount are required.",
+                message: "Network, phone, amount and PIN are required.",
             });
         }
 
         await client.query("BEGIN");
+
+        // Verify transaction PIN
+        const user = await client.query(
+            `SELECT transaction_pin
+       FROM users
+       WHERE id=$1`,
+            [req.user.id]
+        );
+
+        const validPin = await bcrypt.compare(
+            pin,
+            user.rows[0].transaction_pin
+        );
+
+        if (!validPin) {
+            await client.query("ROLLBACK");
+
+            return res.status(400).json({
+                success: false,
+                message: "Invalid transaction PIN.",
+            });
+        }
 
         // Lock wallet
         const wallet = await client.query(
@@ -178,31 +201,20 @@ const purchaseAirtime = async (req, res) => {
             });
         }
 
-        // ClubKonnect Network IDs
-        const networkMap = {
-            mtn: "01",
-            glo: "02",
-            "9mobile": "03",
-            airtel: "04",
-        };
+        const reference = `AIR-${Date.now()}`;
 
-        const requestId = `AIR-${Date.now()}`;
-
-        const ck = await buyAirtime({
-            network: networkMap[network.toLowerCase()],
-            amount,
+        // Live VTU Provider
+        const provider = await purchaseAirtimeVTU({
+            network,
             phone,
-            requestId,
+            amount,
+            reference,
         });
 
-        if (
-            ck.status !== "ORDER_RECEIVED" &&
-            ck.statuscode !== "100"
-        ) {
-            throw new Error(ck.status || "ClubKonnect failed.");
+        if (!provider.success) {
+            throw new Error(provider.message);
         }
 
-        // Debit wallet
         const newBalance = balance - Number(amount);
 
         await client.query(
@@ -213,7 +225,6 @@ const purchaseAirtime = async (req, res) => {
             [newBalance, req.user.id]
         );
 
-        // Save transaction
         await client.query(
             `INSERT INTO transactions
       (
@@ -229,13 +240,12 @@ const purchaseAirtime = async (req, res) => {
                 req.user.id,
                 "AIRTIME",
                 amount,
-                "success",
-                requestId,
-                `${network.toUpperCase()} Airtime Purchase`,
+                "SUCCESS",
+                reference,
+                `${network.toUpperCase()} Airtime - ${phone}`,
             ]
         );
 
-        // Notification
         await client.query(
             `INSERT INTO notifications
       (user_id,title,message)
@@ -243,11 +253,10 @@ const purchaseAirtime = async (req, res) => {
             [
                 req.user.id,
                 "Airtime Purchase",
-                `₦${Number(amount).toLocaleString()} ${network.toUpperCase()} airtime purchased successfully.`,
+                `₦${Number(amount).toLocaleString()} ${network.toUpperCase()} airtime sent to ${phone}.`,
             ]
         );
 
-        // Cashback
         const cashback = await giveCashback(
             req.user.id,
             "AIRTIME",
@@ -262,37 +271,18 @@ const purchaseAirtime = async (req, res) => {
          WHERE user_id = $2`,
                 [cashback, req.user.id]
             );
-
-            await client.query(
-                `INSERT INTO transactions
-        (
-          receiver_id,
-          type,
-          amount,
-          status,
-          reference,
-          description
-        )
-        VALUES($1,$2,$3,$4,$5,$6)`,
-                [
-                    req.user.id,
-                    "CASHBACK",
-                    cashback,
-                    "success",
-                    `CB-${Date.now()}`,
-                    "Airtime Cashback Reward",
-                ]
-            );
         }
 
         await client.query("COMMIT");
 
-        return res.status(200).json({
+        return res.json({
             success: true,
             message: "Airtime purchased successfully.",
             data: {
-                provider: "CLUBKONNECT",
-                requestId,
+                network,
+                phone,
+                amount,
+                reference,
                 cashback,
                 balance: newBalance + cashback,
             },
@@ -300,11 +290,9 @@ const purchaseAirtime = async (req, res) => {
     } catch (error) {
         await client.query("ROLLBACK");
 
-        console.log(error);
-
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
-            message: error.message || "Purchase failed.",
+            message: error.message || "Airtime purchase failed.",
         });
     } finally {
         client.release();

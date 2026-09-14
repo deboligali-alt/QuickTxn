@@ -3,12 +3,11 @@ const walletService = require("../services/walletService");
 const transactionService = require("../services/transactionService");
 const notificationService = require("../services/notificationService");
 const pinService = require("../services/pinService");
-const { buyData } = require("../services/clubkonnectData");
-const { getDataPlans: fetchPlans } = require("../services/clubkonnectPlans");
+const { purchaseDataVTU, getDataPlansVTU } = require("../services/vtuService");
 const { giveCashback } = require("../services/cashbackService");
 
 // ========================================
-// PURCHASE DATA (CLUBKONNECT LIVE)
+// PURCHASE DATA
 // ========================================
 const purchaseData = async (req, res) => {
     const { network, planCode, phoneNumber, pin } = req.body;
@@ -26,14 +25,16 @@ const purchaseData = async (req, res) => {
     try {
         await client.query("BEGIN");
 
+        // Verify PIN
         await pinService.verifyPin(req.user.id, pin, client);
 
+        // Fetch plan from DB
         const planResult = await client.query(
             `SELECT *
-       FROM data_plans
-       WHERE plan_code=$1
-       AND network=$2
-       AND is_active=TRUE`,
+             FROM data_plans
+             WHERE plan_code=$1
+             AND network=$2
+             AND is_active=TRUE`,
             [planCode, network.toUpperCase()]
         );
 
@@ -47,11 +48,12 @@ const purchaseData = async (req, res) => {
 
         const plan = planResult.rows[0];
 
+        // Lock wallet
         const walletResult = await client.query(
             `SELECT balance
-       FROM wallets
-       WHERE user_id=$1
-       FOR UPDATE`,
+             FROM wallets
+             WHERE user_id=$1
+             FOR UPDATE`,
             [req.user.id]
         );
 
@@ -65,33 +67,27 @@ const purchaseData = async (req, res) => {
             });
         }
 
-        const networkMap = {
-            MTN: "01",
-            GLO: "02",
-            "9MOBILE": "03",
-            AIRTEL: "04",
-        };
+        const reference = `DATA-${Date.now()}`;
 
-        const requestId = `DATA-${Date.now()}`;
-
-        const providerResult = await buyData({
-            network: networkMap[network.toUpperCase()],
-            dataPlan: plan.plan_code,
+        // Live VTU Provider
+        const provider = await purchaseDataVTU({
+            network,
+            planCode,
             phone: phoneNumber,
-            requestId,
+            amount: plan.amount,
+            reference,
         });
 
-        if (
-            providerResult.status !== "ORDER_RECEIVED" &&
-            providerResult.statuscode !== "100"
-        ) {
-            throw new Error(
-                providerResult.status || "ClubKonnect rejected the request."
-            );
+        if (!provider.success) {
+            throw new Error(provider.message);
         }
 
         // Debit wallet
-        await walletService.debitWallet(req.user.id, plan.amount, client);
+        await walletService.debitWallet(
+            req.user.id,
+            plan.amount,
+            client
+        );
 
         const duration = plan.duration_days || 30;
 
@@ -101,21 +97,21 @@ const purchaseData = async (req, res) => {
         // Save purchase
         await client.query(
             `INSERT INTO data_purchases
-      (
-        user_id,
-        network,
-        plan_name,
-        plan_code,
-        phone_number,
-        amount,
-        duration_days,
-        expires_at,
-        status,
-        provider,
-        reference
-      )
-      VALUES
-      ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+            (
+                user_id,
+                network,
+                plan_name,
+                plan_code,
+                phone_number,
+                amount,
+                duration_days,
+                expires_at,
+                status,
+                provider,
+                reference
+            )
+            VALUES
+            ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
             [
                 req.user.id,
                 network.toUpperCase(),
@@ -126,8 +122,8 @@ const purchaseData = async (req, res) => {
                 duration,
                 expiresAt,
                 "SUCCESS",
-                "CLUBKONNECT",
-                requestId,
+                provider.provider,
+                reference,
             ]
         );
 
@@ -135,11 +131,11 @@ const purchaseData = async (req, res) => {
         await transactionService.createTransaction(
             {
                 senderId: req.user.id,
-                type: "DATA_PURCHASE",
+                type: "DATA",
                 amount: plan.amount,
                 status: "SUCCESS",
                 description: `${plan.plan_name} ${network.toUpperCase()} Data Purchase`,
-                reference: requestId,
+                reference,
             },
             client
         );
@@ -149,7 +145,7 @@ const purchaseData = async (req, res) => {
             {
                 userId: req.user.id,
                 title: "Data Purchase",
-                message: `You successfully purchased ${plan.plan_name} (${network.toUpperCase()}) for ₦${plan.amount}.`,
+                message: `You purchased ${plan.plan_name} (${network.toUpperCase()}) successfully.`,
             },
             client
         );
@@ -165,8 +161,8 @@ const purchaseData = async (req, res) => {
         if (cashback > 0) {
             await client.query(
                 `UPDATE wallets
-         SET balance = balance + $1
-         WHERE user_id = $2`,
+                 SET balance = balance + $1
+                 WHERE user_id = $2`,
                 [cashback, req.user.id]
             );
 
@@ -185,27 +181,24 @@ const purchaseData = async (req, res) => {
 
         await client.query("COMMIT");
 
-        return res.status(200).json({
+        return res.json({
             success: true,
             message: "Data purchased successfully.",
             data: {
-                network: network.toUpperCase(),
+                network,
                 plan: plan.plan_name,
                 amount: plan.amount,
                 cashback,
-                reference: requestId,
-                status: "SUCCESS",
+                reference,
                 balance: balance - Number(plan.amount) + cashback,
             },
         });
     } catch (error) {
         await client.query("ROLLBACK");
 
-        console.error("Data Purchase Error:", error.message);
-
         return res.status(500).json({
             success: false,
-            message: error.message || "Data purchase failed.",
+            message: error.message,
         });
     } finally {
         client.release();
@@ -226,27 +219,16 @@ const getDataPlans = async (req, res) => {
             });
         }
 
-        const networkMap = {
-            MTN: "01",
-            GLO: "02",
-            "9MOBILE": "03",
-            AIRTEL: "04",
-        };
-
-        const plans = await fetchPlans(
-            networkMap[network.toUpperCase()]
-        );
+        const plans = await getDataPlansVTU(network);
 
         return res.json({
             success: true,
             data: plans,
         });
     } catch (error) {
-        console.error(error);
-
         return res.status(500).json({
             success: false,
-            message: "Unable to fetch plans.",
+            message: "Unable to fetch data plans.",
         });
     }
 };
@@ -258,9 +240,9 @@ const getDataHistory = async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT *
-       FROM data_purchases
-       WHERE user_id=$1
-       ORDER BY created_at DESC`,
+             FROM data_purchases
+             WHERE user_id=$1
+             ORDER BY created_at DESC`,
             [req.user.id]
         );
 
