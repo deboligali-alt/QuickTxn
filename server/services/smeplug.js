@@ -29,8 +29,13 @@ const getNetworks = async () => {
 };
 
 // ======================================
-// PURCHASE AIRTIME
+// RETRIEVE DATA PLANS
 // ======================================
+const getDataPlans = async () => {
+    const { data } = await smeplug.get("/data/plans");
+    return data;
+};
+
 // ======================================
 // PURCHASE AIRTIME
 // ======================================
@@ -48,7 +53,10 @@ const buyAirtime = async ({
         customer_reference: String(reference),
     };
 
-    console.log("SMEPLUG AIRTIME REQUEST:", payload);
+    console.log(
+        "SMEPLUG AIRTIME REQUEST:",
+        payload
+    );
 
     const response = await smeplug.post(
         "/airtime/purchase",
@@ -85,6 +93,7 @@ const getTransaction = async (reference) => {
 module.exports = {
     getBalance,
     getNetworks,
+    getDataPlans,
     buyAirtime,
     getTransaction,
 };

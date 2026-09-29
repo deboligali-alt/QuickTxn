@@ -3,8 +3,9 @@ const walletService = require("../services/walletService");
 const transactionService = require("../services/transactionService");
 const notificationService = require("../services/notificationService");
 const pinService = require("../services/pinService");
-const { buyData } = require("../services/clubkonnectData");
-const { getDataPlans: fetchPlans } = require("../services/clubkonnectPlans");
+const {
+    getDataPlans: fetchSMEPlugPlans,
+} = require("../services/smeplug");
 const { giveCashback } = require("../services/cashbackService");
 
 // ========================================
@@ -212,11 +213,11 @@ const purchaseData = async (req, res) => {
         });
     } finally {
         client.release();
-    }
+    } cd
 };
 
 // ========================================
-// GET LIVE DATA PLANS
+// GET SMEPLUG DATA PLANS
 // ========================================
 const getDataPlans = async (req, res) => {
     try {
@@ -230,24 +231,58 @@ const getDataPlans = async (req, res) => {
         }
 
         const networkMap = {
-            MTN: "01",
-            GLO: "02",
-            "9MOBILE": "03",
-            AIRTEL: "04",
+            MTN: "1",
+            AIRTEL: "2",
+            "9MOBILE": "3",
+            GLO: "4",
         };
 
-        const plans = await fetchPlans(
-            networkMap[network.toUpperCase()]
-        );
+        const normalizedNetwork =
+            network.toUpperCase();
+
+        const networkId =
+            networkMap[normalizedNetwork];
+
+        if (!networkId) {
+            return res.status(400).json({
+                success: false,
+                message: `Unsupported network: ${network}`,
+            });
+        }
+
+        const response =
+            await fetchSMEPlugPlans();
+
+        if (!response?.status) {
+            return res.status(502).json({
+                success: false,
+                message:
+                    "Unable to retrieve SMEPlug data plans.",
+            });
+        }
+
+        const plans =
+            response.data?.[networkId] || [];
 
         return res.json({
             success: true,
+            network: normalizedNetwork,
+            networkId,
+            count: plans.length,
             data: plans,
         });
+
     } catch (error) {
+        console.error(
+            "SMEPLUG DATA PLANS ERROR:",
+            error.response?.data ||
+            error.message
+        );
+
         return res.status(500).json({
             success: false,
-            message: "Unable to fetch plans.",
+            message:
+                "Unable to fetch SMEPlug data plans.",
         });
     }
 };
