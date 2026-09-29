@@ -143,7 +143,7 @@ const getSwapHistory = async (req, res) => {
 };
 
 // ====================================
-// PURCHASE AIRTIME (LIVE CLUBKONNECT)
+// PURCHASE AIRTIME (LIVE SMEPLUG)
 // ====================================
 const purchaseAirtime = async (req, res) => {
     const client = await pool.connect();
@@ -159,24 +159,39 @@ const purchaseAirtime = async (req, res) => {
         } = req.body;
 
         const phone = String(phoneNumber || "").trim();
+        const numericAmount = Number(amount);
 
         console.log("PHONE:", phone);
 
+        // ====================================
+        // VALIDATION
+        // ====================================
         if (!network || !phone || !amount || !pin) {
             return res.status(400).json({
                 success: false,
-                message: "Network, phone number, amount and PIN are required.",
+                message:
+                    "Network, phone number, amount and PIN are required.",
             });
         }
 
+        if (
+            !Number.isFinite(numericAmount) ||
+            numericAmount <= 0
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid airtime amount.",
+            });
+        }
+
+        // ====================================
+        // START TRANSACTION
+        // ====================================
         await client.query("BEGIN");
 
-        // ...keep the rest of your function unchanged
-
-        // continue with the rest of your code...
-
-
-        // Verify transaction PIN
+        // ====================================
+        // VERIFY TRANSACTION PIN
+        // ====================================
         const userResult = await client.query(
             `SELECT transaction_pin
              FROM users
@@ -186,6 +201,7 @@ const purchaseAirtime = async (req, res) => {
 
         if (userResult.rows.length === 0) {
             await client.query("ROLLBACK");
+
             return res.status(404).json({
                 success: false,
                 message: "User not found.",
@@ -199,13 +215,16 @@ const purchaseAirtime = async (req, res) => {
 
         if (!validPin) {
             await client.query("ROLLBACK");
+
             return res.status(400).json({
                 success: false,
                 message: "Invalid transaction PIN.",
             });
         }
 
-        // Lock wallet
+        // ====================================
+        // LOCK WALLET
+        // ====================================
         const walletResult = await client.query(
             `SELECT balance
              FROM wallets
@@ -214,51 +233,56 @@ const purchaseAirtime = async (req, res) => {
             [req.user.id]
         );
 
-        const balance = Number(walletResult.rows[0].balance);
-
-        if (balance < Number(amount)) {
+        if (walletResult.rows.length === 0) {
             await client.query("ROLLBACK");
+
+            return res.status(400).json({
+                success: false,
+                message: "Wallet not found.",
+            });
+        }
+
+        const balance = Number(
+            walletResult.rows[0].balance
+        );
+
+        // ====================================
+        // CHECK BALANCE
+        // ====================================
+        if (balance < numericAmount) {
+            await client.query("ROLLBACK");
+
             return res.status(400).json({
                 success: false,
                 message: "Insufficient wallet balance.",
             });
         }
 
-        const reference = `AIR-${Date.now()}`;
+        // ====================================
+        // CREATE QUICKTXN REFERENCE
+        // ====================================
+        const reference = `AIR-${Date.now()}-${req.user.id}`;
 
-        // ===== LIVE CLUBKONNECT =====
-        const provider = await purchaseAirtimeVTU({
-            network,
-            phone,
-            amount,
-            reference,
-        });
+        // ====================================
+        // RESERVE / DEDUCT WALLET
+        // ====================================
+        const newBalance =
+            balance - numericAmount;
 
-        console.log("======= ClubKonnect Airtime =======");
-        console.log(provider);
-        console.log("==================================");
-
-        if (!provider.success) {
-            await client.query("ROLLBACK");
-            return res.status(400).json({
-                success: false,
-                message: provider.message,
-                provider,
-            });
-        }
-
-        const newBalance = balance - Number(amount);
-
-        // Update wallet
         await client.query(
             `UPDATE wallets
              SET balance = $1,
                  updated_at = NOW()
              WHERE user_id = $2`,
-            [newBalance, req.user.id]
+            [
+                newBalance,
+                req.user.id,
+            ]
         );
 
-        // Save transaction
+        // ====================================
+        // CREATE PENDING TRANSACTION
+        // ====================================
         await client.query(
             `INSERT INTO transactions
             (
@@ -273,85 +297,191 @@ const purchaseAirtime = async (req, res) => {
             [
                 req.user.id,
                 "AIRTIME",
-                amount,
-                "SUCCESS",
+                numericAmount,
+                "PENDING",
                 reference,
                 `${network.toUpperCase()} Airtime - ${phone}`,
             ]
         );
 
-        // Notification
-        await client.query(
-            `INSERT INTO notifications
-            (user_id,title,message)
-            VALUES ($1,$2,$3)`,
-            [
-                req.user.id,
-                "Airtime Purchase",
-                `₦${Number(amount).toLocaleString()} ${network.toUpperCase()} airtime sent to ${phone}.`,
-            ]
-        );
-
-        // Cashback
-        const cashback = await giveCashback(
-            req.user.id,
-            "AIRTIME",
-            Number(amount),
-            client
-        );
-
-        if (cashback > 0) {
-            await client.query(
-                `UPDATE wallets
-                 SET balance = balance + $1
-                 WHERE user_id = $2`,
-                [cashback, req.user.id]
-            );
-
-            await client.query(
-                `INSERT INTO transactions
-                (
-                    receiver_id,
-                    type,
-                    amount,
-                    status,
-                    reference,
-                    description
-                )
-                VALUES ($1,$2,$3,$4,$5,$6)`,
-                [
-                    req.user.id,
-                    "CASHBACK",
-                    cashback,
-                    "SUCCESS",
-                    `CB-${Date.now()}`,
-                    "2% Cashback Reward",
-                ]
-            );
-        }
-
+        // ====================================
+        // COMMIT WALLET RESERVATION
+        // ====================================
         await client.query("COMMIT");
 
-        return res.json({
-            success: true,
-            message: "Airtime purchased successfully.",
-            data: {
-                network,
-                phone,
-                amount,
+        // ====================================
+        // CALL SMEPLUG
+        // ====================================
+        const provider = await purchaseAirtimeVTU({
+            network,
+            phone,
+            amount: numericAmount,
+            reference,
+        });
+
+        console.log(
+            "======= SMEPlug Airtime ======="
+        );
+        console.log(provider);
+        console.log(
+            "==============================="
+        );
+
+        // ======================================
+        // PROVIDER RESPONSE
+        // ======================================
+
+        if (!provider.success) {
+
+            // ======================================
+            // UNKNOWN / UNCERTAIN PROVIDER STATUS
+            // ======================================
+            if (provider.uncertain) {
+                console.warn(
+                    "SMEPlug status uncertain. Transaction remains PENDING:",
+                    reference
+                );
+
+                return res.status(202).json({
+                    success: true,
+                    message:
+                        "Airtime purchase is still being verified.",
+                    data: {
+                        network:
+                            network.toUpperCase(),
+                        phone,
+                        amount: numericAmount,
+                        reference,
+                        status: "PENDING",
+                        balance: newBalance,
+                    },
+                });
+            }
+
+            // ======================================
+            // DEFINITIVE PROVIDER FAILURE
+            // ======================================
+
+            const refundClient =
+                await pool.connect();
+
+            try {
+                await refundClient.query("BEGIN");
+
+                const transactionResult =
+                    await refundClient.query(
+                        `SELECT id, status
+                 FROM transactions
+                 WHERE reference = $1
+                 FOR UPDATE`,
+                        [reference]
+                    );
+
+                if (
+                    transactionResult.rows.length > 0 &&
+                    transactionResult.rows[0].status ===
+                    "PENDING"
+                ) {
+                    // Refund wallet
+                    await refundClient.query(
+                        `UPDATE wallets
+                 SET balance = balance + $1,
+                     updated_at = NOW()
+                 WHERE user_id = $2`,
+                        [
+                            numericAmount,
+                            req.user.id,
+                        ]
+                    );
+
+                    // Mark failed
+                    await refundClient.query(
+                        `UPDATE transactions
+                 SET status = 'FAILED'
+                 WHERE reference = $1`,
+                        [reference]
+                    );
+
+                    // Notification
+                    await refundClient.query(
+                        `INSERT INTO notifications
+                (user_id, title, message)
+                VALUES ($1, $2, $3)`,
+                        [
+                            req.user.id,
+                            "Airtime Purchase Failed",
+                            `Your ₦${numericAmount.toLocaleString()} ${network.toUpperCase()} airtime purchase failed. Your wallet has been refunded.`,
+                        ]
+                    );
+                }
+
+                await refundClient.query("COMMIT");
+
+            } catch (refundError) {
+
+                await refundClient.query("ROLLBACK");
+
+                console.error(
+                    "AIRTIME REFUND ERROR:",
+                    refundError
+                );
+
+            } finally {
+                refundClient.release();
+            }
+
+            return res.status(400).json({
+                success: false,
+                message:
+                    provider.message ||
+                    "Airtime purchase failed.",
                 reference,
-                cashback,
-                balance: newBalance + cashback,
+            });
+        }
+
+        // ====================================
+        // SMEPLUG ACCEPTED REQUEST
+        // WAIT FOR WEBHOOK
+        // ====================================
+        return res.status(200).json({
+            success: true,
+            message:
+                "Airtime purchase is being processed.",
+            data: {
+                network:
+                    network.toUpperCase(),
+                phone,
+                amount: numericAmount,
+                reference,
+                provider:
+                    "SMEPLUG",
+                providerReference:
+                    provider.providerReference ||
+                    null,
+                status: "PENDING",
+                balance: newBalance,
             },
         });
     } catch (error) {
-        await client.query("ROLLBACK");
+        try {
+            await client.query("ROLLBACK");
+        } catch (rollbackError) {
+            console.error(
+                "ROLLBACK ERROR:",
+                rollbackError
+            );
+        }
 
-        console.error("Airtime Purchase Error:", error);
+        console.error(
+            "Airtime Purchase Error:",
+            error
+        );
 
         return res.status(500).json({
             success: false,
-            message: error.message || "Airtime purchase failed.",
+            message:
+                error.message ||
+                "Airtime purchase failed.",
         });
     } finally {
         client.release();

@@ -1,4 +1,7 @@
-const { buyAirtime } = require("./smeplug");
+const {
+    buyAirtime,
+    getTransaction,
+} = require("./smeplug");
 const { pool } = require("../config/db");
 
 // ======================================
@@ -49,6 +52,7 @@ const purchaseAirtimeVTU = async ({
             networkId,
             phone,
             amount,
+            reference,
         });
 
         console.log("========== SMEPLUG ==========");
@@ -68,12 +72,15 @@ const purchaseAirtimeVTU = async ({
 
         if (
             response.httpStatus >= 200 &&
-            response.httpStatus < 300
+            response.httpStatus < 300 &&
+            response.data?.status === true
         ) {
             return {
                 success: true,
                 provider: "SMEPLUG",
                 reference,
+                providerReference:
+                    response.data.data?.reference,
                 pendingVerification: true,
                 raw: response.data,
             };
@@ -91,19 +98,139 @@ const purchaseAirtimeVTU = async ({
             error.response?.data || error.message
         );
 
+        // ======================================
+        // PROVIDER RESPONSE IS UNKNOWN
+        // ======================================
+        // The request may have reached SMEPlug
+        // even though QuickTxn did not receive
+        // a normal response.
         return {
             success: false,
             provider: "SMEPLUG",
+            uncertain: true,
             message:
-                error.response?.data?.message ||
-                error.response?.data?.error ||
-                error.message ||
-                "Airtime purchase failed.",
-            raw: error.response?.data,
+                "Unable to confirm SMEPlug transaction status.",
+            reference,
+            raw: error.response?.data || null,
+            error: error.message,
         };
     }
 };
 
+
+// ======================================
+// REQUERY AIRTIME TRANSACTION
+// ======================================
+const requeryAirtimeVTU = async (reference) => {
+    try {
+        if (!reference) {
+            return {
+                success: false,
+                message: "Transaction reference is required.",
+            };
+        }
+
+        console.log(
+            "SMEPLUG REQUERY:",
+            reference
+        );
+
+        const response =
+            await getTransaction(reference);
+
+        console.log(
+            "SMEPLUG REQUERY RESPONSE:",
+            JSON.stringify(
+                response,
+                null,
+                2
+            )
+        );
+
+        // SMEPlug returns transaction details
+        // including status and reference.
+        if (!response) {
+            return {
+                success: false,
+                message:
+                    "No response from SMEPlug.",
+            };
+        }
+
+        const status =
+            String(
+                response.status || ""
+            ).toLowerCase();
+
+        if (
+            status === "success" ||
+            status === "successful"
+        ) {
+            return {
+                success: true,
+                status: "SUCCESS",
+                provider: "SMEPLUG",
+                reference:
+                    response.reference ||
+                    null,
+                customerReference:
+                    response.customer_reference ||
+                    reference,
+                data: response,
+            };
+        }
+
+        if (
+            status === "failed" ||
+            status === "failure"
+        ) {
+            return {
+                success: true,
+                status: "FAILED",
+                provider: "SMEPLUG",
+                reference:
+                    response.reference ||
+                    null,
+                customerReference:
+                    response.customer_reference ||
+                    reference,
+                data: response,
+            };
+        }
+
+        return {
+            success: true,
+            status: "PENDING",
+            provider: "SMEPLUG",
+            reference:
+                response.reference ||
+                null,
+            customerReference:
+                response.customer_reference ||
+                reference,
+            data: response,
+        };
+
+    } catch (error) {
+        console.error(
+            "SMEPLUG REQUERY ERROR:",
+            error.response?.data ||
+            error.message
+        );
+
+        return {
+            success: false,
+            status: "UNKNOWN",
+            provider: "SMEPLUG",
+            message:
+                "Unable to requery SMEPlug transaction.",
+            reference,
+            raw:
+                error.response?.data ||
+                null,
+        };
+    }
+};
 // ======================================
 // GET DATA PLANS FROM DATABASE
 // ======================================
@@ -147,6 +274,7 @@ const purchaseDataVTU = async ({
 
 module.exports = {
     purchaseAirtimeVTU,
+    requeryAirtimeVTU,
     purchaseDataVTU,
     getDataPlansVTU,
 };

@@ -31,26 +31,39 @@ const getNetworks = async () => {
 // ======================================
 // PURCHASE AIRTIME
 // ======================================
+// ======================================
+// PURCHASE AIRTIME
+// ======================================
 const buyAirtime = async ({
     networkId,
     phone,
     amount,
+    reference,
 }) => {
+
     const payload = {
         network_id: Number(networkId),
-        phone_number: String(phone),
+        phone: String(phone),
         amount: Number(amount),
+        customer_reference: String(reference),
     };
 
-    console.log("SMEPLUG AIRTIME REQUEST:", {
-        ...payload,
-        // Never log the API key.
-    });
+    console.log("SMEPLUG AIRTIME REQUEST:", payload);
 
-    const response = await smeplug.post("/vtu", payload);
+    const response = await smeplug.post(
+        "/airtime/purchase",
+        payload
+    );
 
-    console.log("SMEPLUG AIRTIME STATUS:", response.status);
-    console.log("SMEPLUG AIRTIME RESPONSE:", response.data);
+    console.log(
+        "SMEPLUG AIRTIME STATUS:",
+        response.status
+    );
+
+    console.log(
+        "SMEPLUG AIRTIME RESPONSE:",
+        response.data
+    );
 
     return {
         httpStatus: response.status,
