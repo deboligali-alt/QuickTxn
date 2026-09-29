@@ -1,45 +1,75 @@
-const axios = require("axios");
+const { buyAirtime } = require("./clubkonnect");
+const { pool } = require("../config/db");
 
-// Internal network mapping
-const NETWORK_MAP = {
-    MTN: "mtn",
-    GLO: "glo",
-    AIRTEL: "airtel",
-    "9MOBILE": "9mobile",
-};
-
-// ==============================
-// BUY AIRTIME
-// ==============================
+// ======================================
+// LIVE AIRTIME (CLUBKONNECT)
+// ======================================
 const purchaseAirtimeVTU = async ({
     network,
     phone,
     amount,
     reference,
 }) => {
-    try {
-        // Replace this with your live VTU provider later
+    const networkMap = {
+        MTN: "01",
+        GLO: "02",
+        "9MOBILE": "03",
+        AIRTEL: "04",
+    };
+
+    const response = await buyAirtime({
+        network: networkMap[network.toUpperCase()],
+        amount,
+        phone,
+        requestId: reference,
+    });
+
+    console.log("========== CLUBKONNECT ==========");
+    console.log(JSON.stringify(response, null, 2));
+    console.log("================================");
+
+    if (
+        response.status === "ORDER_RECEIVED" ||
+        response.statuscode === "100"
+    ) {
         return {
             success: true,
-            provider: "QuickTxn Sandbox",
-            reference,
-            network,
-            phone,
-            amount,
-        };
-    } catch (error) {
-        return {
-            success: false,
-            message:
-                error.response?.data?.message ||
-                "Airtime provider unavailable",
+            provider: "CLUBKONNECT",
+            raw: response,
         };
     }
+
+    return {
+        success: false,
+        message:
+            response.status ||
+            response.message ||
+            "Airtime delivery failed.",
+    };
 };
 
-// ==============================
-// BUY DATA
-// ==============================
+// ======================================
+// GET DATA PLANS FROM DATABASE
+// ======================================
+const getDataPlansVTU = async (network) => {
+    const result = await pool.query(
+        `SELECT
+            plan_name,
+            plan_code,
+            amount
+         FROM data_plans
+         WHERE network = $1
+         AND is_active = TRUE
+         ORDER BY amount ASC`,
+        [network.toUpperCase()]
+    );
+
+    return result.rows;
+};
+
+// ======================================
+// DATA PURCHASE (NEXT STEP)
+// ======================================
 const purchaseDataVTU = async ({
     network,
     planCode,
@@ -47,83 +77,20 @@ const purchaseDataVTU = async ({
     amount,
     reference,
 }) => {
-    try {
-        // Replace with live provider later
-        return {
-            success: true,
-            provider: "QuickTxn Sandbox",
-            reference,
-            network,
-            planCode,
-            phone,
-            amount,
-        };
-    } catch (error) {
-        return {
-            success: false,
-            message:
-                error.response?.data?.message ||
-                "Data provider unavailable",
-        };
-    }
-};
-
-// ==============================
-// GET DATA PLANS
-// ==============================
-const getDataPlansVTU = async (network) => {
-    // Temporary plans (replace with live API)
-    const plans = {
-        MTN: [
-            {
-                plan_code: "MTN500MB",
-                plan_name: "500MB",
-                amount: 300,
-            },
-            {
-                plan_code: "MTN1GB",
-                plan_name: "1GB",
-                amount: 500,
-            },
-            {
-                plan_code: "MTN2GB",
-                plan_name: "2GB",
-                amount: 1000,
-            },
-        ],
-        AIRTEL: [
-            {
-                plan_code: "AIR500MB",
-                plan_name: "500MB",
-                amount: 300,
-            },
-            {
-                plan_code: "AIR1GB",
-                plan_name: "1GB",
-                amount: 500,
-            },
-        ],
-        GLO: [
-            {
-                plan_code: "GLO1GB",
-                plan_name: "1GB",
-                amount: 450,
-            },
-        ],
-        "9MOBILE": [
-            {
-                plan_code: "9M1GB",
-                plan_name: "1GB",
-                amount: 500,
-            },
-        ],
+    return {
+        success: false,
+        provider: "CLUBKONNECT",
+        message: "Live data endpoint not connected yet.",
+        network,
+        planCode,
+        phone,
+        amount,
+        reference,
     };
-
-    return plans[network.toUpperCase()] || [];
 };
 
 module.exports = {
     purchaseAirtimeVTU,
     purchaseDataVTU,
     getDataPlansVTU,
-};
+};c

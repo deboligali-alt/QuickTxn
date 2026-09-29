@@ -204,6 +204,9 @@ const purchaseAirtime = async (req, res) => {
         const reference = `AIR-${Date.now()}`;
 
         // Live VTU Provider
+        // ====================================
+        // LIVE NELLOBYTE AIRTIME PURCHASE
+        // ====================================
         const provider = await purchaseAirtimeVTU({
             network,
             phone,
@@ -211,8 +214,26 @@ const purchaseAirtime = async (req, res) => {
             reference,
         });
 
-        if (!provider.success) {
-            throw new Error(provider.message);
+        // Debug provider response
+        console.log("========== NELLOBYTE RESPONSE ==========");
+        console.log(JSON.stringify(provider, null, 2));
+        console.log("=======================================");
+
+        // Only continue if the provider truly accepted it
+        if (
+            provider.status !== "ORDER_RECEIVED" &&
+            provider.statuscode !== "100"
+        ) {
+            await client.query("ROLLBACK");
+
+            return res.status(400).json({
+                success: false,
+                message:
+                    provider.message ||
+                    provider.status ||
+                    "Airtime delivery failed.",
+                provider,
+            });
         }
 
         const newBalance = balance - Number(amount);
