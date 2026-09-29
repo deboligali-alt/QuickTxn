@@ -93,17 +93,37 @@ const purchaseAirtimeVTU = async ({
             raw: response.data,
         };
     } catch (error) {
+        const providerError = error.response?.data;
+
         console.error(
             "SMEPLUG AIRTIME ERROR:",
-            error.response?.data || error.message
+            providerError || error.message
         );
+
+        // ======================================
+        // DEFINITIVE PROVIDER REJECTION
+        // ======================================
+        // SMEPlug explicitly rejected the request.
+        // This is NOT an uncertain transaction.
+        if (
+            providerError?.status === false &&
+            providerError?.msg
+        ) {
+            return {
+                success: false,
+                provider: "SMEPLUG",
+                uncertain: false,
+                message: providerError.msg,
+                reference,
+                raw: providerError,
+            };
+        }
 
         // ======================================
         // PROVIDER RESPONSE IS UNKNOWN
         // ======================================
-        // The request may have reached SMEPlug
-        // even though QuickTxn did not receive
-        // a normal response.
+        // The request may have reached SMEPlug,
+        // but we cannot safely determine its status.
         return {
             success: false,
             provider: "SMEPLUG",
@@ -111,7 +131,7 @@ const purchaseAirtimeVTU = async ({
             message:
                 "Unable to confirm SMEPlug transaction status.",
             reference,
-            raw: error.response?.data || null,
+            raw: providerError || null,
             error: error.message,
         };
     }
