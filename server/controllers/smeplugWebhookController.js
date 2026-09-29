@@ -1,40 +1,29 @@
 const { pool } = require("../config/db");
 const { giveCashback } = require("../services/cashbackService");
 
-// ======================================
-// SMEPLUG TRANSACTION WEBHOOK
-// ======================================
 const handleSMEPlugWebhook = async (req, res) => {
     const client = await pool.connect();
 
     try {
-        console.log(
-            "========== SMEPLUG WEBHOOK =========="
-        );
-
+        console.log("========== SMEPLUG WEBHOOK ==========");
         console.log(
             JSON.stringify(req.body, null, 2)
         );
-
-        console.log(
-            "====================================="
-        );
+        console.log("=====================================");
 
         const transaction = req.body?.transaction;
 
         if (!transaction) {
             return res.status(400).json({
                 success: false,
-                message:
-                    "Invalid SMEPlug webhook payload.",
+                message: "Invalid SMEPlug webhook payload.",
             });
         }
 
         const {
             status,
             reference: providerReference,
-            customer_reference:
-            customerReference,
+            customer_reference: customerReference,
             type,
             beneficiary,
             memo,
@@ -42,35 +31,23 @@ const handleSMEPlugWebhook = async (req, res) => {
             price,
         } = transaction;
 
-        console.log(
-            "SMEPlug status:",
-            status
-        );
-
+        console.log("SMEPlug status:", status);
         console.log(
             "SMEPlug reference:",
             providerReference
         );
-
         console.log(
             "QuickTxn reference:",
             customerReference
         );
 
-        // ======================================
-        // CUSTOMER REFERENCE REQUIRED
-        // ======================================
         if (!customerReference) {
             return res.status(400).json({
                 success: false,
-                message:
-                    "Customer reference is missing.",
+                message: "Customer reference is missing.",
             });
         }
 
-        // ======================================
-        // ONLY HANDLE QUICKTXN TRANSACTIONS
-        // ======================================
         if (
             !customerReference.startsWith("AIR-") &&
             !customerReference.startsWith("DATA-")
@@ -88,8 +65,11 @@ const handleSMEPlugWebhook = async (req, res) => {
         }
 
         // ======================================
-        // FIND QUICKTXN TRANSACTION
+        // START TRANSACTION BEFORE FOR UPDATE
         // ======================================
+
+        await client.query("BEGIN");
+
         const transactionResult =
             await client.query(
                 `SELECT
@@ -106,9 +86,9 @@ const handleSMEPlugWebhook = async (req, res) => {
                 [customerReference]
             );
 
-        if (
-            transactionResult.rows.length === 0
-        ) {
+        if (transactionResult.rows.length === 0) {
+            await client.query("ROLLBACK");
+
             console.log(
                 "QuickTxn transaction not found:",
                 customerReference
@@ -127,10 +107,12 @@ const handleSMEPlugWebhook = async (req, res) => {
         // ======================================
         // PREVENT DUPLICATE PROCESSING
         // ======================================
+
         if (
-            quickTxnTransaction.status !==
-            "PENDING"
+            quickTxnTransaction.status !== "PENDING"
         ) {
+            await client.query("COMMIT");
+
             console.log(
                 "Transaction already processed:",
                 customerReference,
@@ -148,17 +130,13 @@ const handleSMEPlugWebhook = async (req, res) => {
             String(status || "").toLowerCase();
 
         // ======================================
-        // FAILED TRANSACTION
+        // FAILED
         // ======================================
+
         if (
             normalizedStatus === "failed" ||
             normalizedStatus === "failure"
         ) {
-            await client.query("BEGIN");
-
-            // ----------------------------------
-            // Refund wallet
-            // ----------------------------------
             await client.query(
                 `UPDATE wallets
                  SET balance = balance + $1,
@@ -172,9 +150,6 @@ const handleSMEPlugWebhook = async (req, res) => {
                 ]
             );
 
-            // ----------------------------------
-            // Mark transaction FAILED
-            // ----------------------------------
             await client.query(
                 `UPDATE transactions
                  SET status = 'FAILED'
@@ -182,9 +157,6 @@ const handleSMEPlugWebhook = async (req, res) => {
                 [quickTxnTransaction.id]
             );
 
-            // ----------------------------------
-            // Failure notification
-            // ----------------------------------
             await client.query(
                 `INSERT INTO notifications
                 (
@@ -217,27 +189,29 @@ const handleSMEPlugWebhook = async (req, res) => {
         }
 
         // ======================================
-        // SUCCESSFUL TRANSACTION
+        // SUCCESS
         // ======================================
+
         if (
             normalizedStatus === "success" ||
             normalizedStatus === "successful"
         ) {
-            await client.query("BEGIN");
-
-            // ----------------------------------
-            // Mark transaction SUCCESS
-            // ----------------------------------
             await client.query(
                 `UPDATE transactions
-                 SET status = 'SUCCESS'
-                 WHERE id = $1`,
-                [quickTxnTransaction.id]
+                 SET
+                    status = 'SUCCESS',
+                    payment_reference = COALESCE(
+                        payment_reference,
+                        $1
+                    ),
+                    payment_provider = 'SMEPLUG'
+                 WHERE id = $2`,
+                [
+                    providerReference,
+                    quickTxnTransaction.id,
+                ]
             );
 
-            // ----------------------------------
-            // Success notification
-            // ----------------------------------
             await client.query(
                 `INSERT INTO notifications
                 (
@@ -253,9 +227,6 @@ const handleSMEPlugWebhook = async (req, res) => {
                 ]
             );
 
-            // ----------------------------------
-            // Cashback
-            // ----------------------------------
             const cashback =
                 await giveCashback(
                     quickTxnTransaction.receiver_id,
@@ -304,6 +275,9 @@ const handleSMEPlugWebhook = async (req, res) => {
         // ======================================
         // UNKNOWN STATUS
         // ======================================
+
+        await client.query("COMMIT");
+
         console.log(
             "Unknown SMEPlug webhook status:",
             status
@@ -314,7 +288,9 @@ const handleSMEPlugWebhook = async (req, res) => {
             message:
                 "Webhook received with unrecognized status.",
         });
+
     } catch (error) {
+
         try {
             await client.query("ROLLBACK");
         } catch (rollbackError) {
@@ -334,6 +310,7 @@ const handleSMEPlugWebhook = async (req, res) => {
             message:
                 "Webhook processing failed.",
         });
+
     } finally {
         client.release();
     }
