@@ -212,6 +212,34 @@ export default function DataPage() {
                             </div>
                         </div>
 
+                        {/* Phone Number */}
+                        <div className="mt-6">
+                            <label className="mb-2 block text-sm font-bold text-gray-700">
+                                Phone Number
+                            </label>
+
+                            <div className="relative">
+                                <Phone
+                                    size={18}
+                                    className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+                                />
+
+                                <input
+                                    type="tel"
+                                    value={phone}
+                                    maxLength={11}
+                                    inputMode="numeric"
+                                    placeholder="08012345678"
+                                    onChange={(e) =>
+                                        setPhone(
+                                            e.target.value.replace(/\D/g, "")
+                                        )
+                                    }
+                                    className="h-12 w-full rounded-xl border border-gray-200 bg-white pl-11 pr-4 outline-none focus:border-blue-500"
+                                />
+                            </div>
+                        </div>
+
                         {/* PIN */}
                         <div className="mt-6">
                             <label className="mb-2 block text-sm font-bold text-gray-700">
