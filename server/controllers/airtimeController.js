@@ -153,14 +153,12 @@ const purchaseAirtime = async (req, res) => {
 
         const {
             network,
-            phoneNumber,
+            phone,
             amount,
             pin,
         } = req.body;
-
-        const phone = String(phoneNumber || "").trim();
+        
         const numericAmount = Number(amount);
-
         console.log("PHONE:", phone);
 
         // ====================================
