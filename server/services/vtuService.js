@@ -1,8 +1,8 @@
-const { buyAirtime } = require("./clubkonnect");
+const { buyAirtime } = require("./smeplug");
 const { pool } = require("../config/db");
 
 // ======================================
-// LIVE AIRTIME (CLUBKONNECT)
+// LIVE AIRTIME (SMEPLUG)
 // ======================================
 const purchaseAirtimeVTU = async ({
     network,
@@ -11,41 +11,97 @@ const purchaseAirtimeVTU = async ({
     reference,
 }) => {
     const networkMap = {
-        MTN: "01",
-        GLO: "02",
-        "9MOBILE": "03",
-        AIRTEL: "04",
+        MTN: 1,
+        AIRTEL: 2,
+        "9MOBILE": 3,
+        T2: 3,
+        GLO: 4,
     };
 
-    const response = await buyAirtime({
-        network: networkMap[network.toUpperCase()],
-        amount,
+    const normalizedNetwork = network.toUpperCase();
+    const networkId = networkMap[normalizedNetwork];
+
+    // DEBUG
+    console.log("VTU INPUT:", {
+        network: normalizedNetwork,
+        networkId,
         phone,
-        requestId: reference,
+        amount,
+        reference,
     });
 
-    console.log("========== CLUBKONNECT ==========");
-    console.log(JSON.stringify(response, null, 2));
-    console.log("================================");
-
-    if (
-        response.status === "ORDER_RECEIVED" ||
-        response.statuscode === "100"
-    ) {
+    if (!networkId) {
         return {
-            success: true,
-            provider: "CLUBKONNECT",
-            raw: response,
+            success: false,
+            message: `Unsupported network: ${network}`,
         };
     }
 
-    return {
-        success: false,
-        message:
-            response.status ||
-            response.message ||
-            "Airtime delivery failed.",
-    };
+    if (!phone) {
+        return {
+            success: false,
+            message: "Phone number is required.",
+        };
+    }
+
+    try {
+        const response = await buyAirtime({
+            networkId,
+            phone,
+            amount,
+        });
+
+        console.log("========== SMEPLUG ==========");
+        console.log(
+            JSON.stringify(response, null, 2)
+        );
+        console.log("=============================");
+
+        /*
+         * SMEPlug's /vtu endpoint may return
+         * an empty response body.
+         *
+         * Therefore we use the HTTP response
+         * status here rather than looking for
+         * ClubKonnect's ORDER_RECEIVED status.
+         */
+
+        if (
+            response.httpStatus >= 200 &&
+            response.httpStatus < 300
+        ) {
+            return {
+                success: true,
+                provider: "SMEPLUG",
+                reference,
+                pendingVerification: true,
+                raw: response.data,
+            };
+        }
+
+        return {
+            success: false,
+            provider: "SMEPLUG",
+            message: "SMEPlug airtime request failed.",
+            raw: response.data,
+        };
+    } catch (error) {
+        console.error(
+            "SMEPLUG AIRTIME ERROR:",
+            error.response?.data || error.message
+        );
+
+        return {
+            success: false,
+            provider: "SMEPLUG",
+            message:
+                error.response?.data?.message ||
+                error.response?.data?.error ||
+                error.message ||
+                "Airtime purchase failed.",
+            raw: error.response?.data,
+        };
+    }
 };
 
 // ======================================
@@ -68,7 +124,7 @@ const getDataPlansVTU = async (network) => {
 };
 
 // ======================================
-// DATA PURCHASE (NEXT STEP)
+// DATA PURCHASE
 // ======================================
 const purchaseDataVTU = async ({
     network,
@@ -79,7 +135,7 @@ const purchaseDataVTU = async ({
 }) => {
     return {
         success: false,
-        provider: "CLUBKONNECT",
+        provider: "SMEPLUG",
         message: "Live data endpoint not connected yet.",
         network,
         planCode,
@@ -93,4 +149,4 @@ module.exports = {
     purchaseAirtimeVTU,
     purchaseDataVTU,
     getDataPlansVTU,
-};c
+};

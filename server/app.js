@@ -41,7 +41,7 @@ const electricityRoutes = require("./routes/electricityRoutes");
 const cableRoutes = require("./routes/cableRoutes");
 const waecRoutes = require("./routes/waecRoutes");
 const airtimeSwapRoutes = require("./routes/airtimeSwapRoutes");
-
+const smeplugWebhookRoutes = require("./routes/smeplugWebhookRoutes");
 // Dashboard
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
@@ -185,7 +185,10 @@ app.use("/api/biometric", biometricRoutes);
 // ==========================
 // Webhooks
 // ==========================
-
+app.use(
+    "/api/webhooks",
+    smeplugWebhookRoutes
+);
 app.use("/api/webhook", webhookRoutes);
 
 // ==========================

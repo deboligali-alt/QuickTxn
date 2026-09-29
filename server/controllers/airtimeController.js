@@ -19,9 +19,9 @@ const createSwapRequest = async (req, res) => {
 
         const rateResult = await pool.query(
             `SELECT rate
-       FROM airtime_rates
-       WHERE network=$1
-       AND is_active=TRUE`,
+             FROM airtime_rates
+             WHERE network = $1
+             AND is_active = TRUE`,
             [network.toUpperCase()]
         );
 
@@ -38,16 +38,16 @@ const createSwapRequest = async (req, res) => {
 
         await pool.query(
             `INSERT INTO airtime_swaps
-      (
-        user_id,
-        network,
-        phone_number,
-        airtime_amount,
-        rate,
-        receivable_amount,
-        transaction_reference
-      )
-      VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+            (
+                user_id,
+                network,
+                phone_number,
+                airtime_amount,
+                rate,
+                receivable_amount,
+                transaction_reference
+            )
+            VALUES ($1,$2,$3,$4,$5,$6,$7)`,
             [
                 req.user.id,
                 network.toUpperCase(),
@@ -61,8 +61,8 @@ const createSwapRequest = async (req, res) => {
 
         await pool.query(
             `INSERT INTO notifications
-      (user_id,title,message)
-      VALUES($1,$2,$3)`,
+            (user_id,title,message)
+            VALUES($1,$2,$3)`,
             [
                 req.user.id,
                 "Airtime Swap Submitted",
@@ -72,7 +72,7 @@ const createSwapRequest = async (req, res) => {
             ]
         );
 
-        res.status(201).json({
+        return res.status(201).json({
             success: true,
             message: "Swap request submitted successfully.",
             data: {
@@ -83,8 +83,9 @@ const createSwapRequest = async (req, res) => {
             },
         });
     } catch (error) {
-        console.log(error);
-        res.status(500).json({
+        console.error(error);
+
+        return res.status(500).json({
             success: false,
             message: "Server Error",
         });
@@ -98,17 +99,17 @@ const getRates = async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT network, rate
-       FROM airtime_rates
-       WHERE is_active=TRUE
-       ORDER BY network`
+             FROM airtime_rates
+             WHERE is_active = TRUE
+             ORDER BY network`
         );
 
-        res.json({
+        return res.json({
             success: true,
             data: result.rows,
         });
     } catch (error) {
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: "Server Error",
         });
@@ -122,19 +123,19 @@ const getSwapHistory = async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT *
-       FROM airtime_swaps
-       WHERE user_id=$1
-       ORDER BY created_at DESC`,
+             FROM airtime_swaps
+             WHERE user_id = $1
+             ORDER BY created_at DESC`,
             [req.user.id]
         );
 
-        res.json({
+        return res.json({
             success: true,
             count: result.rows.length,
             data: result.rows,
         });
     } catch (error) {
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: "Server Error",
         });
@@ -142,39 +143,62 @@ const getSwapHistory = async (req, res) => {
 };
 
 // ====================================
-// BUY AIRTIME (CLUBKONNECT LIVE)
+// PURCHASE AIRTIME (LIVE CLUBKONNECT)
 // ====================================
 const purchaseAirtime = async (req, res) => {
     const client = await pool.connect();
 
     try {
-        const { network, phone, amount, pin } = req.body;
+        console.log("REQUEST BODY:", req.body);
+
+        const {
+            network,
+            phoneNumber,
+            amount,
+            pin,
+        } = req.body;
+
+        const phone = String(phoneNumber || "").trim();
+
+        console.log("PHONE:", phone);
 
         if (!network || !phone || !amount || !pin) {
             return res.status(400).json({
                 success: false,
-                message: "Network, phone, amount and PIN are required.",
+                message: "Network, phone number, amount and PIN are required.",
             });
         }
 
         await client.query("BEGIN");
 
+        // ...keep the rest of your function unchanged
+
+        // continue with the rest of your code...
+
+
         // Verify transaction PIN
-        const user = await client.query(
+        const userResult = await client.query(
             `SELECT transaction_pin
-       FROM users
-       WHERE id=$1`,
+             FROM users
+             WHERE id = $1`,
             [req.user.id]
         );
 
+        if (userResult.rows.length === 0) {
+            await client.query("ROLLBACK");
+            return res.status(404).json({
+                success: false,
+                message: "User not found.",
+            });
+        }
+
         const validPin = await bcrypt.compare(
             pin,
-            user.rows[0].transaction_pin
+            userResult.rows[0].transaction_pin
         );
 
         if (!validPin) {
             await client.query("ROLLBACK");
-
             return res.status(400).json({
                 success: false,
                 message: "Invalid transaction PIN.",
@@ -182,19 +206,18 @@ const purchaseAirtime = async (req, res) => {
         }
 
         // Lock wallet
-        const wallet = await client.query(
+        const walletResult = await client.query(
             `SELECT balance
-       FROM wallets
-       WHERE user_id=$1
-       FOR UPDATE`,
+             FROM wallets
+             WHERE user_id = $1
+             FOR UPDATE`,
             [req.user.id]
         );
 
-        const balance = Number(wallet.rows[0].balance);
+        const balance = Number(walletResult.rows[0].balance);
 
         if (balance < Number(amount)) {
             await client.query("ROLLBACK");
-
             return res.status(400).json({
                 success: false,
                 message: "Insufficient wallet balance.",
@@ -203,10 +226,7 @@ const purchaseAirtime = async (req, res) => {
 
         const reference = `AIR-${Date.now()}`;
 
-        // Live VTU Provider
-        // ====================================
-        // LIVE NELLOBYTE AIRTIME PURCHASE
-        // ====================================
+        // ===== LIVE CLUBKONNECT =====
         const provider = await purchaseAirtimeVTU({
             network,
             phone,
@@ -214,49 +234,42 @@ const purchaseAirtime = async (req, res) => {
             reference,
         });
 
-        // Debug provider response
-        console.log("========== NELLOBYTE RESPONSE ==========");
-        console.log(JSON.stringify(provider, null, 2));
-        console.log("=======================================");
+        console.log("======= ClubKonnect Airtime =======");
+        console.log(provider);
+        console.log("==================================");
 
-        // Only continue if the provider truly accepted it
-        if (
-            provider.status !== "ORDER_RECEIVED" &&
-            provider.statuscode !== "100"
-        ) {
+        if (!provider.success) {
             await client.query("ROLLBACK");
-
             return res.status(400).json({
                 success: false,
-                message:
-                    provider.message ||
-                    provider.status ||
-                    "Airtime delivery failed.",
+                message: provider.message,
                 provider,
             });
         }
 
         const newBalance = balance - Number(amount);
 
+        // Update wallet
         await client.query(
             `UPDATE wallets
-       SET balance=$1,
-           updated_at=NOW()
-       WHERE user_id=$2`,
+             SET balance = $1,
+                 updated_at = NOW()
+             WHERE user_id = $2`,
             [newBalance, req.user.id]
         );
 
+        // Save transaction
         await client.query(
             `INSERT INTO transactions
-      (
-        receiver_id,
-        type,
-        amount,
-        status,
-        reference,
-        description
-      )
-      VALUES($1,$2,$3,$4,$5,$6)`,
+            (
+                receiver_id,
+                type,
+                amount,
+                status,
+                reference,
+                description
+            )
+            VALUES ($1,$2,$3,$4,$5,$6)`,
             [
                 req.user.id,
                 "AIRTIME",
@@ -267,10 +280,11 @@ const purchaseAirtime = async (req, res) => {
             ]
         );
 
+        // Notification
         await client.query(
             `INSERT INTO notifications
-      (user_id,title,message)
-      VALUES($1,$2,$3)`,
+            (user_id,title,message)
+            VALUES ($1,$2,$3)`,
             [
                 req.user.id,
                 "Airtime Purchase",
@@ -278,6 +292,7 @@ const purchaseAirtime = async (req, res) => {
             ]
         );
 
+        // Cashback
         const cashback = await giveCashback(
             req.user.id,
             "AIRTIME",
@@ -288,9 +303,30 @@ const purchaseAirtime = async (req, res) => {
         if (cashback > 0) {
             await client.query(
                 `UPDATE wallets
-         SET balance = balance + $1
-         WHERE user_id = $2`,
+                 SET balance = balance + $1
+                 WHERE user_id = $2`,
                 [cashback, req.user.id]
+            );
+
+            await client.query(
+                `INSERT INTO transactions
+                (
+                    receiver_id,
+                    type,
+                    amount,
+                    status,
+                    reference,
+                    description
+                )
+                VALUES ($1,$2,$3,$4,$5,$6)`,
+                [
+                    req.user.id,
+                    "CASHBACK",
+                    cashback,
+                    "SUCCESS",
+                    `CB-${Date.now()}`,
+                    "2% Cashback Reward",
+                ]
             );
         }
 
@@ -310,6 +346,8 @@ const purchaseAirtime = async (req, res) => {
         });
     } catch (error) {
         await client.query("ROLLBACK");
+
+        console.error("Airtime Purchase Error:", error);
 
         return res.status(500).json({
             success: false,
