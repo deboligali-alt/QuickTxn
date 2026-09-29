@@ -18,7 +18,7 @@ export const purchaseData = async (
     token: string,
     data: {
         network: string;
-        planCode: string;
+        planId: number;
         phoneNumber: string;
         pin: string;
     }

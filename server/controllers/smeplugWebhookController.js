@@ -16,7 +16,8 @@ const handleSMEPlugWebhook = async (req, res) => {
         if (!transaction) {
             return res.status(400).json({
                 success: false,
-                message: "Invalid SMEPlug webhook payload.",
+                message:
+                    "Invalid SMEPlug webhook payload.",
             });
         }
 
@@ -31,20 +32,30 @@ const handleSMEPlugWebhook = async (req, res) => {
             price,
         } = transaction;
 
-        console.log("SMEPlug status:", status);
+        console.log(
+            "SMEPlug status:",
+            status
+        );
+
         console.log(
             "SMEPlug reference:",
             providerReference
         );
+
         console.log(
             "QuickTxn reference:",
             customerReference
         );
 
+        // ======================================
+        // VALIDATE CUSTOMER REFERENCE
+        // ======================================
+
         if (!customerReference) {
             return res.status(400).json({
                 success: false,
-                message: "Customer reference is missing.",
+                message:
+                    "Customer reference is missing.",
             });
         }
 
@@ -65,10 +76,30 @@ const handleSMEPlugWebhook = async (req, res) => {
         }
 
         // ======================================
-        // START TRANSACTION BEFORE FOR UPDATE
+        // DETERMINE QUICKTXN SERVICE
+        // ======================================
+
+        const service =
+            customerReference.startsWith("DATA-")
+                ? "DATA"
+                : "AIRTIME";
+
+        // ======================================
+        // NORMALIZE PROVIDER STATUS
+        // ======================================
+
+        const normalizedStatus =
+            String(status || "").toLowerCase();
+
+        // ======================================
+        // START DATABASE TRANSACTION
         // ======================================
 
         await client.query("BEGIN");
+
+        // ======================================
+        // LOCK TRANSACTION
+        // ======================================
 
         const transactionResult =
             await client.query(
@@ -86,7 +117,9 @@ const handleSMEPlugWebhook = async (req, res) => {
                 [customerReference]
             );
 
-        if (transactionResult.rows.length === 0) {
+        if (
+            transactionResult.rows.length === 0
+        ) {
             await client.query("ROLLBACK");
 
             console.log(
@@ -105,11 +138,12 @@ const handleSMEPlugWebhook = async (req, res) => {
             transactionResult.rows[0];
 
         // ======================================
-        // PREVENT DUPLICATE PROCESSING
+        // IDEMPOTENCY
         // ======================================
 
         if (
-            quickTxnTransaction.status !== "PENDING"
+            quickTxnTransaction.status !==
+            "PENDING"
         ) {
             await client.query("COMMIT");
 
@@ -126,21 +160,24 @@ const handleSMEPlugWebhook = async (req, res) => {
             });
         }
 
-        const normalizedStatus =
-            String(status || "").toLowerCase();
-
         // ======================================
-        // FAILED
+        // FAILED TRANSACTION
         // ======================================
 
         if (
             normalizedStatus === "failed" ||
             normalizedStatus === "failure"
         ) {
+
+            // ----------------------------------
+            // REFUND WALLET
+            // ----------------------------------
+
             await client.query(
                 `UPDATE wallets
-                 SET balance = balance + $1,
-                     updated_at = NOW()
+                 SET
+                    balance = balance + $1,
+                    updated_at = NOW()
                  WHERE user_id = $2`,
                 [
                     Number(
@@ -150,12 +187,56 @@ const handleSMEPlugWebhook = async (req, res) => {
                 ]
             );
 
+            // ----------------------------------
+            // MARK TRANSACTION FAILED
+            // ----------------------------------
+
             await client.query(
                 `UPDATE transactions
-                 SET status = 'FAILED'
-                 WHERE id = $1`,
-                [quickTxnTransaction.id]
+                 SET
+                    status = 'FAILED',
+                    payment_reference = COALESCE(
+                        payment_reference,
+                        $1
+                    ),
+                    payment_provider = 'SMEPLUG'
+                 WHERE id = $2`,
+                [
+                    providerReference,
+                    quickTxnTransaction.id,
+                ]
             );
+
+            // ----------------------------------
+            // UPDATE DATA PURCHASE
+            // ----------------------------------
+
+            if (service === "DATA") {
+                await client.query(
+                    `UPDATE data_purchases
+                     SET status = 'FAILED'
+                     WHERE reference = $1`,
+                    [customerReference]
+                );
+            }
+
+            // ----------------------------------
+            // FAILURE NOTIFICATION
+            // ----------------------------------
+
+            const failureTitle =
+                service === "DATA"
+                    ? "Data Purchase Failed"
+                    : "Airtime Purchase Failed";
+
+            const failureMessage =
+                service === "DATA"
+                    ? `Your ₦${Number(
+                        quickTxnTransaction.amount
+                    ).toLocaleString()} data purchase failed. Your wallet has been refunded.`
+                    : `Your ₦${Number(
+                        quickTxnTransaction.amount
+                    ).toLocaleString()} airtime purchase failed. Your wallet has been refunded.`;
 
             await client.query(
                 `INSERT INTO notifications
@@ -167,10 +248,8 @@ const handleSMEPlugWebhook = async (req, res) => {
                 VALUES ($1,$2,$3)`,
                 [
                     quickTxnTransaction.receiver_id,
-                    "Airtime Purchase Failed",
-                    `Your ₦${Number(
-                        quickTxnTransaction.amount
-                    ).toLocaleString()} airtime purchase failed. Your wallet has been refunded.`,
+                    failureTitle,
+                    failureMessage,
                 ]
             );
 
@@ -189,13 +268,18 @@ const handleSMEPlugWebhook = async (req, res) => {
         }
 
         // ======================================
-        // SUCCESS
+        // SUCCESSFUL TRANSACTION
         // ======================================
 
         if (
             normalizedStatus === "success" ||
             normalizedStatus === "successful"
         ) {
+
+            // ----------------------------------
+            // MARK TRANSACTION SUCCESS
+            // ----------------------------------
+
             await client.query(
                 `UPDATE transactions
                  SET
@@ -212,6 +296,30 @@ const handleSMEPlugWebhook = async (req, res) => {
                 ]
             );
 
+            // ----------------------------------
+            // UPDATE DATA PURCHASE
+            // ----------------------------------
+
+            if (service === "DATA") {
+
+                await client.query(
+                    `UPDATE data_purchases
+                     SET
+                        status = 'SUCCESS'
+                     WHERE reference = $1`,
+                    [customerReference]
+                );
+            }
+
+            // ----------------------------------
+            // SUCCESS NOTIFICATION
+            // ----------------------------------
+
+            const successTitle =
+                service === "DATA"
+                    ? "Data Purchase Successful"
+                    : "Airtime Purchase Successful";
+
             await client.query(
                 `INSERT INTO notifications
                 (
@@ -222,15 +330,19 @@ const handleSMEPlugWebhook = async (req, res) => {
                 VALUES ($1,$2,$3)`,
                 [
                     quickTxnTransaction.receiver_id,
-                    "Airtime Purchase Successful",
+                    successTitle,
                     `${quickTxnTransaction.description} was successful.`,
                 ]
             );
 
+            // ----------------------------------
+            // CASHBACK
+            // ----------------------------------
+
             const cashback =
                 await giveCashback(
                     quickTxnTransaction.receiver_id,
-                    quickTxnTransaction.type,
+                    service,
                     Number(
                         quickTxnTransaction.amount
                     ),
@@ -250,6 +362,11 @@ const handleSMEPlugWebhook = async (req, res) => {
             );
 
             console.log(
+                "Service:",
+                service
+            );
+
+            console.log(
                 "Cashback:",
                 cashback
             );
@@ -262,6 +379,7 @@ const handleSMEPlugWebhook = async (req, res) => {
                     reference:
                         customerReference,
                     providerReference,
+                    service,
                     cashback,
                     beneficiary,
                     type,
@@ -292,7 +410,9 @@ const handleSMEPlugWebhook = async (req, res) => {
     } catch (error) {
 
         try {
-            await client.query("ROLLBACK");
+            await client.query(
+                "ROLLBACK"
+            );
         } catch (rollbackError) {
             console.error(
                 "Webhook rollback error:",

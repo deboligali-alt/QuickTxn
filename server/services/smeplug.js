@@ -36,6 +36,50 @@ const getDataPlans = async () => {
     return data;
 };
 
+
+// ======================================
+// PURCHASE DATA
+// ======================================
+const buyData = async ({
+    networkId,
+    planId,
+    phone,
+    reference,
+}) => {
+
+    const payload = {
+        network_id: Number(networkId),
+        plan_id: Number(planId),
+        phone: String(phone),
+        customer_reference: String(reference),
+    };
+
+    console.log(
+        "SMEPLUG DATA REQUEST:",
+        payload
+    );
+
+    const response = await smeplug.post(
+        "/data/purchase",
+        payload
+    );
+
+    console.log(
+        "SMEPLUG DATA STATUS:",
+        response.status
+    );
+
+    console.log(
+        "SMEPLUG DATA RESPONSE:",
+        response.data
+    );
+
+    return {
+        httpStatus: response.status,
+        data: response.data,
+    };
+};
+
 // ======================================
 // PURCHASE AIRTIME
 // ======================================
@@ -94,6 +138,7 @@ module.exports = {
     getBalance,
     getNetworks,
     getDataPlans,
+    buyData,
     buyAirtime,
     getTransaction,
 };

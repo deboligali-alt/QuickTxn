@@ -1,5 +1,6 @@
 const {
     buyAirtime,
+    buyData,
     getTransaction,
 } = require("./smeplug");
 const { pool } = require("../config/db");
@@ -273,23 +274,172 @@ const getDataPlansVTU = async (network) => {
 // ======================================
 // DATA PURCHASE
 // ======================================
+// ======================================
+// LIVE DATA (SMEPLUG)
+// ======================================
 const purchaseDataVTU = async ({
     network,
-    planCode,
+    planId,
     phone,
-    amount,
     reference,
 }) => {
-    return {
-        success: false,
-        provider: "SMEPLUG",
-        message: "Live data endpoint not connected yet.",
-        network,
-        planCode,
-        phone,
-        amount,
-        reference,
+
+    const networkMap = {
+        MTN: 1,
+        AIRTEL: 2,
+        "9MOBILE": 3,
+        T2: 3,
+        GLO: 4,
     };
+
+    const normalizedNetwork =
+        String(network || "").toUpperCase();
+
+    const networkId =
+        networkMap[normalizedNetwork];
+
+    console.log("DATA VTU INPUT:", {
+        network: normalizedNetwork,
+        networkId,
+        planId,
+        phone,
+        reference,
+    });
+
+    if (!networkId) {
+        return {
+            success: false,
+            provider: "SMEPLUG",
+            message:
+                `Unsupported network: ${network}`,
+        };
+    }
+
+    if (!planId) {
+        return {
+            success: false,
+            provider: "SMEPLUG",
+            message:
+                "Data plan ID is required.",
+        };
+    }
+
+    if (!phone) {
+        return {
+            success: false,
+            provider: "SMEPLUG",
+            message:
+                "Phone number is required.",
+        };
+    }
+
+    if (!reference) {
+        return {
+            success: false,
+            provider: "SMEPLUG",
+            message:
+                "Transaction reference is required.",
+        };
+    }
+
+    try {
+
+        const response = await buyData({
+            networkId,
+            planId,
+            phone,
+            reference,
+        });
+
+        console.log(
+            "========== SMEPLUG DATA =========="
+        );
+
+        console.log(
+            JSON.stringify(
+                response,
+                null,
+                2
+            )
+        );
+
+        console.log(
+            "=================================="
+        );
+
+        if (
+            response.httpStatus >= 200 &&
+            response.httpStatus < 300 &&
+            response.data?.status === true
+        ) {
+            return {
+                success: true,
+                provider: "SMEPLUG",
+                reference,
+                providerReference:
+                    response.data.data?.reference ||
+                    null,
+                pendingVerification: true,
+                raw: response.data,
+            };
+        }
+
+        return {
+            success: false,
+            provider: "SMEPLUG",
+            uncertain: false,
+            message:
+                response.data?.msg ||
+                "SMEPlug data request failed.",
+            reference,
+            raw: response.data,
+        };
+
+    } catch (error) {
+
+        const providerError =
+            error.response?.data;
+
+        console.error(
+            "SMEPLUG DATA ERROR:",
+            providerError ||
+            error.message
+        );
+
+        // ======================================
+        // DEFINITIVE PROVIDER REJECTION
+        // ======================================
+        if (
+            providerError?.status === false &&
+            providerError?.msg
+        ) {
+            return {
+                success: false,
+                provider: "SMEPLUG",
+                uncertain: false,
+                message: providerError.msg,
+                reference,
+                raw: providerError,
+            };
+        }
+
+        // ======================================
+        // PROVIDER RESPONSE IS UNKNOWN
+        // ======================================
+        return {
+            success: false,
+            provider: "SMEPLUG",
+            uncertain: true,
+            message:
+                "Unable to confirm SMEPlug data transaction status.",
+            reference,
+            raw:
+                providerError ||
+                null,
+            error:
+                error.message,
+        };
+    }
 };
 
 module.exports = {

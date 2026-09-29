@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
     Wifi,
@@ -24,23 +24,14 @@ const networks = [
     { id: "9MOBILE", name: "9mobile" },
 ];
 
-const categoryOrder = [
-    "DAILY",
-    "NIGHT",
-    "WEEKLY",
-    "MONTHLY",
-    "SPECIAL",
-    "SME",
-    "VOICE",
-];
 
 interface DataPlan {
     id: number;
-    network: string;
-    plan_name: string;
-    plan_code: string;
-    amount: number;
-    category: string;
+    name: string;
+    price: number;
+    dispense_method: string;
+    input_type: number;
+    telco_price: number;
 }
 
 export default function DataPage() {
@@ -49,7 +40,6 @@ export default function DataPage() {
     const [network, setNetwork] = useState("MTN");
     const [phone, setPhone] = useState("");
     const [plans, setPlans] = useState<DataPlan[]>([]);
-    const [category, setCategory] = useState("DAILY");
     const [selectedPlan, setSelectedPlan] =
         useState<DataPlan | null>(null);
     const [pin, setPin] = useState("");
@@ -61,18 +51,11 @@ export default function DataPage() {
 
         try {
             const res = await getDataPlans(token, selectedNetwork);
-            const data: DataPlan[] = res.data || [];
+            const data: DataPlan[] = (res.data || []).filter(
+                (plan: DataPlan) => Number(plan.price) > 0
+            );
 
             setPlans(data);
-
-            const hasDaily = data.some(
-                (p) => p.category === "DAILY"
-            );
-
-            setCategory(
-                hasDaily ? "DAILY" : data[0]?.category || "MONTHLY"
-            );
-
             setSelectedPlan(null);
         } catch {
             toast.error("Unable to load data plans");
@@ -82,21 +65,6 @@ export default function DataPage() {
     useEffect(() => {
         loadPlans("MTN");
     }, []);
-
-    const groupedPlans = useMemo(() => {
-        const groups: Record<string, DataPlan[]> = {};
-
-        plans.forEach((plan) => {
-            if (!groups[plan.category]) {
-                groups[plan.category] = [];
-            }
-            groups[plan.category].push(plan);
-        });
-
-        return groups;
-    }, [plans]);
-
-    const visiblePlans = groupedPlans[category] || [];
 
     const buyData = async () => {
         if (!phone || !selectedPlan || pin.length !== 4) {
@@ -109,22 +77,17 @@ export default function DataPage() {
 
         try {
             setLoading(true);
-
-            const res = await purchaseData(token, {
+            await purchaseData(token, {
                 network,
-                planCode: selectedPlan.plan_code,
+                planId: selectedPlan.id,
                 phoneNumber: phone,
                 pin,
             });
 
-            sessionStorage.setItem("payment_success", "true");
-            sessionStorage.setItem(
-                "cashback_amount",
-                String(res.data.cashback || 0)
+            toast.success(
+                "Data purchase request received. Processing..."
             );
-            sessionStorage.setItem("refresh_dashboard", "true");
 
-            toast.success("Data purchased successfully");
             router.push("/dashboard");
         } catch (err: any) {
             toast.error(
@@ -191,8 +154,8 @@ export default function DataPage() {
                                             loadPlans(item.id);
                                         }}
                                         className={`rounded-2xl border p-2.5 sm:p-3 transition ${network === item.id
-                                                ? "border-blue-600 bg-blue-50"
-                                                : "border-gray-200 bg-white"
+                                            ? "border-blue-600 bg-blue-50"
+                                            : "border-gray-200 bg-white"
                                             }`}
                                     >
                                         <div className="flex flex-col items-center">
@@ -217,83 +180,32 @@ export default function DataPage() {
                             </div>
                         </div>
 
-                        {/* Phone Number */}
-                        <div className="mt-6">
-                            <label className="mb-2 block text-sm font-bold text-gray-700">
-                                Phone Number
-                            </label>
 
-                            <div className="relative">
-                                <Phone
-                                    size={18}
-                                    className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
-                                />
 
-                                <input
-                                    value={phone}
-                                    maxLength={11}
-                                    inputMode="numeric"
-                                    placeholder="08012345678"
-                                    onChange={(e) =>
-                                        setPhone(
-                                            e.target.value.replace(/\D/g, "")
-                                        )
-                                    }
-                                    className="h-12 w-full rounded-xl border border-gray-200 bg-white pl-11 pr-4 outline-none focus:border-blue-500"
-                                />
-                            </div>
-                        </div>
-                        {/* Categories */}
-                        <div className="mt-6">
-                            <label className="mb-3 block text-sm font-bold text-gray-700">
-                                Data Categories
-                            </label>
-
-                            <div className="flex flex-wrap gap-2">
-                                {categoryOrder
-                                    .filter((cat) => groupedPlans[cat]?.length)
-                                    .map((cat) => (
-                                        <button
-                                            key={cat}
-                                            onClick={() => {
-                                                setCategory(cat);
-                                                setSelectedPlan(null);
-                                            }}
-                                            className={`rounded-full px-4 py-2 text-xs sm:text-sm font-bold transition ${category === cat
-                                                    ? "bg-blue-600 text-white"
-                                                    : "bg-gray-100 text-gray-700"
-                                                }`}
-                                        >
-                                            {cat === "SME" ? "SME Data" : cat}
-                                        </button>
-                                    ))}
-                            </div>
-                        </div>
 
                         {/* Plans */}
                         <div className="mt-6">
                             <h3 className="mb-4 text-lg font-extrabold text-sky-600">
-                                {category === "SME"
-                                    ? "SME Data Plans"
-                                    : `${category} Plans`}
+                                Live Data Plans
+
                             </h3>
 
                             <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                                {visiblePlans.map((plan) => (
+                                {plans.map((plan) => (
                                     <button
                                         key={plan.id}
                                         onClick={() => setSelectedPlan(plan)}
                                         className={`rounded-2xl border border-gray-100 p-3 sm:p-4 text-left transition ${selectedPlan?.id === plan.id
-                                                ? "border-blue-500 bg-blue-50 shadow-sm"
-                                                : "bg-white hover:border-blue-200"
+                                            ? "border-blue-500 bg-blue-50 shadow-sm"
+                                            : "bg-white hover:border-blue-200"
                                             }`}
                                     >
                                         <p className="min-h-[36px] text-xs sm:text-sm font-semibold text-gray-700">
-                                            {plan.plan_name}
+                                            {plan.name}
                                         </p>
 
                                         <p className="mt-2 text-lg sm:text-xl font-extrabold text-sky-600">
-                                            ₦{Number(plan.amount).toLocaleString()}
+                                            ₦{Number(plan.price).toLocaleString()}
                                         </p>
                                     </button>
                                 ))}
@@ -365,7 +277,7 @@ export default function DataPage() {
                                     </p>
 
                                     <p className="mt-2 text-sm font-bold text-gray-800">
-                                        {selectedPlan?.plan_name ||
+                                        {selectedPlan?.name ||
                                             "No plan selected"}
                                     </p>
                                 </div>
@@ -379,7 +291,7 @@ export default function DataPage() {
                                         ₦
                                         {selectedPlan
                                             ? Number(
-                                                selectedPlan.amount
+                                                selectedPlan.price
                                             ).toLocaleString()
                                             : "0"}
                                     </h2>
