@@ -50,34 +50,100 @@ const buyData = async ({
     const payload = {
         network_id: Number(networkId),
         plan_id: Number(planId),
-        phone: String(phone),
+        phone: String(phone).trim(),
         customer_reference: String(reference),
     };
 
     console.log(
-        "SMEPLUG DATA REQUEST:",
-        payload
-    );
-
-    const response = await smeplug.post(
-        "/data/purchase",
-        payload
+        "========== SMEPLUG DATA REQUEST =========="
     );
 
     console.log(
-        "SMEPLUG DATA STATUS:",
-        response.status
+        "network_id:",
+        payload.network_id
     );
 
     console.log(
-        "SMEPLUG DATA RESPONSE:",
-        response.data
+        "plan_id:",
+        payload.plan_id
     );
 
-    return {
-        httpStatus: response.status,
-        data: response.data,
-    };
+    console.log(
+        "phone:",
+        payload.phone
+    );
+
+    console.log(
+        "customer_reference:",
+        payload.customer_reference
+    );
+
+    console.log(
+        "FULL PAYLOAD:",
+        JSON.stringify(payload)
+    );
+
+    console.log(
+        "=========================================="
+    );
+
+    try {
+
+        const response = await smeplug.post(
+            "/data/purchase",
+            payload
+        );
+
+        console.log(
+            "SMEPLUG DATA STATUS:",
+            response.status
+        );
+
+        console.log(
+            "SMEPLUG DATA RESPONSE:",
+            JSON.stringify(
+                response.data,
+                null,
+                2
+            )
+        );
+
+        return {
+            httpStatus: response.status,
+            data: response.data,
+        };
+
+    } catch (error) {
+
+        console.error(
+            "========== SMEPLUG DATA ERROR =========="
+        );
+
+        console.error(
+            "HTTP STATUS:",
+            error.response?.status
+        );
+
+        console.error(
+            "RESPONSE:",
+            JSON.stringify(
+                error.response?.data,
+                null,
+                2
+            )
+        );
+
+        console.error(
+            "REQUEST PAYLOAD:",
+            JSON.stringify(payload)
+        );
+
+        console.error(
+            "========================================"
+        );
+
+        throw error;
+    }
 };
 
 // ======================================
