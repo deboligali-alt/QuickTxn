@@ -11,6 +11,51 @@ const { giveCashback } = require("../services/cashbackService");
 const {
     purchaseDataVTU,
 } = require("../services/vtuService");
+
+// ========================================
+// QUICKTXN ALLOWED DATA CATEGORIES
+// Normal SME + Social + Awoof
+// ========================================
+const isAllowedDataPlan = (plan) => {
+    const name = String(plan?.name || "").toLowerCase();
+
+    // Explicitly allowed categories
+    const isSocial =
+        name.includes("[social]") ||
+        name.includes("[soclai]"); // SMEPlug typo
+
+    const isAwoof =
+        name.includes("[awoof]") ||
+        name.includes("awoof");
+
+    // Categories QuickTxn should NOT expose
+    const restrictedKeywords = [
+        "[gifting]",
+        "[corporate]",
+        "thryvedata",
+        "broadband",
+        "fibre",
+        "unlimited",
+        "postpaid",
+        "[special]",
+    ];
+
+    const isRestricted = restrictedKeywords.some(
+        (keyword) => name.includes(keyword)
+    );
+
+    if (isRestricted) {
+        return false;
+    }
+
+    // Social and Awoof are allowed
+    if (isSocial || isAwoof) {
+        return true;
+    }
+
+    // Normal data plans are allowed
+    return true;
+};
 // ========================================
 // PURCHASE DATA - SMEPLUG
 // ========================================
@@ -21,7 +66,7 @@ const purchaseData = async (req, res) => {
         phoneNumber,
         pin,
 
-        
+
     } = req.body;
 
     // ======================================
@@ -109,8 +154,8 @@ const purchaseData = async (req, res) => {
         // ======================================
         plan = plans.find(
             (item) =>
-                String(item.id) ===
-                String(planId)
+                String(item.id) === String(planId) &&
+                isAllowedDataPlan(item)
         );
 
         if (!plan) {
@@ -476,12 +521,16 @@ const getDataPlans = async (req, res) => {
         const plans =
             response.data?.[networkId] || [];
 
+        const allowedPlans = plans.filter(
+            isAllowedDataPlan
+        );
+
         return res.json({
             success: true,
             network: normalizedNetwork,
             networkId,
-            count: plans.length,
-            data: plans,
+            count: allowedPlans.length,
+            data: allowedPlans,
         });
 
     } catch (error) {
