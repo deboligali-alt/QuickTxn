@@ -67,7 +67,7 @@ export default function AdminUsersPage() {
             if (!token) return;
 
             const response = await getAllUsers(token);
-            setUsers(response.users);
+            setUsers(response.data);
         } catch (error) {
             console.error(error);
         } finally {
@@ -82,11 +82,15 @@ export default function AdminUsersPage() {
     const handleView = async (id: string) => {
         try {
             const token = localStorage.getItem("token");
+
             if (!token) return;
 
             const response = await getUser(token, id);
+
             setSelectedUser(response.data);
         } catch (error: any) {
+            console.error("VIEW USER ERROR:", error);
+
             setStatus("FAILED");
             setMessage(
                 error.response?.data?.message ||
@@ -231,10 +235,10 @@ export default function AdminUsersPage() {
                 {message && (
                     <div
                         className={`mb-5 rounded-xl border px-4 py-3 text-sm font-medium ${status === "SUCCESS"
-                                ? "border-green-200 bg-green-50 text-green-700"
-                                : status === "FAILED"
-                                    ? "border-red-200 bg-red-50 text-red-700"
-                                    : "border-yellow-200 bg-yellow-50 text-yellow-700"
+                            ? "border-green-200 bg-green-50 text-green-700"
+                            : status === "FAILED"
+                                ? "border-red-200 bg-red-50 text-red-700"
+                                : "border-yellow-200 bg-yellow-50 text-yellow-700"
                             }`}
                     >
                         {message}
@@ -297,8 +301,8 @@ export default function AdminUsersPage() {
                                         <td className="px-5 py-4">
                                             <span
                                                 className={`rounded-full px-3 py-1 text-xs font-semibold ${user.is_active
-                                                        ? "bg-green-100 text-green-700"
-                                                        : "bg-red-100 text-red-700"
+                                                    ? "bg-green-100 text-green-700"
+                                                    : "bg-red-100 text-red-700"
                                                     }`}
                                             >
                                                 {user.is_active ? "Active" : "Blocked"}

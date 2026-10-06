@@ -10,6 +10,10 @@ export const getAllUsers = async (token: string) => {
     return response.data;
 };
 
+// ========================================
+// Get Single User
+// ========================================
+
 export const getUser = async (
     token: string,
     id: string

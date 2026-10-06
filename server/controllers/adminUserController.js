@@ -41,94 +41,35 @@ const getAllUsers = async (req, res) => {
 // Get Single User
 // ========================================
 const getUser = async (req, res) => {
-
     const { id } = req.params;
-
+    console.log("🔥 GET USER HIT:", id);
     try {
-
-        // User Details
-        const userResult = await pool.query(
-            `
-            SELECT
-                id,
-                full_name,
-                email,
-                phone,
-                role,
-                is_verified,
-                balance,
-                created_at
+        const result = await pool.query(`
+            SELECT id, full_name, email, phone, role, is_verified, is_active, balance, created_at
             FROM users
             WHERE id = $1
-            `,
-            [id]
-        );
+        `, [id]);
 
-        if (userResult.rows.length === 0) {
+        if (result.rows.length === 0) {
             return res.status(404).json({
                 success: false,
-                message: "User not found.",
+                message: "User not found."
             });
         }
 
-        // Total Transactions
-        const transactionResult = await pool.query(
-            `
-            SELECT COUNT(*) AS total_transactions
-            FROM transactions
-            WHERE sender_id = $1
-               OR receiver_id = $1
-            `,
-            [id]
-        );
-
-        // Airtime Swaps
-        const airtimeSwapResult = await pool.query(
-            `
-            SELECT COUNT(*) AS total_airtime_swaps
-            FROM airtime_swaps
-            WHERE user_id = $1
-            `,
-            [id]
-        );
-
-        // Data Purchases
-        const dataPurchaseResult = await pool.query(
-            `
-            SELECT COUNT(*) AS total_data_purchases
-            FROM data_purchases
-            WHERE user_id = $1
-            `,
-            [id]
-        );
-
         return res.status(200).json({
             success: true,
-            data: {
-                ...userResult.rows[0],
-                total_transactions: Number(
-                    transactionResult.rows[0].total_transactions
-                ),
-                total_airtime_swaps: Number(
-                    airtimeSwapResult.rows[0].total_airtime_swaps
-                ),
-                total_data_purchases: Number(
-                    dataPurchaseResult.rows[0].total_data_purchases
-                ),
-            },
+            data: result.rows[0]
         });
 
     } catch (error) {
-
-        console.error("Get User Error:", error);
+        console.error("GET USER ERROR:", error);
 
         return res.status(500).json({
             success: false,
-            message: "Server Error",
+            message: "Unable to load user."
         });
-
     }
-
 };
 // ========================================
 // Suspend / Activate User

@@ -55,7 +55,7 @@ const adminAirtimeRateRoutes = require("./routes/adminAirtimeRateRoutes");
 const adminUserRoutes = require("./routes/adminUserRoutes");
 const adminTransactionRoutes = require("./routes/adminTransactionRoutes");
 const adminAirtimeSwapRoutes = require("./routes/adminAirtimeSwapRoutes");
-
+const smeplugDiagnosticRoutes = require("./routes/smeplugDiagnosticRoutes");
 const biometricRoutes = require("./routes/biometricRoutes");
 const webhookRoutes = require("./routes/webhookRoutes");
 
@@ -173,7 +173,10 @@ app.use("/api/public", publicRoutes);
 // ==========================
 // Admin
 // ==========================
-
+app.use(
+    "/api/admin/smeplug/diagnostic",
+    smeplugDiagnosticRoutes
+);
 app.use("/api/admin", adminRoutes);
 app.use("/api/admin/data-plans", adminDataPlanRoutes);
 app.use("/api/admin/airtime-rates", adminAirtimeRateRoutes);
